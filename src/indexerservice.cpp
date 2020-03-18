@@ -37,6 +37,7 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getPluginList", IndexerService::onPluginListGet, LUNA_METHOD_FLAGS_NONE },
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
     { "getPlaybackUri", IndexerService::onGetPlaybackUri, LUNA_METHOD_FLAGS_NONE },
+    {NULL, NULL}
 };
 
 pbnjson::JSchema IndexerService::pluginGetSchema_(pbnjson::JSchema::fromString(
