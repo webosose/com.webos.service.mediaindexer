@@ -1,4 +1,4 @@
-// Copyright (c) 2019 LG Electronics, Inc.
+// Copyright (c) 2019-2020 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -127,9 +127,11 @@ bool MediaIndexer::put(const std::string &uri)
 bool MediaIndexer::setDetect(bool on)
 {
     std::shared_lock lock(lock_);
-
-    for (auto const & [uri, plg] : plugins_)
+    LOG_DEBUG("setDetect Start");
+    for (auto const & [uri, plg] : plugins_) {
+        LOG_DEBUG("uri : %s",uri.c_str());
         setDetect(on, uri);
+    }
 
     return true;
 }
