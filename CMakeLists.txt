@@ -21,7 +21,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include(webOS/webOS)
 webos_modules_init(1 0 0 QUALIFIER RC7)
-webos_component(0 0 1)
+webos_component(1 0 0)
 
 # general compiler setup
 webos_add_compiler_flags(ALL -std=c++17 -Wall -Wextra
