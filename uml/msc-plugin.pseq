@@ -1,0 +1,41 @@
+box "External Services"
+    database DB8
+    entity Application
+end box
+
+box "Media Indexer"
+    participant MediaIndexer
+    participant MscPlugin
+    participant MediaParser
+end box
+
+== Initialization ==
+Application -> MediaIndexer: Request plugin
+MediaIndexer --> Application: Confirm plugin instantiation
+Application -> MediaIndexer: Enable device detection on plugin
+MediaIndexer -> MscPlugin: Enable detection mode
+Application -> MediaIndexer: Enable device media scan on plugin
+MediaIndexer -> MscPlugin: Enable scan mode
+Application -> DB8: Subscribe for updates on device DB
+...
+
+== Device detect action ==
+MscPlugin -> MediaIndexer: New device notification
+MediaIndexer -> DB8: Create entry in device database
+DB8 -> Application: Notify about device database change
+Application -> DB8: Request all audio items from new device
+DB8 --> Application: Receive all known audio media items
+...
+== Media Item detect action (already known media) ==
+MscPlugin -> MediaIndexer: New media item detected (with minimal meta data)
+MediaIndexer -> DB8: Media item already available from database?
+DB8 --> MediaIndexer: Media already available, drop media item
+...
+== Media Item detect action (new media) ==
+MscPlugin -> MediaIndexer: New media item detected (with minimal meta data)
+MediaIndexer -> DB8: Media item already available from database?
+DB8 --> MediaIndexer: Media not yet available
+MediaIndexer -> MediaParser: Parse media item for additional meta data
+MediaParser --> MediaIndexer: Media item with full meta data
+MediaIndexer -> DB8: New media item of type audio
+DB8 -> Application: Receive new audio media item

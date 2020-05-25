@@ -1,0 +1,10 @@
+# emacs c++ mode on .h files
+.dir-locals.el
+
+# cmake shadow builds
+BUILD
+build
+
+# webos local builds
+oe-*
+singletask.lock

@@ -1,0 +1,2 @@
+* Allow getPlugin/putPlugin with wildcard '*'
+* Allow getPlugin/putPlugin with media type, e. g. audio or images instead of device type

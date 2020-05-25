@@ -1,0 +1,10 @@
+{
+    "com.webos.service.mediaindexer.control": [
+        "com.webos.service.mediaindexer/getPlugin",
+        "com.webos.service.mediaindexer/putPlugin",
+        "com.webos.service.mediaindexer/getPluginList",
+        "com.webos.service.mediaindexer/runDetect",
+        "com.webos.service.mediaindexer/stopDetect",
+        "com.webos.service.mediaindexer/getDeviceList"
+    ]
+}

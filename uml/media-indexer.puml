@@ -1,0 +1,158 @@
+'============================================
+' Description
+'============================================
+'package "Legend" {
+'        class A {
+'              This is a class
+'        }
+'        interface B {
+'              This is an interface
+'        }
+'        class C #red {
+'              This class is not yet implemented
+'        }
+'        B <.. A : <<uses>>
+'        A <|-- B : <<inherits>>
+'        A o-- B : <<aggregates>>
+'}
+
+'============================================
+' MediaIndexer
+'============================================
+class IndexerService {
+      LUNA API Provider
+}
+
+class MediaIndexer {
+      Main class
+      --
+      plugins: List of Plugin
+}
+MediaIndexer ..> Plugins.PluginFactory
+MediaIndexer o-- IndexerService
+MediaIndexer ..> MediaParser
+MediaIndexer ..> com.webos.service.db.DeviceDb
+
+'============================================
+' Device and MediaItem
+'============================================
+package Media #DDDDDD {
+        interface IDeviceObserver {
+	         Device notification interface
+	}
+	IDeviceObserver <|-- .MediaIndexer
+	IDeviceObserver <|-- com.webos.service.db.DeviceDb
+
+	class Device {
+	      Describes a devices that carries media
+	}
+	Device ..> IDeviceObserver
+	Device ..> IMediaItemObserver
+	Device ..> MediaItem
+
+        interface IMediaItemObserver {
+	         MediaItem notification interface
+	}
+	IMediaItemObserver <|-- .MediaIndexer
+
+        class MediaItem {
+	      Media item abstraction with metadata
+	      --
+	      device: Device
+	}
+}
+
+'============================================
+' MediaParser
+'============================================
+class MediaParser {
+      Extracts meta data from MediaItem
+}
+MediaParser ..> MediaItem
+MediaParser ..> MetaDataExtractor
+
+class MetaDataExtractor {
+      Use 3rd party framework for meta data extraction
+      --
+      GStreamer
+}
+
+'============================================
+' DbConnector
+'============================================
+package com.webos.service.db #BBBBBB {
+        class DbConnector {
+              LUNA client to com.webos.service.db
+        }
+
+        class DeviceDb {
+              LUNA client to device database
+        }
+        DbConnector <|-- DeviceDb
+        DeviceDb ..> Plugins.PluginFactory
+
+        class MediaDb {
+              LUNA client to media database
+        }
+        DbConnector <|-- MediaDb
+}
+
+'============================================
+' Plugins and Factory
+'============================================
+package Plugins #DDDDDD {
+	'============================================
+	' PdmListener
+	'============================================
+	package com.webos.service.pdm #BBBBBB {
+		class PdmListener {
+		      LUNA client to com.webos.service.pdm
+		}
+		PdmListener ..> IPdmObserver
+		PdmListener "1" o-- "0..*" PdmDevice
+	
+		class PdmDevice {
+		      Storage class for com.webos.service.pdm devices.
+		}
+	
+		interface IPdmObserver {
+		         PDM notification interface
+		}
+		IPdmObserver <|-- Plugins.Mtp
+		IPdmObserver <|-- Plugins.Msc
+	}
+
+        class PluginFactory {
+	      Creates Plugins
+	}
+	PluginFactory ..> Plugin
+        
+	class Plugin {
+	      Plugin base class
+              --
+              devices: List of Device
+	}
+	Plugin <|-- Mtp
+	Plugin <|-- Upnp
+	Plugin <|-- Msc
+	Plugin <|-- Storage
+
+	class Mtp {
+                Use libmtp for media item detection
+        }
+
+        class Msc {
+              Use file-tree-walk for media item detection
+        }
+
+        class Storage {
+              Use file-tree-walk for media item detection
+        }
+
+        class Upnp {
+              Use libupnp for device detection
+              --
+              Use libupnp for media item detection
+        }
+}
+ 

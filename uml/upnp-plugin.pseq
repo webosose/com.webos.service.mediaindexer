@@ -1,0 +1,43 @@
+box "External Services"
+    database DB8
+    entity Application
+end box
+
+box "Media Indexer"
+    participant MediaIndexer
+    participant UpnpPlugin
+    participant MediaParser
+end box
+
+== Initialization ==
+Application -> MediaIndexer: Request plugin
+MediaIndexer --> Application: Confirm plugin instantiation
+Application -> MediaIndexer: Enable device detection on plugin
+MediaIndexer -> UpnpPlugin: Enable detection mode
+Application -> MediaIndexer: Enable device media scan on plugin
+MediaIndexer -> UpnpPlugin: Enable scan mode
+Application -> DB8: Subscribe for updates on device DB
+...
+
+== Device detect action ==
+UpnpPlugin -> MediaIndexer: New device notification
+MediaIndexer -> DB8: Create entry in device database
+DB8 -> Application: Notify about device database change
+Application -> DB8: Request all audio items from new device
+DB8 --> Application: Receive all known audio media items
+...
+== Media Item detection (already know media) ==
+UpnpPlugin -> MediaIndexer: New media item detected
+MediaIndexer -> DB8: Media item already available from database?
+DB8 --> MediaIndexer: Media already available, drop media item
+...
+== Media Item detection (new media) ==
+UpnpPlugin -> MediaIndexer: New media item detected
+MediaIndexer -> DB8: Media item already available from database?
+DB8 --> MediaIndexer: Media not yet available
+MediaIndexer -> MediaParser: Parse media item for additional meta data
+MediaParser -> UpnpPlugin: Let the plugin parse the meta data
+UpnpPlugin --> MediaParser: Media item with parsed meta data
+MediaParser --> MediaIndexer: Media item
+MediaIndexer -> DB8: New media item of type audio
+DB8 -> Application: Receive new audio media item

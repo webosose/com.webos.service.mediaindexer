@@ -1,0 +1,30 @@
+box "External Services"
+    database DB8
+    entity Application
+end box
+
+box "Media Indexer"
+    participant MediaIndexer
+    participant UpnpPlugin
+end box
+
+== Initialization ==
+Application -> MediaIndexer: Request plugin
+MediaIndexer --> Application: Confirm plugin instantiation
+Application -> MediaIndexer: Enable device detection on plugin
+MediaIndexer -> UpnpPlugin: Enable detection mode
+Application -> MediaIndexer: Enable device media scan on plugin
+MediaIndexer -> UpnpPlugin: Enable scan mode
+Application -> DB8: Subscribe for updates on device DB
+...
+
+== Receive media item ==
+Application -> DB8: Query database for media items
+DB8 --> Application: Media items that matches the query
+DB8 --> Application: Media items that matches the query
+...
+== Resolv media item uri to playback uri ==
+Application -> MediaIndexer: Request playback uri for media item uri
+MediaIndexer -> UpnpPlugin: Request to resolv media item uri
+UpnpPlugin --> MediaIndexer: Playback uri (only valid while device remains available)
+MediaIndexer --> Application: Playback uri if available
