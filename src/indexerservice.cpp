@@ -1,4 +1,4 @@
-// Copyright (c) 2019 LG Electronics, Inc.
+// Copyright (c) 2019-2020 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getPluginList", IndexerService::onPluginListGet, LUNA_METHOD_FLAGS_NONE },
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
     { "getPlaybackUri", IndexerService::onGetPlaybackUri, LUNA_METHOD_FLAGS_NONE },
+    {NULL, NULL}
 };
 
 pbnjson::JSchema IndexerService::pluginGetSchema_(pbnjson::JSchema::fromString(
@@ -371,6 +372,7 @@ bool IndexerService::detectRunStop(LSMessage *msg, bool run)
             uri.c_str());
         indexer_->setDetect(run, uri);
     } else {
+        LOG_DEBUG("setDetect Start");
         indexer_->setDetect(run);
     }
 
