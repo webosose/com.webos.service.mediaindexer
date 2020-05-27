@@ -31,7 +31,7 @@ public:
      * all media items and that they are extracted from concurrent
      * threads so be careful with member variables.
      */
-    static std::unique_ptr<IMetaDataExtractor> extractor(MediaItem::Type type);
+    static std::unique_ptr<IMetaDataExtractor> extractor(MediaItem::Type type, std::string &ext);
     virtual ~IMetaDataExtractor() {};
 
     /**

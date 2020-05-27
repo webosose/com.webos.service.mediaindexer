@@ -20,12 +20,22 @@
 #include "gstreamerextractor.h"
 #endif
 
+#if defined HAS_TAGLIB
+#include "taglibextractor.h"
+#endif
+
 std::unique_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
-    MediaItem::Type type) {
+    MediaItem::Type type, std::string &ext) {
+#if defined HAS_TAGLIB
+    if (type == MediaItem::Type::Audio && ext.compare(TAGLIB_EXT_MP3) == 0) {
+        std::unique_ptr<IMetaDataExtractor>
+            extractor(static_cast<IMetaDataExtractor *>(new TaglibExtractor()));
+        return extractor;
+    }
+#endif
 #if defined HAS_GSTREAMER
-    GStreamerExtractor *e = new GStreamerExtractor();
     std::unique_ptr<IMetaDataExtractor>
-        extractor(static_cast<IMetaDataExtractor *>(e));
+        extractor(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
     return extractor;
 #endif
 

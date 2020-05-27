@@ -53,8 +53,8 @@ class MediaParser
     /// Make class static data thread safe.
     static std::mutex lock_;
     /// Meta data extrator.
-    static std::map<MediaItem::Type,
-                    std::unique_ptr<IMetaDataExtractor>> extractor_;
+    static std::map<std::pair<MediaItem::Type, std::string>,
+           std::unique_ptr<IMetaDataExtractor>> extractor_;
 
     /// Do the meta data extraction.
     void extractMeta() const;

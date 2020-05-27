@@ -44,6 +44,8 @@ public:
         TotalTracks, ///< Total number of tracks in album.
         DateOfCreation, ///< Date of creation.
         Duration, ///< Media duration in seconds.
+        Year, ///< Recoding time(Year).
+        Image, ///< Attached Picture
         GeoLocLongitude, ///< Location longitude.
         GeoLocLatitude, ///< Location latitude.
         GeoLocCountry, ///< Location country code.
@@ -84,7 +86,7 @@ public:
     static std::string metaToString(MediaItem::Meta meta);
 
     /// Simplify type definition for use with std::optional.
-    typedef std::variant<std::int64_t, double, std::string> MetaData;
+    typedef std::variant<std::int64_t, double, std::int32_t, std::string> MetaData;
 
     /**
      * \brief Construct device by uri.
@@ -123,6 +125,13 @@ public:
      * \return The path.
      */
     const std::string &path() const;
+
+    /**
+     * \brief Give the file extension as set from constructor.
+     *
+     * \return The file extension.
+     */
+    const std::string &ext() const;
 
     /**
      * \brief Get the media item device.
@@ -207,6 +216,8 @@ private:
     std::string mime_;
     /// The path string.
     std::string path_;
+    /// The file extension
+    std::string ext_;
 };
 
 /// Useful when iterating over enum.

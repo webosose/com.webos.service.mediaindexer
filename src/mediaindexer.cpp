@@ -138,9 +138,11 @@ bool MediaIndexer::setDetect(bool on)
 
 bool MediaIndexer::setDetect(bool on, const std::string &uri)
 {
-    if (!hasPlugin(uri))
+    if (!hasPlugin(uri)) {
+        LOG_DEBUG("%s is not included in plugin list of mediaindexer service", uri.c_str());
         return false;
-
+    }
+    LOG_DEBUG("Plugin Found");
     {
         std::shared_lock lock(lock_);
 

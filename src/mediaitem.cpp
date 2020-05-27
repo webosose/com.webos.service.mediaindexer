@@ -90,6 +90,10 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("date_of_creation");
     case MediaItem::Meta::Duration:
         return std::string("duration");
+    case MediaItem::Meta::Year:
+        return std::string("year");
+    case MediaItem::Meta::Image:
+        return std::string("image");
     case MediaItem::Meta::GeoLocLongitude:
         return std::string("geo_location_longitude");
     case MediaItem::Meta::GeoLocLatitude:
@@ -113,7 +117,8 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     parsed_(false),
     uri_(""),
     mime_(mime),
-    path_("")
+    path_(""),
+    ext_("")
 {
     // create uri
     uri_ = device->uri();
@@ -122,7 +127,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     uri_.append(path);
 
     path_ = path;
-
+    ext_ = path_.substr(path_.find_last_of('.') + 1);
     // set the type
     for (auto type = MediaItem::Type::Audio;
          type < MediaItem::Type::EOL; ++type) {
@@ -146,6 +151,11 @@ unsigned long MediaItem::hash() const
 const std::string &MediaItem::path() const
 {
     return path_;
+}
+
+const std::string &MediaItem::ext() const
+{
+    return ext_;
 }
 
 std::shared_ptr<Device> MediaItem::device() const
@@ -179,6 +189,10 @@ void MediaItem::setMeta(Meta meta, MetaData value)
             uri_.c_str(), std::get<double>(value));
         break;
     case 2:
+        LOG_DEBUG("Setting '%s' on '%s' to '%d'", metaToString(meta).c_str(),
+            uri_.c_str(), std::get<std::int32_t>(value));
+        break;
+    case 3:
         LOG_DEBUG("Setting '%s' on '%s' to '%s'", metaToString(meta).c_str(),
             uri_.c_str(), std::get<std::string>(value).c_str());
         break;

@@ -20,19 +20,20 @@
 #include "metadataextractors/imetadataextractor.h"
 
 std::queue<std::unique_ptr<MediaParser>> MediaParser::tasks_;
-std::map<MediaItem::Type, std::unique_ptr<IMetaDataExtractor>> MediaParser::extractor_;
+std::map<std::pair<MediaItem::Type, std::string>, std::unique_ptr<IMetaDataExtractor>> MediaParser::extractor_;
 int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
 
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
     std::lock_guard<std::mutex> lock(lock_);
-
+    auto ext = mediaItem->ext();
     if (extractor_.empty()) {
         for (auto type = MediaItem::Type::Audio;
              type < MediaItem::Type::EOL; ++type) {
-            extractor_[type] =
-                std::move(IMetaDataExtractor::extractor(type));
+            LOG_DEBUG("Extractor is added for type = %d, ext = %s", type, ext.c_str());
+            std::pair<MediaItem::Type, std::string> p(type, ext);
+            extractor_[p] = std::move(IMetaDataExtractor::extractor(type, ext));
         }
     }
 
@@ -87,7 +88,15 @@ void MediaParser::extractMeta() const
     LOG_DEBUG("Media item to extract %p with parser %p", mi, this);
 
     if (useDefaultExtractor_) {
-        extractor_[mediaItem_->type()]->extractMeta(*mi);
+        std::pair<MediaItem::Type, std::string> p(mediaItem_->type(), mi->ext());
+
+        if (extractor_.find(p) != extractor_.end())
+            extractor_[p]->extractMeta(*mi);
+        else
+        {
+            LOG_ERROR(0, "Could not found valid extractor");
+            return;
+        }
     } else {
         auto plg = PluginFactory().plugin(mediaItem_->uri());
         plg->extractMeta(*mi);

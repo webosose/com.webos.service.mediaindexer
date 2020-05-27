@@ -46,6 +46,7 @@ void Plugin::unlock()
 
 void Plugin::setDeviceNotifications(IDeviceObserver *observer, bool on)
 {
+    LOG_DEBUG("setDeviceNotifications Start");
     if (on) {
         bool firstObserver = addObserver(observer);
 
@@ -64,9 +65,14 @@ void Plugin::setDeviceNotifications(IDeviceObserver *observer, bool on)
             LOG_INFO(0, "Enable device detection for: '%s'", uri_.c_str());
             runDeviceDetection(true);
         }
+        else {
+            LOG_INFO(0, "Not firstObserver, skip runDeviceDetection for: '%s'", uri_.c_str());
+        }
     } else {
+        LOG_DEBUG("removeObserver");
         removeObserver(observer);
     }
+    LOG_DEBUG("setDeviceNotifications Done");
 }
 
 const std::string &Plugin::uri() const

@@ -21,4 +21,8 @@ if (GSTREAMER_FOUND)
   list(APPEND EXTRACTORS gstreamerextractor.cpp)
 endif ()
 
+if (TAGLIB_FOUND)
+  list(APPEND EXTRACTORS taglibextractor.cpp)
+endif ()
+
 add_library(metadataextractor STATIC metadataextractor.cpp ${EXTRACTORS})

@@ -46,6 +46,16 @@ if (LUNASERVICE2_FOUND AND NOT STANDALONE)
   add_definitions(-DHAS_LUNA)
 endif ()
 
+# taglib
+pkg_check_modules(TAGLIB REQUIRED taglib)
+if (TAGLIB_FOUND)
+  include_directories(${TAGLIB_INCLUDE_DIRS})
+  link_directories(${TAGLIB_LIBRARY_DIRS})
+  webos_add_compiler_flags(ALL ${TAGLIB_CFLAGS})
+  link_libraries(${TAGLIB_LIBRARIES})
+  add_definitions(-DHAS_TAGLIB)
+endif ()
+
 # gstreamer
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 if (GSTREAMER_FOUND)
