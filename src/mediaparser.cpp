@@ -28,13 +28,11 @@ void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
     std::lock_guard<std::mutex> lock(lock_);
     auto ext = mediaItem->ext();
-    if (extractor_.empty()) {
-        for (auto type = MediaItem::Type::Audio;
-             type < MediaItem::Type::EOL; ++type) {
-            LOG_DEBUG("Extractor is added for type = %d, ext = %s", type, ext.c_str());
-            std::pair<MediaItem::Type, std::string> p(type, ext);
-            extractor_[p] = std::move(IMetaDataExtractor::extractor(type, ext));
-        }
+    auto type = mediaItem->type();
+    std::pair<MediaItem::Type, std::string> p(type, ext);
+    if (extractor_.find(p) == extractor_.end()) {
+        LOG_DEBUG("Extractor is added for type = %d, ext = %s", type, ext.c_str());
+        extractor_[p] = std::move(IMetaDataExtractor::extractor(type, ext));
     }
 
     tasks_.push(std::make_unique<MediaParser>(std::move(mediaItem)));
@@ -94,7 +92,7 @@ void MediaParser::extractMeta() const
             extractor_[p]->extractMeta(*mi);
         else
         {
-            LOG_ERROR(0, "Could not found valid extractor");
+            LOG_ERROR(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mediaItem_->type()).c_str(), mi->ext().c_str());
             return;
         }
     } else {

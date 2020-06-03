@@ -257,21 +257,27 @@ void Plugin::scan(const std::string &uri)
         for (auto &file : fs::recursive_directory_iterator(mp)) {
             if (!file.is_regular_file(err))
                 continue;
-
             // get the file content type to decide if it can become a media
             // item
-            gchar *contentType;
+            gchar *contentType = NULL;
             gboolean uncertain;
+            bool mimTypeSupported = false;
             contentType = g_content_type_guess(file.path().c_str(), NULL, 0,
                 &uncertain);
 
-            if (!contentType || uncertain) {
-                LOG_INFO(0, "None or unprecise MIME type for '%s'",
+            if (!contentType) {
+                LOG_INFO(0, "MIME type detection is failed for '%s'",
                     file.path().c_str());
                 continue;
             }
+            mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
 
-            if (MediaItem::mimeTypeSupported(contentType)) {
+            if (uncertain && !mimTypeSupported) {
+                LOG_INFO(0, "Invalid MIME type for '%s'", file.path().c_str());
+                continue;
+            }
+
+            if (mimTypeSupported) {
                 auto lastWrite = file.last_write_time();
                 auto hash = lastWrite.time_since_epoch().count();
                 MediaItemPtr mi(new MediaItem(dev,
@@ -282,8 +288,8 @@ void Plugin::scan(const std::string &uri)
             g_free(contentType);
         }
     } catch (const std::exception &ex) {
-        LOG_ERROR(0, "Exception caught while traversing through '%s'",
-            mp.c_str());
+        LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",
+            mp.c_str(), ex.what());
     }
 
     LOG_INFO(0, "File-tree-walk on device '%s' has been completed",

@@ -45,7 +45,7 @@ public:
         DateOfCreation, ///< Date of creation.
         Duration, ///< Media duration in seconds.
         Year, ///< Recoding time(Year).
-        Image, ///< Attached Picture
+        Thumbnail, ///< Attached Picture
         GeoLocLongitude, ///< Location longitude.
         GeoLocLatitude, ///< Location latitude.
         GeoLocCountry, ///< Location country code.

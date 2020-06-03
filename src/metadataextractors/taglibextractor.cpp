@@ -25,10 +25,14 @@
 #include <tfile.h>
 #include <attachedpictureframe.h>
 #include <textidentificationframe.h>
+#include <xiphcomment.h>
+#include <oggfile.h>
+#include <vorbisfile.h>
 #include <fstream>
-
 using namespace std;
 using namespace TagLib;
+using namespace TagLib::ID3v2;
+using namespace TagLib::Ogg;
 
 TaglibExtractor::TaglibExtractor()
 {
@@ -38,46 +42,6 @@ TaglibExtractor::TaglibExtractor()
 TaglibExtractor::~TaglibExtractor()
 {
     // nothing to be done here
-}
-
-void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
-{
-    std::string uri(mediaItem.path());
-
-    FileRef f(uri.c_str());
-    if (f.isNull()) {
-        LOG_ERROR(0, "file uri(%s) is invalid to extract meta from taglibextractor",
-            uri.c_str());
-        return;
-    }
-
-    if (mediaItem.type() != MediaItem::Type::Audio) {
-        LOG_ERROR(0, "mediaitem type is not audio");
-        return;
-    }
-
-    if (uri.rfind(TAGLIB_EXT_MP3) == std::string::npos) {
-        LOG_ERROR(0, "invalid file, file extension is not .mp3");
-        return;
-    }
-
-    LOG_DEBUG("Extract meta data from '%s' (%s) with TagLib",
-        uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
-
-    ID3v2::Tag tag(f.file(), 0);
-
-    setMeta(mediaItem, tag, MediaItem::Meta::Title);
-    setMeta(mediaItem, tag, MediaItem::Meta::DateOfCreation);
-    setMeta(mediaItem, tag, MediaItem::Meta::Genre);
-    setMeta(mediaItem, tag, MediaItem::Meta::Album);
-    setMeta(mediaItem, tag, MediaItem::Meta::Artist);
-    setMeta(mediaItem, tag, MediaItem::Meta::AlbumArtist);
-    setMeta(mediaItem, tag, MediaItem::Meta::Track);
-    setMeta(mediaItem, tag, MediaItem::Meta::Year);
-    setMeta(mediaItem, tag, MediaItem::Meta::Duration);
-    setMeta(mediaItem, tag, MediaItem::Meta::Image);
-
-
 }
 
 /// Get base filename from mediaItem
@@ -168,7 +132,72 @@ std::string TaglibExtractor::saveAttachedImage(TagLib::ID3v2::Tag &tag, const st
 }
 
 
-void TaglibExtractor::setMeta(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
+void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
+{
+    std::string uri(mediaItem.path());
+
+    FileRef f(uri.c_str());
+    if (f.isNull()) {
+        LOG_ERROR(0, "file uri(%s) is invalid to extract meta from taglibextractor",
+            uri.c_str());
+        return;
+    }
+
+    if (mediaItem.type() != MediaItem::Type::Audio) {
+        LOG_ERROR(0, "mediaitem type is not audio");
+        return;
+    }
+
+    LOG_DEBUG("Extract meta data from '%s' (%s) with TagLib",
+        uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
+
+
+
+    if (uri.rfind(TAGLIB_EXT_MP3) != std::string::npos)
+    {
+        ID3v2::Tag tag(f.file(), 0);
+        if (tag.isEmpty())
+        {
+            LOG_ERROR(0, "tag for %s is empty", uri.c_str());
+            return;
+        }
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Title);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::DateOfCreation);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Genre);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Album);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Artist);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::AlbumArtist);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Track);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Year);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Duration);
+        setMetaMp3(mediaItem, tag, MediaItem::Meta::Thumbnail);
+    }
+    else if (uri.rfind(TAGLIB_EXT_OGG) != std::string::npos)
+    {
+        TagLib::Vorbis::File oggf(f.file()->name());
+        Ogg::XiphComment *tag = oggf.tag();
+        if (!tag || tag->isEmpty()) {
+            LOG_ERROR(0, "tag for %s is empty", uri.c_str());
+            return;
+        }
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::Title);
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::DateOfCreation);
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::Genre);
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::Album);
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::Artist);
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::AlbumArtist);
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::Track);
+        setMetaOgg(mediaItem, tag, MediaItem::Meta::Year);
+
+    }
+    else
+    {
+        LOG_ERROR(0, "invalid file, file extension is not .mp3");
+        return;
+    }
+}
+
+void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
         MediaItem::Meta flag) const
 
 {
@@ -203,7 +232,7 @@ void TaglibExtractor::setMeta(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
         case MediaItem::Meta::Duration:
             data = {getTextFrame(tag, "TLEN")};
             break;
-        case MediaItem::Meta::Image:
+        case MediaItem::Meta::Thumbnail:
         {
             std::string baseName = randFilename();//baseFilename(mediaItem, true);//
             std::string outImagePath = saveAttachedImage(tag, baseName);
@@ -225,3 +254,57 @@ void TaglibExtractor::setMeta(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
     LOG_DEBUG("Found tag for '%s'", MediaItem::metaToString(flag).c_str());
     mediaItem.setMeta(flag, data);
 }
+
+void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag,
+    MediaItem::Meta flag) const
+{
+    MediaItem::MetaData data;
+    Ogg::FieldListMap fieldListMap = tag->fieldListMap();
+
+    switch(flag)
+    {
+        case MediaItem::Meta::Title:
+            if (tag->contains("TITLE"))
+                data = {fieldListMap["TITLE"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::DateOfCreation:
+            if (tag->contains("DATE"))
+                data = {fieldListMap["DATE"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::Genre:
+            if (tag->contains("GENRE"))
+                data = {fieldListMap["GENRE"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::Album:
+            if (tag->contains("ALBUM"))
+                data = {fieldListMap["ALBUM"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::Artist:
+            if (tag->contains("ARTIST"))
+                data = {fieldListMap["ARTIST"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::AlbumArtist:
+            if (tag->contains("PERFORMER"))
+                data = {fieldListMap["PERFORMER"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::Year:
+            if (tag->contains("YEAR"))
+                data = {fieldListMap["YEAR"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::Track:
+            if (!fieldListMap["TRACKNUMBER"].isEmpty())
+                data = {fieldListMap["TRACKNUMBER"].toString().toCString(true)};
+            else if (!fieldListMap["TRACKNUM"].isEmpty())
+                data = {fieldListMap["TRACKNUM"].toString().toCString(true)};
+            break;
+        case MediaItem::Meta::Duration:
+        case MediaItem::Meta::Thumbnail:
+        default:
+            break;
+    }
+
+
+    LOG_DEBUG("Found tag for '%s'", MediaItem::metaToString(flag).c_str());
+    mediaItem.setMeta(flag, data);
+}
+

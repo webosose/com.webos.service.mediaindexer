@@ -92,8 +92,8 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("duration");
     case MediaItem::Meta::Year:
         return std::string("year");
-    case MediaItem::Meta::Image:
-        return std::string("image");
+    case MediaItem::Meta::Thumbnail:
+        return std::string("thumbnail");
     case MediaItem::Meta::GeoLocLongitude:
         return std::string("geo_location_longitude");
     case MediaItem::Meta::GeoLocLatitude:

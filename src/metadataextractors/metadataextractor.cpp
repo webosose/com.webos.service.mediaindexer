@@ -27,7 +27,9 @@
 std::unique_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
     MediaItem::Type type, std::string &ext) {
 #if defined HAS_TAGLIB
-    if (type == MediaItem::Type::Audio && ext.compare(TAGLIB_EXT_MP3) == 0) {
+    if (type == MediaItem::Type::Audio &&
+        (ext.compare(TAGLIB_EXT_MP3) == 0 ||
+         ext.compare(TAGLIB_EXT_OGG) == 0)) {
         std::unique_ptr<IMetaDataExtractor>
             extractor(static_cast<IMetaDataExtractor *>(new TaglibExtractor()));
         return extractor;

@@ -58,7 +58,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
-
+        LOG_DEBUG("response payload : %s",payload);
         if (!parser.parse(payload)) {
             LOG_ERROR(0, "Invalid JSON message: %s", payload);
             return false;

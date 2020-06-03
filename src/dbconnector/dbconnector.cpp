@@ -226,6 +226,7 @@ bool DbConnector::roAccess(std::list<std::string> &services)
     request.put("permissions", permissions);
 
     LOG_INFO(0, "Send putPermissions");
+    LOG_DEBUG("Request : %s", request.stringify().c_str());
 
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, &sessionToken,
