@@ -20,6 +20,7 @@
 
 #include <pbnjson.hpp>
 #include <luna-service2/lunaservice.h>
+#include <string.h>
 
 class MediaIndexer;
 

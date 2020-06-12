@@ -41,7 +41,7 @@ if (STANDALONE)
   message("Setup for standalone build")
   add_definitions(-DSTANDALONE)
 else ()
-  message("Setup for WebOS-OSE build")
+  message("Setup for WebOS-Auto build")
 
   webos_build_system_bus_files()
   webos_build_configured_file(

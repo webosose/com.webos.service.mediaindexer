@@ -41,6 +41,33 @@ public:
      */
     virtual void extractMeta(MediaItem &mediaItem) const = 0;
 
+
+    /// Get base filename from mediaItem
+    virtual std::string baseFilename(MediaItem &mediaItem, bool noExt = false, std::string delimeter = "//") const;
+
+    /// Get random filename for attached image
+    virtual std::string randFilename() const;
+
+    /// Get extension from mediaItem
+    virtual std::string extension(MediaItem &mediaItem) const;
+
+    /// lastmodified date type, support both uint64_t and string type
+    typedef std::variant<std::int64_t, std::string> Date;
+    /**
+     * \brief Gives us the last modified date value with different formats.
+     * \param[in] formatted specifies return type, default : true
+     * \param[in] localtime specifies time zone of returns, default : false
+     * \return The observer or nullptr if none is set.
+     */
+    virtual std::optional<IMetaDataExtractor::Date> lastModifiedDate(MediaItem &mediaItem, 
+            bool formatted = true,  bool localTime = false) const;
+
+    void setMetaCommon(MediaItem &mediaItem,       MediaItem::Meta flag) const;
+
 protected:
     IMetaDataExtractor() {};
+
+private:
+    /// Get message id.
+    LOG_MSGID;
 };

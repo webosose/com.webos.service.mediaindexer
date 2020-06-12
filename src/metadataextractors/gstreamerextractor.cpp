@@ -82,6 +82,8 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem) const
         std::abort();
     }
 
+    setMetaCommon(mediaItem, MediaItem::Meta::LastModifiedDate);
+
  out:
     if (error)
         g_error_free(error);

@@ -54,15 +54,6 @@ class TaglibExtractor : public IMetaDataExtractor
     /// Get message id.
     LOG_MSGID;
 
-    /// Get base filename from mediaItem
-    std::string baseFilename(MediaItem &mediaItem, bool noExt = false, std::string delimeter = "//") const;
-
-    /// Get random filename for attached image
-    std::string randFilename() const;
-
-    /// Get extension from mediaItem
-    std::string extension(MediaItem &mediaItem) const;
-
     /// Get text frame from id3 tag key value
     std::string getTextFrame(TagLib::ID3v2::Tag &tag,      const TagLib::ByteVector &flag) const;
 

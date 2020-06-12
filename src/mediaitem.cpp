@@ -18,8 +18,8 @@
 #include "device.h"
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
-
 #include <cinttypes>
+
 
 // Not part of Device class, this is defined at the bottom of device.h
 MediaItem::Type &operator++(MediaItem::Type &type)
@@ -102,6 +102,8 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("geo_location_country");
     case MediaItem::Meta::GeoLocCity:
         return std::string("geo_location_city");
+    case MediaItem::Meta::LastModifiedDate:
+        return std::string("last_modified_date");
     case MediaItem::Meta::EOL:
         return "";
     }

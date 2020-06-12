@@ -25,6 +25,9 @@
 #include <variant>
 #include <string>
 #include <filesystem>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 
 class Device;
 
@@ -50,6 +53,8 @@ public:
         GeoLocLatitude, ///< Location latitude.
         GeoLocCountry, ///< Location country code.
         GeoLocCity, ///< Location city name.
+        LastModifiedDate, ///< Last modified date.(formatted)
+        LastModifiedDateRaw, ///< Last modified date.(not formatted)
         EOL /// End of list marker.
     };
 

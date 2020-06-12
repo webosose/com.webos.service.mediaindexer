@@ -29,6 +29,8 @@
 #include <oggfile.h>
 #include <vorbisfile.h>
 #include <fstream>
+#include <cinttypes>
+
 using namespace std;
 using namespace TagLib;
 using namespace TagLib::ID3v2;
@@ -42,49 +44,6 @@ TaglibExtractor::TaglibExtractor()
 TaglibExtractor::~TaglibExtractor()
 {
     // nothing to be done here
-}
-
-/// Get base filename from mediaItem
-std::string TaglibExtractor::baseFilename(MediaItem &mediaItem, bool noExt, std::string delimeter) const
-{
-    std::string ret = "";
-    std::string path = mediaItem.path();
-    if (path.empty())
-        return ret;
-    ret = path.substr(path.find_last_of(delimeter) + 1);
-
-    if (noExt)
-    {
-        string::size_type const p(ret.find_last_of('.'));
-        string ret = ret.substr(0, p);
-    }
-    return ret;
-}
-
-/// Get random filename for attached image
-std::string TaglibExtractor::randFilename() const
-{
-    size_t size = TAGLIB_FILE_NAME_SIZE;
-
-    std::uint64_t val = 0;
-    ifstream fs("/dev/urandom", ios::in|ios::binary);
-    if (fs)
-    {
-        fs.read(reinterpret_cast<char*>(&val), size);
-    }
-    fs.close();
-    return std::to_string(val).substr(0,size);
-}
-
-/// Get extension from mediaItem
-std::string TaglibExtractor::extension(MediaItem &mediaItem) const
-{
-    std::string ret = "";
-    std::string path = mediaItem.path();
-    if (path.empty())
-        return ret;
-    ret = path.substr(path.find_last_of('.') + 1);
-    return ret;
 }
 
 std::string TaglibExtractor::getTextFrame(TagLib::ID3v2::Tag &tag,  const TagLib::ByteVector &flag) const
@@ -151,8 +110,6 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
     LOG_DEBUG("Extract meta data from '%s' (%s) with TagLib",
         uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
 
-
-
     if (uri.rfind(TAGLIB_EXT_MP3) != std::string::npos)
     {
         ID3v2::Tag tag(f.file(), 0);
@@ -161,6 +118,7 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
             LOG_ERROR(0, "tag for %s is empty", uri.c_str());
             return;
         }
+        LOG_DEBUG("Setting Meta data for Mp3");
         setMetaMp3(mediaItem, tag, MediaItem::Meta::Title);
         setMetaMp3(mediaItem, tag, MediaItem::Meta::DateOfCreation);
         setMetaMp3(mediaItem, tag, MediaItem::Meta::Genre);
@@ -171,6 +129,7 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
         setMetaMp3(mediaItem, tag, MediaItem::Meta::Year);
         setMetaMp3(mediaItem, tag, MediaItem::Meta::Duration);
         setMetaMp3(mediaItem, tag, MediaItem::Meta::Thumbnail);
+        LOG_DEBUG("Setting Meta data for Mp3 Done");
     }
     else if (uri.rfind(TAGLIB_EXT_OGG) != std::string::npos)
     {
@@ -180,6 +139,7 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
             LOG_ERROR(0, "tag for %s is empty", uri.c_str());
             return;
         }
+        LOG_DEBUG("Setting Meta data for Ogg");
         setMetaOgg(mediaItem, tag, MediaItem::Meta::Title);
         setMetaOgg(mediaItem, tag, MediaItem::Meta::DateOfCreation);
         setMetaOgg(mediaItem, tag, MediaItem::Meta::Genre);
@@ -188,13 +148,15 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
         setMetaOgg(mediaItem, tag, MediaItem::Meta::AlbumArtist);
         setMetaOgg(mediaItem, tag, MediaItem::Meta::Track);
         setMetaOgg(mediaItem, tag, MediaItem::Meta::Year);
-
+        LOG_DEBUG("Setting Meta data for Ogg Done");
     }
     else
     {
         LOG_ERROR(0, "invalid file, file extension is not .mp3");
         return;
     }
+
+    setMetaCommon(mediaItem, MediaItem::Meta::LastModifiedDate);
 }
 
 void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,

@@ -103,6 +103,7 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
     request.put("query", query);
 
     LOG_INFO(0, "Send mergePut for '%s'", uri.c_str());
+    LOG_DEBUG("message : %s", request.stringify().c_str());
 
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, &sessionToken,
