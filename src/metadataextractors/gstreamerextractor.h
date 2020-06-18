@@ -22,6 +22,10 @@
 #include <gst/pbutils/gstdiscoverer.h>
 #endif
 
+#include <turbojpeg.h>
+
+#define GST_TAG_THUMBNAIL "thumbnail"
+
 /**
  * \brief Media parser class for meta data extraction.
  *
@@ -42,6 +46,14 @@ class GStreamerExtractor : public IMetaDataExtractor
 
     /// Get media item meta identifier from GStreamer tag.
     MediaItem::Meta metaFromTag(const char *gstTag) const;
+
+    /// Get Thumbnail Image of video
+    bool getThumbnail(MediaItem &mediaItem, std::string &filename, const std::string &ext = "jpg") const;
+
+    /// Save Image to jpeg with libjpeg-turbo
+    bool saveBufferToImage(void *data, int32_t width, int32_t height,
+                                  const std::string &filename, const std::string &ext = "jpg") const;
+
     /// Set media item media per media type.
     void setMeta(MediaItem &mediaItem, const GstDiscovererInfo *metaInfo,
         const char *tag) const;
