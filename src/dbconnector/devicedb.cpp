@@ -106,17 +106,20 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
 DeviceDb::DeviceDb() :
     DbConnector("com.webos.service.mediaindexer.devices:1")
 {
-    auto index = pbnjson::Object();
-    index.put("name", "uri");
+    std::list<std::string> indexes = {"uri", "available"}; // add index : available
+    for (auto idx : indexes) {
+        auto index = pbnjson::Object();
+        index.put("name", idx);
 
-    auto props = pbnjson::Array();
-    auto prop = pbnjson::Object();
-    prop.put("name", "uri");
-    props << prop;
+        auto props = pbnjson::Array();
+        auto prop = pbnjson::Object();
+        prop.put("name", idx);
+        props << prop;
 
-    index.put("props", props);
+        index.put("props", props);
 
-    kindIndexes_ << index;
+        kindIndexes_ << index;
+    }
 }
 
 void DeviceDb::deviceStateChanged(std::shared_ptr<Device> device)
@@ -125,8 +128,8 @@ void DeviceDb::deviceStateChanged(std::shared_ptr<Device> device)
         device->available() ? "added" : "removed");
 
     // we only write updates if device appears
-    if (device->available())
-        updateDevice(device);
+    //if (device->available())
+    updateDevice(device);
 }
 
 void DeviceDb::deviceModified(std::shared_ptr<Device> device)
@@ -143,6 +146,7 @@ void DeviceDb::updateDevice(std::shared_ptr<Device> device)
     props.put("name", device->meta(Device::Meta::Name));
     props.put("description", device->meta(Device::Meta::Description));
     props.put("alive", device->alive());
+    props.put("available", device->available()); //add device available status
     props.put("lastSeen", device->lastSeen().time_since_epoch().count());
 
     mergePut(device->uri(), true, props);
