@@ -58,7 +58,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
-        LOG_DEBUG("response payload : %s",payload);
+
         if (!parser.parse(payload)) {
             LOG_ERROR(0, "Invalid JSON message: %s", payload);
             return false;
@@ -100,6 +100,30 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         } else {
             LOG_DEBUG("Media item '%s' unchanged", mi->uri().c_str());
         }
+    }else if (method == std::string("search")) {
+
+        // we do not need to check, the service implementation should do that
+        pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
+        const char *payload = LSMessageGetPayload(msg);
+
+        if (!parser.parse(payload)) {
+            LOG_ERROR(0, "Invalid JSON message: %s", payload);
+            return false;
+        }
+
+        pbnjson::JValue domTree(parser.getDom());
+        // response message
+        auto reply = pbnjson::Object();
+
+        if (!domTree.hasKey("results")){
+            return false;
+        }
+
+        // response message
+        auto matches = domTree["results"];
+        reply.put("results", matches);
+        LOG_DEBUG("search response payload : %s",payload);
+
     }
 
     return true;
@@ -175,6 +199,19 @@ void MediaDb::grantAccess(const std::string &serviceName)
     dbClients_.push_back(serviceName);
     roAccess(dbClients_);
 }
+
+bool MediaDb::getAudioList(const std::string &uri)
+{
+    LOG_DEBUG("getAudioList from DB");
+    return search(uri, false);
+}
+
+bool MediaDb::getAudioMetadata(const std::string &uri)
+{
+    LOG_DEBUG("getAudioMetadata from DB");
+    return search(uri, true);
+}
+
 
 MediaDb::MediaDb() :
     DbConnector("com.webos.service.mediaindexer.media:1")

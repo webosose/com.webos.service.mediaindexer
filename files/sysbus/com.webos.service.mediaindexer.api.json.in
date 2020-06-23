@@ -5,6 +5,13 @@
         "com.webos.service.mediaindexer/getPluginList",
         "com.webos.service.mediaindexer/runDetect",
         "com.webos.service.mediaindexer/stopDetect",
-        "com.webos.service.mediaindexer/getDeviceList"
+        "com.webos.service.mediaindexer/getDeviceList",
+        "com.webos.service.mediaindexer/getAudioList",
+        "com.webos.service.mediaindexer/getAudioMetadata",
+        "com.webos.service.mediaindexer/getVideoList",
+        "com.webos.service.mediaindexer/getVideoMetadata",
+        "com.webos.service.mediaindexer/getImageList",
+        "com.webos.service.mediaindexer/getImageMetadata",
+        "com.webos.service.mediaindexer/getNotifyChange"
     ]
 }

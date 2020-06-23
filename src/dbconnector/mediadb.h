@@ -82,6 +82,10 @@ public:
      */
     void grantAccess(const std::string &serviceName);
 
+    bool getAudioList(const std::string &uri);
+
+    bool getAudioMetadata(const std::string &uri);
+
 protected:
     /// Get message id.
     LOG_MSGID;

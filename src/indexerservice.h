@@ -144,6 +144,8 @@ private:
     static pbnjson::JSchema detectRunStopSchema_;
     /// Schema for getPlaybackUri.
     static pbnjson::JSchema playbackUriGetSchema_;
+	/// Schema for getXXXXXMetadata.
+    static pbnjson::JSchema metadataGetSchema_;
 
     /**
      * \brief Callback for getPlugin() Luna method.
@@ -207,6 +209,14 @@ private:
      * \param[in] ctx Pointer to IndexerService class instance.
      */
     static bool onGetPlaybackUri(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    static bool onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onGetNotifyChange(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Combines functionality for onPluginGet and onPluginPut.

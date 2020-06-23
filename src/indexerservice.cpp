@@ -37,6 +37,13 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getPluginList", IndexerService::onPluginListGet, LUNA_METHOD_FLAGS_NONE },
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
     { "getPlaybackUri", IndexerService::onGetPlaybackUri, LUNA_METHOD_FLAGS_NONE },
+    { "getAudioList", IndexerService::onGetAudioList, LUNA_METHOD_FLAGS_NONE },
+    { "getAudioMetadata", IndexerService::onGetAudioMetadata, LUNA_METHOD_FLAGS_NONE },
+    { "getVideoList", IndexerService::onGetVideoList, LUNA_METHOD_FLAGS_NONE },
+    { "getVideoMetadata", IndexerService::onGetVideoMetadata, LUNA_METHOD_FLAGS_NONE },
+    { "getImageList", IndexerService::onGetImageList, LUNA_METHOD_FLAGS_NONE },
+    { "getImageMetadata", IndexerService::onGetImageMetadata, LUNA_METHOD_FLAGS_NONE },
+    { "getNotifyChange", IndexerService::onGetNotifyChange, LUNA_METHOD_FLAGS_NONE },
     {NULL, NULL}
 };
 
@@ -85,6 +92,17 @@ pbnjson::JSchema IndexerService::playbackUriGetSchema_(
         "  },"
         "  \"required\": [ \"uri\" ]"
         "}"));
+
+pbnjson::JSchema IndexerService::metadataGetSchema_(
+    pbnjson::JSchema::fromString(
+        "{ \"type\": \"object\","
+        "  \"properties\": {"
+        "    \"uri\": {"
+        "      \"type\": \"string\" }"
+        "  },"
+        "  \"required\": [ \"uri\" ]"
+        "}"));
+
 
 IndexerService::IndexerService(MediaIndexer *indexer) :
     indexer_(indexer)
@@ -311,6 +329,204 @@ bool IndexerService::onGetPlaybackUri(LSHandle *lsHandle, LSMessage *msg, void *
     }
 
     return true;
+}
+
+bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_DEBUG("call onGetAudioList");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+
+    // get the playback uri for the given media item uri
+    auto uri = domTree["uri"].asString();
+    LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
+        uri.c_str());
+
+    auto mdb = MediaDb::instance();
+    auto list = mdb->getAudioList(uri);
+
+    // response message
+    auto reply = pbnjson::Object();
+    reply.put("returnValue", list);
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+    }
+
+    return true;
+}
+
+bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_DEBUG("call onGetAudioMetadata");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, metadataGetSchema_)) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+
+    // get the playback uri for the given media item uri
+    auto uri = domTree["uri"].asString();
+    LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
+        uri.c_str());
+
+    auto mdb = MediaDb::instance();
+    auto list = mdb -> getAudioMetadata(uri);
+
+    // response message
+    auto reply = pbnjson::Object();
+    reply.put("returnValue", list);
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+    }
+
+    return true;
+}
+
+bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    //IndexerService *is = static_cast<IndexerService *>(ctx);
+    LOG_DEBUG("call onGetVideoList");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    pbnjson::JDomParser parser;
+    // response message
+    auto reply = pbnjson::Object();
+    reply.put("returnValue", true);
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+    }
+
+    return true;
+}
+
+bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    //IndexerService *is = static_cast<IndexerService *>(ctx);
+    LOG_DEBUG("call onGetVideoMetadata");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    pbnjson::JDomParser parser;
+    // response message
+    auto reply = pbnjson::Object();
+    reply.put("returnValue", true);
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+    }
+
+    return true;
+}
+
+bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+   //IndexerService *is = static_cast<IndexerService *>(ctx);
+   LOG_DEBUG("call onGetImageList");
+
+   // parse incoming message
+   const char *payload = LSMessageGetPayload(msg);
+   pbnjson::JDomParser parser;
+   // response message
+   auto reply = pbnjson::Object();
+   reply.put("returnValue", true);
+
+   LSError lsError;
+   LSErrorInit(&lsError);
+
+   if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+   }
+
+   return true;
+
+}
+
+bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    //IndexerService *is = static_cast<IndexerService *>(ctx);
+    LOG_DEBUG("call onGetImageMetadata");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    pbnjson::JDomParser parser;
+
+    // response message
+    auto reply = pbnjson::Object();
+    reply.put("returnValue", true);
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+    }
+
+    return true;
+
+}
+
+
+bool IndexerService::onGetNotifyChange(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+   //IndexerService *is = static_cast<IndexerService *>(ctx);
+   LOG_DEBUG("call onGetNotifyChange");
+
+   // parse incoming message
+   const char *payload = LSMessageGetPayload(msg);
+   pbnjson::JDomParser parser;
+   // response message
+   auto reply = pbnjson::Object();
+   reply.put("returnValue", true);
+
+   LSError lsError;
+   LSErrorInit(&lsError);
+
+   if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+   }
+
+   return true;
+
 }
 
 bool IndexerService::pluginPutGet(LSMessage *msg, bool get)

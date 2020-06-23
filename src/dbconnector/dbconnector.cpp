@@ -103,7 +103,6 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
     request.put("query", query);
 
     LOG_INFO(0, "Send mergePut for '%s'", uri.c_str());
-    LOG_DEBUG("message : %s", request.stringify().c_str());
 
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, &sessionToken,
@@ -153,6 +152,47 @@ bool DbConnector::find(const std::string &uri, bool precise,
         return false;
     } else {
         rememberSessionData(sessionToken, "find", obj);
+    }
+
+    return true;
+}
+
+bool DbConnector::search(const std::string &uri, bool precise,
+    void *obj)
+{
+    if (!lsHandle_)
+        LOG_CRITICAL(0, "Luna bus handle not set");
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+    LSMessageToken sessionToken;
+
+    std::string url = dbUrl_;
+    url += "/search";
+
+    // query for matching uri
+    auto query = pbnjson::Object();
+    query.put("from", kindId_);
+    auto where = pbnjson::Array();
+    auto cond = pbnjson::Object();
+    cond.put("prop", "uri");
+    cond.put("op", precise ? "=" : "%");
+    cond.put("val", uri);
+    where << cond;
+    query.put("where", where);
+
+    auto request = pbnjson::Object();
+    request.put("query", query);
+
+    LOG_INFO(0, "Send search for '%s'", uri.c_str());
+
+    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, &sessionToken,
+            &lsError)) {
+        LOG_ERROR(0, "Db service search error");
+        return false;
+    } else {
+        rememberSessionData(sessionToken, "search", obj);
     }
 
     return true;

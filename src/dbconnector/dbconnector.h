@@ -85,6 +85,9 @@ protected:
     virtual bool find(const std::string &uri, bool precise = true,
         void *obj = nullptr);
 
+    virtual bool search(const std::string &uri, bool precise = true,
+        void *obj = nullptr);
+
     /**
      * \brief Delete all objects with the given uri.
      *
