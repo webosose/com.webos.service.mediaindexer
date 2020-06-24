@@ -19,6 +19,15 @@
 #include <string.h>
 #include <libgen.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+
+static inline pid_t gettid()
+{
+  return (pid_t) syscall(__NR_gettid);
+}
+
 /// Builds a proper log message id from the filename.
 #define LOG_MSGID static const char *__msgId(void) {    \
         static char *msgId = nullptr;                   \
@@ -122,4 +131,4 @@ extern PmLogContext getPmLogContext();
 
 /// Debug log.
 #define LOG_DEBUG(fmt, ...)                                             \
-    PmLogDebug(logContext, "%s:%s() " fmt, __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogDebug(logContext, "[%d] %s:%s() " fmt, gettid(), __FILE__, __FUNCTION__, ##__VA_ARGS__)

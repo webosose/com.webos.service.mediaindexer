@@ -127,6 +127,8 @@ public:
      */
     bool pushDeviceList(LSMessage *msg = nullptr);
 
+    LSHandle* getServiceHandle() { return lsHandle_; };
+
 private:
     /// Get message id.
     LOG_MSGID;
@@ -144,7 +146,7 @@ private:
     static pbnjson::JSchema detectRunStopSchema_;
     /// Schema for getPlaybackUri.
     static pbnjson::JSchema playbackUriGetSchema_;
-	/// Schema for getXXXXXMetadata.
+    /// Schema for getXXXXXMetadata.
     static pbnjson::JSchema metadataGetSchema_;
 
     /**

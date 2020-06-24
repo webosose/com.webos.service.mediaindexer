@@ -314,3 +314,92 @@ void DbConnector::rememberSessionData(LSMessageToken token,
     std::lock_guard<std::mutex> lock(lock_);
     messageMap_.emplace(p);
 }
+
+bool DbConnector::addSubscriber(LSHandle *handle, LSMessage *msg)
+{
+    LSError lsError;
+    LSErrorInit(&lsError);
+    std::string method = LSMessageGetMethod(msg);
+    if (method.empty())
+    {
+        LOG_ERROR(0, "Failed to get method name from ls message, it mandatory to get key for subscription");
+        return false;
+    }
+
+    if (!LSSubscriptionAdd(handle, method.c_str(), msg, &lsError))
+    {
+        LOG_ERROR(0, "LSSubscriptionAdd failed: %s", lsError.message);
+        return false;
+    }
+    LOG_DEBUG("Add subscription done, handle : %p, method : %s, sender : %s", handle, method.c_str(), LSMessageGetSender(msg));
+    return true;
+}
+
+bool DbConnector::removeSubscriber(LSHandle *handle, LSMessage *msg, const std::string key)
+{
+    LSError lsError;
+    LSErrorInit(&lsError);
+    LSSubscriptionIter *iter = NULL;
+
+    if (key.empty())
+    {
+        LOG_ERROR(0, "Invalid key");
+        return false;
+    }
+
+    const char* sender = LSMessageGetSender(msg);
+    if (sender != NULL)
+    {
+        if (LSSubscriptionAcquire(handle, key.c_str(), &iter, &lsError))
+        {
+            LSMessage *subscriberMessage;
+            while (LSSubscriptionHasNext(iter))
+            {
+                subscriberMessage = LSSubscriptionNext(iter);
+                const char *subscriberSender = LSMessageGetSender(subscriberMessage);
+                if (sender == subscriberSender)
+                {
+                    LSSubscriptionRemove(iter);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            LOG_ERROR(0, "LSSubscriptionAcquire Failed");
+            return false;
+        }
+    }
+    else
+    {
+        LOG_ERROR(0, "Invalid sender");
+        return false;
+    }
+
+    return true;
+}
+
+bool DbConnector::sendNotification(LSHandle *handle, std::string &message, const std::string &key)
+{
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!handle)
+    {
+        LOG_ERROR(0, "Invalid handle for subscription reply");
+        return false;
+    }
+
+    if (key.empty())
+    {
+        LOG_ERROR(0, "Invalid key for subscription reply");
+        return false;
+    }
+
+    if (!LSSubscriptionReply(handle, key.c_str(), message.c_str(), &lsError)) {
+        LOG_ERROR(0, "LSSubscriptionReply failed: %s", lsError.message);
+        return false;
+    }
+    return true;
+}
+

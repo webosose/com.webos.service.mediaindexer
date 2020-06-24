@@ -37,6 +37,39 @@ MediaDb::~MediaDb()
     // nothing to be done here
 }
 
+bool MediaDb::setResponseDestination(const std::string &methodKey, LSHandle *hdl, LSMessage *msg)
+{
+    std::lock_guard<std::mutex> lk(lock_);
+    currMethod_ = methodKey;
+
+    respDest_.insert_or_assign(currMethod_, std::make_pair(hdl, msg));
+    LSMessageRef(reinterpret_cast<LSMessage*>(msg));
+    return true;
+}
+
+bool MediaDb::sendResponseToDestination(LSHandle *hdl, LSMessage *dst, const char *message)
+{
+    if (!dst)
+    {
+        LOG_ERROR(0, "Invalid LSMessage");
+        return false;
+    }
+    if (!hdl)
+    {
+        LOG_ERROR(0, "LSHandle extracted from msg is invalid");
+        return false;
+    }
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+    if (!LSMessageReply(hdl, dst, message, &lsError))
+    {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+    }
+    return true;
+}
+
 bool MediaDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
@@ -122,6 +155,31 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         // response message
         auto matches = domTree["results"];
         reply.put("results", matches);
+
+        std::lock_guard<std::mutex> lk(lock_);
+        if (!currMethod_.empty())
+        {
+            if (respDest_.find(currMethod_) != respDest_.end())
+            {
+                auto dst = respDest_[currMethod_];
+                LOG_DEBUG("current Method : %s", currMethod_.c_str());
+                auto resp = pbnjson::Object();
+                resp.put("returnValue", true);
+                resp.put("count", matches.arraySize());
+                resp.put("results",matches);
+                sendResponseToDestination(dst.first, dst.second, resp.stringify().c_str());
+            }
+            else
+                LOG_ERROR(0, "LSMessage information for setting desination is not enough for method %s", currMethod_.c_str());
+            currMethod_ = "";
+        }
+/*
+        std::string ret = reply.stringify();
+        if (sendNotification(getHandle(), ret, "getAudioList"))
+        {
+            LOG_DEBUG("Send Notification succeeded");
+        }
+*/
         LOG_DEBUG("search response payload : %s",payload);
 
     }

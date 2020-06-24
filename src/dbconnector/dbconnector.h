@@ -26,6 +26,7 @@
 #include <map>
 #include <list>
 
+
 /// Connector to com.webos.service.db.
 class DbConnector
 {
@@ -40,6 +41,24 @@ public:
      */
     static void init(LSHandle *lsHandle);
 
+
+    LSHandle *getHandle() { return lsHandle_; };
+
+    /**
+     * \brief Add subscriber for subscription messages
+     *
+     * \param[in] msg The Luna message.
+     */
+    bool addSubscriber(LSHandle *handle, LSMessage *msg);
+
+    /**
+     * \brief Remove subscriber for subscription messages
+     *
+     * \param[in] msg The Luna message.
+     */
+    bool removeSubscriber(LSHandle *handle, LSMessage *msg, const std::string key);
+
+    bool sendNotification(LSHandle *handle, std::string &message, const std::string &key);
 protected:
     /// Session data attached to each luna request
     struct SessionData {

@@ -20,6 +20,7 @@
 #include "mediaitem.h"
 
 #include <memory>
+#include <mutex>
 #include <list>
 
 class Device;
@@ -86,6 +87,10 @@ public:
 
     bool getAudioMetadata(const std::string &uri);
 
+    bool setResponseDestination(const std::string &methodKey, LSHandle *hdl, LSMessage *msg);
+
+    bool sendResponseToDestination(LSHandle *hdl, LSMessage *dst, const char *message);
+
 protected:
     /// Get message id.
     LOG_MSGID;
@@ -96,7 +101,9 @@ protected:
 private:
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
-
+    std::map<std::string, std::pair<LSHandle *, LSMessage *>> respDest_;
+    std::string currMethod_;
+    mutable std::mutex lock_;
     /// List of services that should have read-only access to
     /// database.
     std::list<std::string> dbClients_;
