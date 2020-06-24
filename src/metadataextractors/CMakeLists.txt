@@ -16,6 +16,7 @@
 
 include_directories(./)
 include_directories(../)
+include_directories(../jsonparser)
 
 if (GSTREAMER_FOUND)
   list(APPEND EXTRACTORS gstreamerextractor.cpp)
@@ -53,4 +54,4 @@ if (libjpeg_FOUND)
   link_libraries(${libjpeg_LIBRARIES})
 endif()
 
-add_library(metadataextractor STATIC metadataextractor.cpp ${EXTRACTORS})
+add_library(metadataextractor STATIC metadataextractor.cpp ${EXTRACTORS} ../jsonparser/jsonparser.cpp)

@@ -17,6 +17,8 @@
 #pragma once
 
 #include "mediaitem.h"
+#include "jsonparser.h"
+
 #include <memory>
 
 /// Interface definition for device observers.

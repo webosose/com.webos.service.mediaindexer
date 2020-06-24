@@ -56,6 +56,10 @@ if (TAGLIB_FOUND)
   add_definitions(-DHAS_TAGLIB)
 endif ()
 
+# pbnjson
+pkg_check_modules(LIBPBNJSON REQUIRED pbnjson_cpp)
+webos_add_compiler_flags(ALL ${LIBPBNJSON_CFLAGS})
+
 # gstreamer
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 if (GSTREAMER_FOUND)
@@ -101,6 +105,7 @@ add_executable(com.webos.service.mediaindexer
   mediaindexer.cpp)
 
 include_directories(./)
+include_directories(./jsonparser)
 
 # definitions for thumbnail directory
 add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")

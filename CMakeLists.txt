@@ -55,6 +55,9 @@ webos_add_linker_options(ALL --no-undefined)
 # get the sources
 add_subdirectory(src)
 
+# install configulation file
+add_subdirectory(files/conf)
+
 # doxygen section
 find_package(Doxygen)
 find_file(PLANTUML_JAR plantuml.jar

@@ -25,6 +25,7 @@
 #include <vector>
 
 #define CAPS "video/x-raw,format=RGBA,width=160,height=160,pixel-aspect-ratio=1/1"
+const char* configure_file = "/etc/com.webos.service.mediaindexer/com.webos.service.mediaindexer.conf";
 
 #define RETURN_IF_FAILED(object, state, message) \
 do { \
@@ -47,17 +48,29 @@ GStreamerExtractor::~GStreamerExtractor()
 
 void GStreamerExtractor::extractMeta(MediaItem &mediaItem) const
 {
+    bool force_sw_decoders = false;
     GstDiscoverer *discoverer = gst_discoverer_new(GST_SECOND, NULL);
     GError *error;
 
     if (!discoverer)
-        return;;
+        return;
 
     std::string uri = "file://";
     uri.append(mediaItem.path());
 
     LOG_DEBUG("Extract meta data from '%s' (%s) with GstDiscoverer",
         uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
+
+    pbnjson::JValue val = pbnjson::JDomParser::fromFile(configure_file);
+    if (!val.isObject()) {
+        LOG_DEBUG("configulation parsing error! set force-sw-decoders property!");
+        force_sw_decoders = true;
+    } else {
+        JSonParser parser(val.stringify().c_str());
+        force_sw_decoders = parser.get<bool>("force-sw-decoders");
+    }
+
+    g_object_set(discoverer, "force-sw-decoders", force_sw_decoders, NULL);
 
     GstDiscovererInfo *discoverInfo =
         gst_discoverer_discover_uri(discoverer, uri.c_str(), &error);
