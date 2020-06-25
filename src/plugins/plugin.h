@@ -103,7 +103,7 @@ public:
      * \param[in] alive Optional alive counter to be set on device.
      * \return True if device has been added, else false.
      */
-    virtual bool addDevice(const std::string &uri, const std::string &mp, int alive = -1);
+    virtual bool addDevice(const std::string &uri, const std::string &mp, std::string uuid = "", int alive = -1);
 
     /**
      * \brief A device has disappeared.

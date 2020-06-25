@@ -29,7 +29,7 @@
 #define TAGLIB_EXT_PNG "png"
 #define TAGLIB_EXT_MP3 "mp3"
 #define TAGLIB_EXT_OGG "ogg"
-#define TAGLIB_BASE_DIRECTORY "/tmp/"
+#define TAGLIB_BASE_DIRECTORY THUMBNAIL_DIRECTORY
 #define TAGLIB_FILE_NAME_SIZE 16
 
 namespace TagLib { namespace ID3v2 { class Tag; } }
@@ -58,7 +58,7 @@ class TaglibExtractor : public IMetaDataExtractor
     std::string getTextFrame(TagLib::ID3v2::Tag &tag,      const TagLib::ByteVector &flag) const;
 
     /// Get attached image of mp3 from APIC key frame
-    std::string saveAttachedImage(TagLib::ID3v2::Tag &tag, const std::string &fname) const;
+    std::string saveAttachedImage(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag, const std::string &fname) const;
 
     /// Set media item media per media type(for mp3 file format).
     void setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,

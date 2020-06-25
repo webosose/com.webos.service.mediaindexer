@@ -29,7 +29,6 @@
 #include <fstream>
 #include <iostream>
 
-
 std::unique_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
     MediaItem::Type type, std::string &ext) {
 #if defined HAS_TAGLIB
@@ -92,7 +91,19 @@ std::string IMetaDataExtractor::extension(MediaItem &mediaItem) const
     ret = path.substr(path.find_last_of('.') + 1);
     return ret;
 }
-
+/*
+bool IMetaDataExtractor::createThumbnailDirectory() const
+{
+    bool ret = true;
+    std::error_code err;
+    if (!std::filesystem::is_directory(THUMBNAIL_DIRECTORY)) {
+        ret = std::filesystem::create_directory(THUMBNAIL_DIRECTORY, err);
+        if (!ret)
+            LOG_ERROR(0, "Failed to create directory %s, error : %s",THUMBNAIL_DIRECTORY, err.message().c_str());
+    }
+    return ret;
+}
+*/
 std::optional<IMetaDataExtractor::Date> IMetaDataExtractor::lastModifiedDate(MediaItem &mediaItem, bool formatted, bool localTime) const
 {
     std::string path = mediaItem.path();

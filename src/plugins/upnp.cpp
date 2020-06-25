@@ -223,7 +223,7 @@ void Upnp::getDeviceMeta(Upnp *plugin, std::string uri, std::string location)
 
     // now that we now the device supports the service we are looking
     // for let's announce it to the observers
-    plugin->addDevice(uri, mp, 4);
+    plugin->addDevice(uri, mp, "", 4);
 
     t = plugin->getNodeText(descDoc, "friendlyName");
     if (!!t) {

@@ -43,9 +43,10 @@ std::string Device::metaTypeToString(Device::Meta meta)
     return "";
 }
 
-Device::Device(const std::string &uri, int alive, bool avail) :
+Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) :
     uri_(uri),
     mountpoint_(""),
+    uuid_(uuid),
     lastSeen_(),
     available_(avail),
     alive_(alive),
@@ -110,6 +111,18 @@ const std::string &Device::uri() const
 {
     return uri_;
 }
+
+const std::string &Device::uuid() const
+{
+    return uuid_;
+}
+
+void Device::setUuid(const std::string &uuid)
+{
+    std::unique_lock lock(lock_);
+    uuid_ = uuid;
+}
+
 
 int Device::alive() const
 {

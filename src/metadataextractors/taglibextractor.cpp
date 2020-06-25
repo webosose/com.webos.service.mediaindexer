@@ -62,7 +62,7 @@ std::string TaglibExtractor::getTextFrame(TagLib::ID3v2::Tag &tag,  const TagLib
     return ret;
 }
 
-std::string TaglibExtractor::saveAttachedImage(TagLib::ID3v2::Tag &tag, const std::string &fname) const
+std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag, const std::string &fname) const
 {
     std::string of = "";
     if (tag.frameListMap().contains("APIC"))
@@ -74,7 +74,7 @@ std::string TaglibExtractor::saveAttachedImage(TagLib::ID3v2::Tag &tag, const st
             ext = TAGLIB_EXT_JPG;
         else if (frame->mimeType().find(TAGLIB_EXT_PNG))
             ext = TAGLIB_EXT_PNG;
-        of = TAGLIB_BASE_DIRECTORY + fname + "." + ext;
+        of = TAGLIB_BASE_DIRECTORY + mediaItem.uuid() + "/" + fname + "." + ext;
 
         LOG_DEBUG("Save Attached Image, fullpath : %s",of.c_str());
         std::ofstream ofs(of, ios_base::out | ios_base::binary);
@@ -197,7 +197,7 @@ void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
         case MediaItem::Meta::Thumbnail:
         {
             std::string baseName = randFilename();//baseFilename(mediaItem, true);//
-            std::string outImagePath = saveAttachedImage(tag, baseName);
+            std::string outImagePath = saveAttachedImage(mediaItem, tag, baseName);
             if (outImagePath.empty())
             {
                 LOG_ERROR(0, "Extracting Image from %s is failed", baseName.c_str());

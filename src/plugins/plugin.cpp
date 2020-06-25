@@ -126,7 +126,7 @@ bool Plugin::addDevice(const std::string &uri, int alive)
     return isNew;
 }
 
-bool Plugin::addDevice(const std::string &uri, const std::string &mp, int alive)
+bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::string uuid, int alive)
 {
     bool isNew = false;
     std::shared_ptr<Device> dev = nullptr;
@@ -138,17 +138,19 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, int alive)
         if (!dev) {
             dev = std::make_shared<Device>(uri, alive);
             dev->setMountpoint(mp);
+            dev->setUuid(uuid);
             devices_[uri] = dev;
             isNew = true;
         }
     }
-    
+
     if (isNew) {
         notifyObserversStateChange(dev);
     } else {
         dev = device(uri);
         auto changed = dev->setAvailable(true);
         dev->setMountpoint(mp);
+        dev->setUuid(uuid);
         // now tell the observers if availability changed
         if (changed)
             notifyObserversStateChange(dev);

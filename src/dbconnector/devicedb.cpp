@@ -82,6 +82,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
         auto match = matches[i];
 
         auto uri = match["uri"].asString();
+        auto uuid = match["uuid"].asString();
         PluginFactory fac;
         auto plg = fac.plugin(uri);
         if (!plg)
@@ -89,7 +90,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
         int alive;
         match["alive"].asNumber(alive);
 
-        auto device = std::make_shared<Device>(uri, alive, false);
+        auto device = std::make_shared<Device>(uri, alive, false, uuid);
         auto meta = match["name"].asString();
         device->setMeta(Device::Meta::Name, meta);
         meta = match["description"].asString();
@@ -143,6 +144,7 @@ void DeviceDb::updateDevice(std::shared_ptr<Device> device)
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put("uri", device->uri());
+    props.put("uuid", device->uuid());
     props.put("name", device->meta(Device::Meta::Name));
     props.put("description", device->meta(Device::Meta::Description));
     props.put("alive", device->alive());

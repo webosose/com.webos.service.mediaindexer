@@ -228,7 +228,7 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     }
     std::string uri = "file://";
     uri.append(mediaItem.path());
-    filename = "/tmp/" + std::filesystem::path(uri).stem().string() + "." + ext;
+    filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + std::filesystem::path(uri).stem().string() + "." + ext;
 
     GstElement *pipeline = nullptr;
     GstElement *videoSink = nullptr;

@@ -145,6 +145,13 @@ public:
      */
     std::shared_ptr<Device> device() const;
 
+   /**
+     * \brief Get uuid of device.
+     *
+     * \return uuid of device.
+     */
+    const std::string &uuid() const;
+
     /**
      * \brief Get a specific meta data entry.
      *

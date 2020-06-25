@@ -102,6 +102,9 @@ add_executable(com.webos.service.mediaindexer
 
 include_directories(./)
 
+# definitions for thumbnail directory
+add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
+
 # build and link the plugins
 add_subdirectory(plugins)
 # choose a meta data extractor

@@ -55,7 +55,7 @@ public:
      * \param[in] alive If alive count should be used set this to value >1.
      * \param[in] avail Set initial available state.
      */
-    Device(const std::string &uri, int alive = -1, bool avail = true);
+    Device(const std::string &uri, int alive = -1, bool avail = true, std::string uuid = "");
 
     virtual ~Device();
 
@@ -90,6 +90,18 @@ public:
      * \return Alive count reset value.
      */
     virtual int alive() const;
+
+    /**
+     * \brief Get uuid.
+     * \return uuid string.
+     */
+    virtual const std::string &uuid() const;
+
+    /**
+     * \brief Set uuid.
+     * \param[in] uuid string.
+     */
+    virtual void setUuid(const std::string &uuid);
 
     /**
      * \brief Get meta data.
@@ -189,6 +201,8 @@ private:
     std::string uri_;
     /// Device mountpoint
     std::string mountpoint_;
+    /// Device uuid
+    std::string uuid_;
     /// Last seen timestamp of device.
     std::chrono::system_clock::time_point lastSeen_;
     /// The meta data map. The member is mutable as element are

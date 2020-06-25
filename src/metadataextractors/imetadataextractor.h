@@ -17,7 +17,6 @@
 #pragma once
 
 #include "mediaitem.h"
-
 #include <memory>
 
 /// Interface definition for device observers.

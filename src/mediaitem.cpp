@@ -165,6 +165,12 @@ std::shared_ptr<Device> MediaItem::device() const
     return device_;
 }
 
+const std::string &MediaItem::uuid() const
+{
+    return device_->uuid();
+}
+
+
 std::optional<MediaItem::MetaData> MediaItem::meta(Meta meta) const
 {
     auto m = meta_.find(meta);
