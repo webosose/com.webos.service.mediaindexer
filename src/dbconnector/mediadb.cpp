@@ -67,6 +67,7 @@ bool MediaDb::sendResponseToDestination(LSHandle *hdl, LSMessage *dst, const cha
         LOG_ERROR(0, "Message reply error");
         return false;
     }
+    LSMessageUnref(reinterpret_cast<LSMessage*>(dst));
     return true;
 }
 
@@ -270,6 +271,11 @@ bool MediaDb::getAudioMetadata(const std::string &uri)
     return search(uri, true);
 }
 
+bool MediaDb::getVideoList(const std::string &uri)
+{
+    LOG_DEBUG("getVideoList from DB");
+    return search(uri, false);
+}
 
 MediaDb::MediaDb() :
     DbConnector("com.webos.service.mediaindexer.media:1")

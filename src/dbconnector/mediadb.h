@@ -87,6 +87,8 @@ public:
 
     bool getAudioMetadata(const std::string &uri);
 
+    bool getVideoList(const std::string &uri);
+
     bool setResponseDestination(const std::string &methodKey, LSHandle *hdl, LSMessage *msg);
 
     bool sendResponseToDestination(LSHandle *hdl, LSMessage *dst, const char *message);
