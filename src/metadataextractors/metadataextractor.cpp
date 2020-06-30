@@ -138,7 +138,7 @@ std::optional<IMetaDataExtractor::Date> IMetaDataExtractor::lastModifiedDate(Med
     }
 }
 
-void IMetaDataExtractor::setMetaCommon(MediaItem &mediaItem,       MediaItem::Meta flag) const
+void IMetaDataExtractor::setMetaCommon(MediaItem &mediaItem, MediaItem::Meta flag) const
 {
     MediaItem::MetaData data;
     switch(flag)

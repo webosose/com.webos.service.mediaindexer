@@ -240,8 +240,10 @@ bool DbConnector::del(const std::string &uri, bool precise)
 
 bool DbConnector::roAccess(std::list<std::string> &services)
 {
-    if (!lsHandle_)
+    if (!lsHandle_) {
         LOG_CRITICAL(0, "Luna bus handle not set");
+        return false;
+    }
 
     LSError lsError;
     LSErrorInit(&lsError);

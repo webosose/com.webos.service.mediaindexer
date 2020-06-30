@@ -94,6 +94,15 @@ else ()
   add_definitions(-DPARALLEL_META_EXTRACTION=${PARALLEL_META_EXTRACTION})
 endif ()
 
+# add definition for the JSON configuration file
+if ("${WEBOS_TARGET_MACHINE}" STREQUAL "sa8155")
+  message(STATUS "Add definition for JSON configuration file for webOS Auto sa8155")
+  add_definitions(-DJSON_CONFIGURATION_FILE="/etc/com.webos.service.mediaindexer/com.webos.service.mediaindexer.conf")
+else ()
+  message(STATUS "Add definition for JSON configuration file for default machine")
+  add_definitions(-DJSON_CONFIGURATION_FILE="/etc/com.webos.service.mediaindexer/com.webos.service.mediaindexer.conf")
+endif ()
+
 # build settings
 add_executable(com.webos.service.mediaindexer
   ${MODULES}

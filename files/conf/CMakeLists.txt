@@ -16,7 +16,8 @@
 
 if("${WEBOS_TARGET_MACHINE}" STREQUAL "sa8155")
     message(STATUS "Using config file for webOS Auto sa8155")
-    webos_build_configured_file(files/conf/com.webos.service.mediaindexer.conf SYSCONFDIR com.webos.service.mediaindexer)
+    webos_build_configured_file(files/conf/sa8155/com.webos.service.mediaindexer.conf SYSCONFDIR com.webos.service.mediaindexer)
 else()
-    message(STATUS "Check WEBOS_TARGET_MACHINE: " ${WEBOS_TARGET_MACHINE})
+    message(STATUS "Using config file for default MACHINE: " ${WEBOS_TARGET_MACHINE})
+    webos_build_configured_file(files/conf/default/com.webos.service.mediaindexer.conf SYSCONFDIR com.webos.service.mediaindexer)
 endif()

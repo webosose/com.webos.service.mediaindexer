@@ -16,7 +16,8 @@
 
 #include "jsonparser.h"
 
-JSonParser::JSonParser(const char* message) {
+JSonParser::JSonParser(const char* message)
+{
     pbnjson::JDomParser parser;
 
     if (!parser.parse(message)) {
@@ -24,5 +25,15 @@ JSonParser::JSonParser(const char* message) {
     }
 
     _dom = parser.getDom();
+    LOG_DEBUG("JSON string is '%s'", _dom.stringify().c_str());
+}
+
+JSonParser::JSonParser(const pbnjson::JValue& value)
+{
+    if (!value.isObject()) {
+        throw parser_error("value is not json object");
+    }
+
+    _dom = value;
     LOG_DEBUG("JSON string is '%s'", _dom.stringify().c_str());
 }

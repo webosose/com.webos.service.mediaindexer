@@ -30,12 +30,40 @@ MediaItem::Type &operator++(MediaItem::Type &type)
     return type;
 }
 
+// TODO: need to change as template
 // Not part of Device class, this is defined at the bottom of device.h
 MediaItem::Meta &operator++(MediaItem::Meta &meta)
 {
     if (meta == MediaItem::Meta::EOL)
         return meta;
     meta = static_cast<MediaItem::Meta>(static_cast<int>(meta) + 1);
+    return meta;
+}
+
+// Not part of Device class, this is defined at the bottom of device.h
+MediaItem::AudioMeta &operator++(MediaItem::AudioMeta &meta)
+{
+    if (meta == MediaItem::AudioMeta::EOL)
+        return meta;
+    meta = static_cast<MediaItem::AudioMeta>(static_cast<int>(meta) + 1);
+    return meta;
+}
+
+// Not part of Device class, this is defined at the bottom of device.h
+MediaItem::VideoMeta &operator++(MediaItem::VideoMeta &meta)
+{
+    if (meta == MediaItem::VideoMeta::EOL)
+        return meta;
+    meta = static_cast<MediaItem::VideoMeta>(static_cast<int>(meta) + 1);
+    return meta;
+}
+
+// Not part of Device class, this is defined at the bottom of device.h
+MediaItem::ImageMeta &operator++(MediaItem::ImageMeta &meta)
+{
+    if (meta == MediaItem::ImageMeta::EOL)
+        return meta;
+    meta = static_cast<MediaItem::ImageMeta>(static_cast<int>(meta) + 1);
     return meta;
 }
 
@@ -104,6 +132,20 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("geo_location_city");
     case MediaItem::Meta::LastModifiedDate:
         return std::string("last_modified_date");
+    case MediaItem::Meta::SampleRate:
+        return std::string("sample_rate");
+    case MediaItem::Meta::Channels:
+        return std::string("channels");
+    case MediaItem::Meta::BitRate:
+        return std::string("bit_rate");
+    case MediaItem::Meta::BitPerSample:
+        return std::string("bit_per_sample");
+    case MediaItem::Meta::Width:
+        return std::string("width");
+    case MediaItem::Meta::Height:
+        return std::string("height");
+    case MediaItem::Meta::FrameRate:
+        return std::string("frame_rate");
     case MediaItem::Meta::EOL:
         return "";
     }
@@ -204,6 +246,13 @@ void MediaItem::setMeta(Meta meta, MetaData value)
         LOG_DEBUG("Setting '%s' on '%s' to '%s'", metaToString(meta).c_str(),
             uri_.c_str(), std::get<std::string>(value).c_str());
         break;
+    case 4:
+        LOG_DEBUG("Setting '%s' on '%s' to '%d'", metaToString(meta).c_str(),
+            uri_.c_str(), std::get<std::uint32_t>(value));
+        break;
+    default:
+        LOG_DEBUG("Invalid index for setting meta '%s'", uri_.c_str());
+        break;        
     }
 
     // make the arist the album artist of none has been set yet

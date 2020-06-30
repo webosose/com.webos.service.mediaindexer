@@ -29,6 +29,7 @@ struct parser_error : std::runtime_error {
 class JSonParser {
 public:
     explicit JSonParser(const char* message);
+    explicit JSonParser(const pbnjson::JValue& value);
 
     template<typename T, typename std::enable_if<
         !std::is_arithmetic<T>::value &&

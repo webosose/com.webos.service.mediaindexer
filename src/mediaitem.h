@@ -36,7 +36,7 @@ class MediaItem
 {
 public:
     /// Meta data type specifiers.
-    enum class Meta {
+    enum class Meta : int {
         Title, ///< Media title, mandatory.
         Genre, ///< Media genre.
         Album, ///< Media album.
@@ -55,11 +55,40 @@ public:
         GeoLocCity, ///< Location city name.
         LastModifiedDate, ///< Last modified date.(formatted)
         LastModifiedDateRaw, ///< Last modified date.(not formatted)
+        SampleRate, ///< Audio sample rate.
+        Channels, ///< Audio channels.
+        BitRate, ///< Audio bitrate.
+        BitPerSample, ///<Audio bit per sample.
+        Width, ///< Video width.
+        Height, ///< Video height.
+        FrameRate, ///< Video framerate.
         EOL /// End of list marker.
     };
 
+    /// Audio Meta data type specifiers.
+    enum class AudioMeta : int {
+        SampleRate,
+        Channels,
+        Bitrate,
+        BitPerSample,
+        EOL
+    };
+
+    /// Video Meta data type specifiers.
+    enum class VideoMeta : int {
+        Width,
+        Height,
+        FrameRate,
+        EOL
+    };
+
+    /// Image Meta data type specifiers.
+    enum class ImageMeta : int {
+        EOL
+    };
+
     /// Media item type specifier.
-    enum class Type {
+    enum class Type : int {
         Audio, ///< Audio type media item.
         Video, ///< Video type media item.
         Image, ///< Image type media item.
@@ -91,7 +120,7 @@ public:
     static std::string metaToString(MediaItem::Meta meta);
 
     /// Simplify type definition for use with std::optional.
-    typedef std::variant<std::int64_t, double, std::int32_t, std::string> MetaData;
+    typedef std::variant<std::int64_t, double, std::int32_t, std::string, std::uint32_t> MetaData;
 
     /**
      * \brief Construct device by uri.
@@ -235,8 +264,18 @@ private:
 /// Useful when iterating over enum.
 MediaItem::Type &operator++(MediaItem::Type &type);
 
+// TODO: need to change as template
 /// Useful when iterating over enum.
 MediaItem::Meta &operator++(MediaItem::Meta &meta);
+
+/// Useful when iterating over enum.
+MediaItem::AudioMeta &operator++(MediaItem::AudioMeta &meta);
+
+/// Useful when iterating over enum.
+MediaItem::VideoMeta &operator++(MediaItem::VideoMeta &meta);
+
+/// Useful when iterating over enum.
+MediaItem::ImageMeta &operator++(MediaItem::ImageMeta &meta);
 
 /// This is handled with unique_ptr so give it an alias.
 typedef std::unique_ptr<MediaItem> MediaItemPtr;

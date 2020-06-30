@@ -224,6 +224,9 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
             case 3:
                 props.put(metaStr, std::get<std::string>(content));
                 break;
+            case 4:
+                props.put(metaStr, std::to_string(std::get<std::uint32_t>(content)));
+                break;
             }
         } else {
             props.put(metaStr, std::string(""));

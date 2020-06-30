@@ -20,6 +20,8 @@
 
 #if defined HAS_GSTREAMER
 #include <gst/pbutils/gstdiscoverer.h>
+#include <gst/pbutils/pbutils.h>
+#include <gst/audio/audio.h>
 #endif
 
 #include <turbojpeg.h>
@@ -33,14 +35,25 @@
  */
 class GStreamerExtractor : public IMetaDataExtractor
 {
- public:
+public:
+    enum class StreamMeta : int {
+        SampleRate = 0, ///< Audio sample rate.
+        Channels, ///< Audio channels.
+        BitRate, ///< Audio bitrate.
+        BitPerSample, ///<Audio bit per sample.
+        Width, ///< Video width.
+        Height, ///< Video height.
+        FrameRate, ///< Video framerate.
+        EOL /// End of list marker.
+    };
+
     GStreamerExtractor();
     virtual ~GStreamerExtractor();
 
     /// From interface.
     void extractMeta(MediaItem &mediaItem) const;
 
- private:
+private:
     /// Get message id.
     LOG_MSGID;
 
@@ -57,4 +70,8 @@ class GStreamerExtractor : public IMetaDataExtractor
     /// Set media item media per media type.
     void setMeta(MediaItem &mediaItem, const GstDiscovererInfo *metaInfo,
         const char *tag) const;
+    void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo) const;
 };
+
+/// Useful when iterating over enum.
+GStreamerExtractor::StreamMeta &operator++(GStreamerExtractor::StreamMeta &meta);
