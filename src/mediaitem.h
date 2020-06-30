@@ -55,10 +55,12 @@ public:
         GeoLocCity, ///< Location city name.
         LastModifiedDate, ///< Last modified date.(formatted)
         LastModifiedDateRaw, ///< Last modified date.(not formatted)
+        FileSize, ///< File size.
         SampleRate, ///< Audio sample rate.
         Channels, ///< Audio channels.
         BitRate, ///< Audio bitrate.
         BitPerSample, ///<Audio bit per sample.
+		Lyric, ///< Audio Lyric.
         Width, ///< Video width.
         Height, ///< Video height.
         FrameRate, ///< Video framerate.
@@ -231,6 +233,11 @@ public:
      * \return The observer or nullptr if none is set.
      */
     virtual IMediaItemObserver *observer() const;
+
+    bool isMediaMeta(Meta meta);
+    bool isAudioMeta(Meta meta);
+    bool isVideoMeta(Meta meta);
+    bool isImageMeta(Meta meta);
 
 private:
     /// Get message id.

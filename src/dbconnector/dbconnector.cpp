@@ -19,7 +19,7 @@
 /// From main.cpp.
 extern const char *lunaServiceId;
 
-const char *DbConnector::dbUrl_ = "luna://com.webos.service.db";
+const char *DbConnector::dbUrl_ = "luna://com.webos.service.db/";
 LSHandle *DbConnector::lsHandle_ = nullptr;
 
 void DbConnector::init(LSHandle * lsHandle)
@@ -43,6 +43,7 @@ DbConnector::~DbConnector()
     // nothing to be done here
 }
 
+// TODO : Need refactoring
 void DbConnector::ensureKind()
 {
     if (!lsHandle_)
@@ -54,7 +55,7 @@ void DbConnector::ensureKind()
 
     // ensure that kind exists
     std::string url = dbUrl_;
-    url += "/putKind";
+    url += "putKind";
 
     auto kind = pbnjson::Object();
     kind.put("id", kindId_);
@@ -72,8 +73,44 @@ void DbConnector::ensureKind()
     }
 }
 
+void DbConnector::ensureKind(const std::string &kind_name)
+{
+    if (!lsHandle_)
+        LOG_CRITICAL(0, "Luna bus handle not set");
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+    LSMessageToken sessionToken;
+
+    // ensure that kind exists
+    std::string url = dbUrl_;
+    url += "putKind";
+
+    auto kind = pbnjson::Object();
+    kind.put("id", kind_name);
+    kind.put("owner", lunaServiceId);
+    kind.put("indexes", uriIndexes_);
+
+    LOG_INFO(0, "Ensure kind '%s'", kind_name.c_str());
+
+    if (!LSCall(lsHandle_, url.c_str(), kind.stringify().c_str(),
+            DbConnector::onLunaResponse, this, &sessionToken,
+            &lsError)) {
+        LOG_ERROR(0, "Db service putKind error");
+    } else {
+        rememberSessionData(sessionToken, "putKind", nullptr);
+    }
+}
+
+// TODO : Need refactoring
 bool DbConnector::mergePut(const std::string &uri, bool precise,
     pbnjson::JValue &props, void *obj)
+{
+    return mergePut(kindId_, uri, precise, props, obj);
+}
+
+bool DbConnector::mergePut(const std::string &kind_name, const std::string &uri, bool precise,
+	pbnjson::JValue &props, void *obj)
 {
     if (!lsHandle_)
         LOG_CRITICAL(0, "Luna bus handle not set");
@@ -83,11 +120,11 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
-    url += "/mergePut";
+    url += "mergePut";
 
     // query for matching uri
     auto query = pbnjson::Object();
-    query.put("from", kindId_);
+    query.put("from", kind_name);
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
     cond.put("prop", "uri");
@@ -98,11 +135,12 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
 
     auto request = pbnjson::Object();
     // set the kind property in case the query fails
-    props.put("_kind", kindId_);
+    props.put("_kind", kind_name);
     request.put("props", props);
     request.put("query", query);
 
     LOG_INFO(0, "Send mergePut for '%s'", uri.c_str());
+    LOG_INFO(0, "Send mergePut request '%s'", request.stringify().c_str());
 
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, &sessionToken,
@@ -116,7 +154,14 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
     return true;
 }
 
+// TODO : Need refactoring
 bool DbConnector::find(const std::string &uri, bool precise,
+    void *obj)
+{
+    return find(kindId_, uri, precise, obj);
+}
+
+bool DbConnector::find(const std::string &kind_name, const std::string &uri, bool precise,
     void *obj)
 {
     if (!lsHandle_)
@@ -127,11 +172,11 @@ bool DbConnector::find(const std::string &uri, bool precise,
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
-    url += "/find";
+    url += "find";
 
     // query for matching uri
     auto query = pbnjson::Object();
-    query.put("from", kindId_);
+    query.put("from", kind_name);
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
     cond.put("prop", "uri");
@@ -157,7 +202,14 @@ bool DbConnector::find(const std::string &uri, bool precise,
     return true;
 }
 
+// TODO : Need refactoring
 bool DbConnector::search(const std::string &uri, bool precise,
+    void *obj)
+{
+    return search(kindId_, uri, precise, obj);
+}
+
+bool DbConnector::search(const std::string &kind_name, const std::string &uri, bool precise,
     void *obj)
 {
     if (!lsHandle_)
@@ -168,11 +220,11 @@ bool DbConnector::search(const std::string &uri, bool precise,
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
-    url += "/search";
+    url += "search";
 
     // query for matching uri
     auto query = pbnjson::Object();
-    query.put("from", kindId_);
+    query.put("from", kind_name);
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
     cond.put("prop", "uri");
@@ -198,7 +250,13 @@ bool DbConnector::search(const std::string &uri, bool precise,
     return true;
 }
 
+// TODO : Need refactoring
 bool DbConnector::del(const std::string &uri, bool precise)
+{
+    return del(kindId_, uri, precise);
+}
+
+bool DbConnector::del(const std::string &kind_name, const std::string &uri, bool precise)
 {
     if (!lsHandle_)
         LOG_CRITICAL(0, "Luna bus handle not set");
@@ -208,11 +266,11 @@ bool DbConnector::del(const std::string &uri, bool precise)
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
-    url += "/del";
+    url += "del";
 
     // query for matching uri
     auto query = pbnjson::Object();
-    query.put("from", kindId_);
+    query.put("from", kind_name);
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
     cond.put("prop", "uri");
@@ -250,7 +308,7 @@ bool DbConnector::roAccess(std::list<std::string> &services)
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
-    url += "/putPermissions";
+    url += "putPermissions";
 
     auto permissions = pbnjson::Array();
     for (auto s : services) {

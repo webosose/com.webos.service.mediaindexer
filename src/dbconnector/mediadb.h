@@ -23,6 +23,10 @@
 #include <mutex>
 #include <list>
 
+#define MEDIA_KIND "com.webos.service.mediaindexer.media:1"
+#define AUDIO_KIND "com.webos.service.mediaindexer.audio:1"
+#define VIDEO_KIND "com.webos.service.mediaindexer.video:1"
+#define IMAGE_KIND "com.webos.service.mediaindexer.image:1"
 class Device;
 
 /// Connector to com.webos.service.db.
@@ -92,6 +96,8 @@ public:
     bool setResponseDestination(const std::string &methodKey, LSHandle *hdl, LSMessage *msg);
 
     bool sendResponseToDestination(LSHandle *hdl, LSMessage *dst, const char *message);
+
+    void makeUriIndex();
 
 protected:
     /// Get message id.

@@ -132,6 +132,8 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("geo_location_city");
     case MediaItem::Meta::LastModifiedDate:
         return std::string("last_modified_date");
+    case MediaItem::Meta::FileSize:
+        return std::string("file_size");
     case MediaItem::Meta::SampleRate:
         return std::string("sample_rate");
     case MediaItem::Meta::Channels:
@@ -140,6 +142,8 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("bit_rate");
     case MediaItem::Meta::BitPerSample:
         return std::string("bit_per_sample");
+    case MediaItem::Meta::Lyric:
+        return std::string("lyric");
     case MediaItem::Meta::Width:
         return std::string("width");
     case MediaItem::Meta::Height:
@@ -287,4 +291,60 @@ MediaItem::Type MediaItem::type() const
 IMediaItemObserver *MediaItem::observer() const
 {
     return device_->observer();
+}
+
+bool MediaItem::isMediaMeta(Meta meta){
+    switch (meta) {
+        case MediaItem::Meta::FileSize:
+        case MediaItem::Meta::DateOfCreation:
+        case MediaItem::Meta::LastModifiedDate:
+            return true;
+    }
+    return false;
+}
+
+bool MediaItem::isAudioMeta(Meta meta){
+    switch (meta) {
+        case MediaItem::Meta::Title:
+        case MediaItem::Meta::Genre:
+        case MediaItem::Meta::Album:
+        case MediaItem::Meta::Artist:
+        case MediaItem::Meta::AlbumArtist:
+        case MediaItem::Meta::Track:
+        case MediaItem::Meta::TotalTracks:
+        case MediaItem::Meta::Duration:
+        case MediaItem::Meta::Thumbnail:
+        case MediaItem::Meta::SampleRate:
+        case MediaItem::Meta::BitPerSample:
+        case MediaItem::Meta::Channels:
+        case MediaItem::Meta::BitRate:
+        case MediaItem::Meta::Lyric:
+            return true;
+    }
+    return false;
+}
+
+bool MediaItem::isVideoMeta(Meta meta){
+    switch (meta) {
+        case MediaItem::Meta::Duration:
+        case MediaItem::Meta::Width:
+        case MediaItem::Meta::Height:
+        case MediaItem::Meta::Thumbnail:
+        case MediaItem::Meta::FrameRate:
+            return true;
+    }
+    return false;
+}
+
+bool MediaItem::isImageMeta(Meta meta){
+    switch (meta) {
+        case MediaItem::Meta::Width:
+        case MediaItem::Meta::Height:
+        case MediaItem::Meta::GeoLocLongitude:
+        case MediaItem::Meta::GeoLocLatitude:
+        case MediaItem::Meta::GeoLocCountry:
+        case MediaItem::Meta::GeoLocCity:
+            return true;
+    }
+    return false;
 }

@@ -92,6 +92,8 @@ protected:
      */
     virtual bool mergePut(const std::string &uri, bool precise,
         pbnjson::JValue &props, void *obj = nullptr);
+    virtual bool mergePut(const std::string &kind_names, const std::string &uri, bool precise,
+        pbnjson::JValue &props, void *obj = nullptr);
 
     /**
      * \brief Send find request with uri.
@@ -103,8 +105,12 @@ protected:
      */
     virtual bool find(const std::string &uri, bool precise = true,
         void *obj = nullptr);
+    virtual bool find(const std::string &kind_names, const std::string &uri, bool precise = true,
+        void *obj = nullptr);
 
     virtual bool search(const std::string &uri, bool precise = true,
+        void *obj = nullptr);
+    virtual bool search(const std::string &kind_names, const std::string &uri, bool precise = true,
         void *obj = nullptr);
 
     /**
@@ -115,6 +121,7 @@ protected:
      * \return True on success, false on error.
      */
     virtual bool del(const std::string &uri, bool precise = true);
+    virtual bool del(const std::string &kind_names, const std::string &uri, bool precise = true);
 
     /**
      * \brief Give read only access to other services.
@@ -129,15 +136,18 @@ protected:
 
     /// Each specific database connection will be a singleton.
     DbConnector(const char *kindId);
+    DbConnector();
 
     /// Ensure database kind.
     virtual void ensureKind();
+    void ensureKind(const std::string &kind_names);
 
     /// Should be set from connector class constructor
     std::string kindId_;
     /// Should be set from connector class constructor, gives us the
     /// indexes for kind creation
     pbnjson::JArray kindIndexes_;
+    pbnjson::JArray uriIndexes_;
 
     /// Get message token to classify response and get attached data.
     bool sessionDataFromToken(LSMessageToken token, SessionData *sd);
@@ -145,7 +155,7 @@ protected:
 private:
 
     /// Do not use.
-    DbConnector();
+    //DbConnector();
 
     /// Db service url.
     static const char *dbUrl_;
