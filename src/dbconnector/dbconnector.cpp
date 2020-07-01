@@ -203,14 +203,8 @@ bool DbConnector::find(const std::string &kind_name, const std::string &uri, boo
 }
 
 // TODO : Need refactoring
-bool DbConnector::search(const std::string &uri, bool precise,
-    void *obj)
-{
-    return search(kindId_, uri, precise, obj);
-}
-
-bool DbConnector::search(const std::string &kind_name, const std::string &uri, bool precise,
-    void *obj)
+bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
+    const std::string &prop, const std::string &val, bool precise, void *obj)
 {
     if (!lsHandle_)
         LOG_CRITICAL(0, "Luna bus handle not set");
@@ -224,19 +218,20 @@ bool DbConnector::search(const std::string &kind_name, const std::string &uri, b
 
     // query for matching uri
     auto query = pbnjson::Object();
+    query.put("select", selects);
     query.put("from", kind_name);
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
-    cond.put("prop", "uri");
+    cond.put("prop", prop);
     cond.put("op", precise ? "=" : "%");
-    cond.put("val", uri);
+    cond.put("val", val);
     where << cond;
     query.put("where", where);
 
     auto request = pbnjson::Object();
     request.put("query", query);
 
-    LOG_INFO(0, "Send search for '%s'", uri.c_str());
+    LOG_INFO(0, "Send search for '%s' : '%s'", prop.c_str(), val.c_str());
 
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, &sessionToken,

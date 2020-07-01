@@ -108,10 +108,8 @@ protected:
     virtual bool find(const std::string &kind_names, const std::string &uri, bool precise = true,
         void *obj = nullptr);
 
-    virtual bool search(const std::string &uri, bool precise = true,
-        void *obj = nullptr);
-    virtual bool search(const std::string &kind_names, const std::string &uri, bool precise = true,
-        void *obj = nullptr);
+    virtual bool search(const std::string &kind_names, pbnjson::JValue &selects,
+        const std::string &prop, const std::string &val, bool precise = true, void *obj = nullptr);
 
     /**
      * \brief Delete all objects with the given uri.

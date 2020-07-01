@@ -319,6 +319,7 @@ bool MediaItem::isAudioMeta(Meta meta){
         case MediaItem::Meta::Channels:
         case MediaItem::Meta::BitRate:
         case MediaItem::Meta::Lyric:
+        case MediaItem::Meta::FileSize:
             return true;
     }
     return false;
@@ -331,6 +332,7 @@ bool MediaItem::isVideoMeta(Meta meta){
         case MediaItem::Meta::Height:
         case MediaItem::Meta::Thumbnail:
         case MediaItem::Meta::FrameRate:
+        case MediaItem::Meta::FileSize:
             return true;
     }
     return false;
@@ -344,6 +346,7 @@ bool MediaItem::isImageMeta(Meta meta){
         case MediaItem::Meta::GeoLocLatitude:
         case MediaItem::Meta::GeoLocCountry:
         case MediaItem::Meta::GeoLocCity:
+        case MediaItem::Meta::FileSize:
             return true;
     }
     return false;

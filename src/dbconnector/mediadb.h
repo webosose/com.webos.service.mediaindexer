@@ -27,6 +27,13 @@
 #define AUDIO_KIND "com.webos.service.mediaindexer.audio:1"
 #define VIDEO_KIND "com.webos.service.mediaindexer.video:1"
 #define IMAGE_KIND "com.webos.service.mediaindexer.image:1"
+
+#define URI "uri"
+#define HASH "hash"
+#define DIRTY "dirty"
+#define TYPE "type"
+#define MIME "mime"
+
 class Device;
 
 /// Connector to com.webos.service.db.
@@ -92,6 +99,12 @@ public:
     bool getAudioMetadata(const std::string &uri);
 
     bool getVideoList(const std::string &uri);
+
+    bool getVideoMetadata(const std::string &uri);
+
+    bool getImageList(const std::string &uri);
+
+    bool getImageMetadata(const std::string &uri);
 
     bool setResponseDestination(const std::string &methodKey, LSHandle *hdl, LSMessage *msg);
 
