@@ -21,16 +21,28 @@ extern const char *lunaServiceId;
 
 const char *DbConnector::dbUrl_ = "luna://com.webos.service.db/";
 LSHandle *DbConnector::lsHandle_ = nullptr;
+std::string DbConnector::suffix_ = ":1";
 
 void DbConnector::init(LSHandle * lsHandle)
 {
     lsHandle_ = lsHandle;
 }
 
-DbConnector::DbConnector(const char *kindId) :
-    kindId_(kindId)
+DbConnector::DbConnector(const char *serviceName, bool async) :
+    serviceName_(serviceName)
 {
+    kindId_ = serviceName_ + suffix_;
+
     // nothing to be done here
+    connector_ = std::unique_ptr<LunaConnector>(new LunaConnector(serviceName_, async));
+
+    if (!connector_)
+        LOG_ERROR(0, "Failed to create lunaconnector object");
+
+    connector_->registerTokenCallback(
+        [this](LSMessageToken & token, const std::string & method, void *obj) -> void {
+            rememberSessionData(token, method, obj);
+        });
 }
 
 DbConnector::DbConnector()
@@ -41,45 +53,11 @@ DbConnector::DbConnector()
 DbConnector::~DbConnector()
 {
     // nothing to be done here
-}
-
-// TODO : Need refactoring
-void DbConnector::ensureKind()
-{
-    if (!lsHandle_)
-        LOG_CRITICAL(0, "Luna bus handle not set");
-
-    LSError lsError;
-    LSErrorInit(&lsError);
-    LSMessageToken sessionToken;
-
-    // ensure that kind exists
-    std::string url = dbUrl_;
-    url += "putKind";
-
-    auto kind = pbnjson::Object();
-    kind.put("id", kindId_);
-    kind.put("owner", lunaServiceId);
-    kind.put("indexes", kindIndexes_);
-
-    LOG_INFO(0, "Ensure kind '%s'", kindId_.c_str());
-    
-    if (!LSCall(lsHandle_, url.c_str(), kind.stringify().c_str(),
-            DbConnector::onLunaResponse, this, &sessionToken,
-            &lsError)) {
-        LOG_ERROR(0, "Db service putKind error");
-    } else {
-        rememberSessionData(sessionToken, "putKind", nullptr);
-    }
+    connector_.reset();
 }
 
 void DbConnector::ensureKind(const std::string &kind_name)
 {
-    if (!lsHandle_)
-        LOG_CRITICAL(0, "Luna bus handle not set");
-
-    LSError lsError;
-    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
 
     // ensure that kind exists
@@ -87,18 +65,24 @@ void DbConnector::ensureKind(const std::string &kind_name)
     url += "putKind";
 
     auto kind = pbnjson::Object();
-    kind.put("id", kind_name);
-    kind.put("owner", lunaServiceId);
-    kind.put("indexes", uriIndexes_);
+    if (kind_name.empty())
+    {
+        kind.put("id", kindId_);
+        kind.put("indexes", kindIndexes_);
+    }
+    else
+    {
+        kind.put("id", kind_name);
+        kind.put("indexes", uriIndexes_);
+    }
+
+    kind.put("owner", serviceName_.c_str());
 
     LOG_INFO(0, "Ensure kind '%s'", kind_name.c_str());
 
-    if (!LSCall(lsHandle_, url.c_str(), kind.stringify().c_str(),
-            DbConnector::onLunaResponse, this, &sessionToken,
-            &lsError)) {
+    if (!connector_->sendMessage(url.c_str(), kind.stringify().c_str(),
+            DbConnector::onLunaResponse, this, true, &sessionToken)) {
         LOG_ERROR(0, "Db service putKind error");
-    } else {
-        rememberSessionData(sessionToken, "putKind", nullptr);
     }
 }
 
@@ -110,13 +94,8 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
 }
 
 bool DbConnector::mergePut(const std::string &kind_name, const std::string &uri, bool precise,
-	pbnjson::JValue &props, void *obj)
+    pbnjson::JValue &props, void *obj)
 {
-    if (!lsHandle_)
-        LOG_CRITICAL(0, "Luna bus handle not set");
-
-    LSError lsError;
-    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
@@ -142,13 +121,10 @@ bool DbConnector::mergePut(const std::string &kind_name, const std::string &uri,
     LOG_INFO(0, "Send mergePut for '%s'", uri.c_str());
     LOG_INFO(0, "Send mergePut request '%s'", request.stringify().c_str());
 
-    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, &sessionToken,
-            &lsError)) {
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, true, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service mergePut error");
         return false;
-    } else {
-        rememberSessionData(sessionToken, "mergePut", obj);
     }
 
     return true;
@@ -164,11 +140,6 @@ bool DbConnector::find(const std::string &uri, bool precise,
 bool DbConnector::find(const std::string &kind_name, const std::string &uri, bool precise,
     void *obj)
 {
-    if (!lsHandle_)
-        LOG_CRITICAL(0, "Luna bus handle not set");
-
-    LSError lsError;
-    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
@@ -190,13 +161,10 @@ bool DbConnector::find(const std::string &kind_name, const std::string &uri, boo
 
     LOG_INFO(0, "Send find for '%s'", uri.c_str());
 
-    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, &sessionToken,
-            &lsError)) {
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, true, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service find error");
         return false;
-    } else {
-        rememberSessionData(sessionToken, "find", obj);
     }
 
     return true;
@@ -204,15 +172,10 @@ bool DbConnector::find(const std::string &kind_name, const std::string &uri, boo
 
 // TODO : Need refactoring
 bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
-    const std::string &prop, const std::string &val, bool precise, void *obj)
+    const std::string &prop, const std::string &val, bool precise, void *obj, bool atomic)
 {
-    if (!lsHandle_)
-        LOG_CRITICAL(0, "Luna bus handle not set");
-
-    LSError lsError;
-    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
-
+    bool async = !atomic;
     std::string url = dbUrl_;
     url += "search";
 
@@ -230,16 +193,13 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
 
     auto request = pbnjson::Object();
     request.put("query", query);
-
+    
     LOG_INFO(0, "Send search for '%s' : '%s'", prop.c_str(), val.c_str());
 
-    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, &sessionToken,
-            &lsError)) {
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service search error");
         return false;
-    } else {
-        rememberSessionData(sessionToken, "search", obj);
     }
 
     return true;
@@ -253,11 +213,6 @@ bool DbConnector::del(const std::string &uri, bool precise)
 
 bool DbConnector::del(const std::string &kind_name, const std::string &uri, bool precise)
 {
-    if (!lsHandle_)
-        LOG_CRITICAL(0, "Luna bus handle not set");
-
-    LSError lsError;
-    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
@@ -279,15 +234,11 @@ bool DbConnector::del(const std::string &kind_name, const std::string &uri, bool
 
     LOG_INFO(0, "Send delete for '%s'", uri.c_str());
 
-    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, &sessionToken,
-            &lsError)) {
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, true, &sessionToken)) {
         LOG_ERROR(0, "Db service delete error");
         return false;
-    } else {
-        rememberSessionData(sessionToken, "del", nullptr);
     }
-
     return true;
 }
 
@@ -324,16 +275,30 @@ bool DbConnector::roAccess(std::list<std::string> &services)
     LOG_INFO(0, "Send putPermissions");
     LOG_DEBUG("Request : %s", request.stringify().c_str());
 
-    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, &sessionToken,
-            &lsError)) {
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, true, &sessionToken)) {
         LOG_ERROR(0, "Db service permissions error");
         return false;
-    } else {
-        rememberSessionData(sessionToken, "putPermissions", nullptr);
     }
 
     return true;
+}
+
+void DbConnector::putRespObject(bool returnValue, pbnjson::JValue & obj,
+                const int& errorCode,
+                const std::string& errorText)
+{
+    obj.put("returnValue", returnValue);
+    obj.put("errorCode", errorCode);
+    obj.put("errorText", errorText);
+}
+
+bool DbConnector::sendResponse(LSHandle *sender, LSMessage* message, const std::string &object)
+{
+    if (!connector_)
+        return false;
+
+    return connector_->sendResponse(sender, message, object);
 }
 
 bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd)
@@ -352,6 +317,7 @@ bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd)
 bool DbConnector::onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     DbConnector *connector = static_cast<DbConnector *>(ctx);
+    LOG_DEBUG("onLunaResponse");
     return connector->handleLunaResponse(msg);
 }
 
@@ -361,100 +327,13 @@ void DbConnector::rememberSessionData(LSMessageToken token,
     // remember token for response - we could do that after the
     // request has been issued because the response will happen
     // from the mainloop in the same thread context
+    LOG_DEBUG("Save method %s, token %ld pair", method.c_str(), (long)token);
+    std::lock_guard<std::mutex> lock(lock_);
     SessionData sd;
     sd.method = method;
     sd.object = object;
     auto p = std::make_pair(token, sd);
 
-    std::lock_guard<std::mutex> lock(lock_);
+
     messageMap_.emplace(p);
 }
-
-bool DbConnector::addSubscriber(LSHandle *handle, LSMessage *msg)
-{
-    LSError lsError;
-    LSErrorInit(&lsError);
-    std::string method = LSMessageGetMethod(msg);
-    if (method.empty())
-    {
-        LOG_ERROR(0, "Failed to get method name from ls message, it mandatory to get key for subscription");
-        return false;
-    }
-
-    if (!LSSubscriptionAdd(handle, method.c_str(), msg, &lsError))
-    {
-        LOG_ERROR(0, "LSSubscriptionAdd failed: %s", lsError.message);
-        return false;
-    }
-    LOG_DEBUG("Add subscription done, handle : %p, method : %s, sender : %s", handle, method.c_str(), LSMessageGetSender(msg));
-    return true;
-}
-
-bool DbConnector::removeSubscriber(LSHandle *handle, LSMessage *msg, const std::string key)
-{
-    LSError lsError;
-    LSErrorInit(&lsError);
-    LSSubscriptionIter *iter = NULL;
-
-    if (key.empty())
-    {
-        LOG_ERROR(0, "Invalid key");
-        return false;
-    }
-
-    const char* sender = LSMessageGetSender(msg);
-    if (sender != NULL)
-    {
-        if (LSSubscriptionAcquire(handle, key.c_str(), &iter, &lsError))
-        {
-            LSMessage *subscriberMessage;
-            while (LSSubscriptionHasNext(iter))
-            {
-                subscriberMessage = LSSubscriptionNext(iter);
-                const char *subscriberSender = LSMessageGetSender(subscriberMessage);
-                if (sender == subscriberSender)
-                {
-                    LSSubscriptionRemove(iter);
-                    break;
-                }
-            }
-        }
-        else
-        {
-            LOG_ERROR(0, "LSSubscriptionAcquire Failed");
-            return false;
-        }
-    }
-    else
-    {
-        LOG_ERROR(0, "Invalid sender");
-        return false;
-    }
-
-    return true;
-}
-
-bool DbConnector::sendNotification(LSHandle *handle, std::string &message, const std::string &key)
-{
-    LSError lsError;
-    LSErrorInit(&lsError);
-
-    if (!handle)
-    {
-        LOG_ERROR(0, "Invalid handle for subscription reply");
-        return false;
-    }
-
-    if (key.empty())
-    {
-        LOG_ERROR(0, "Invalid key for subscription reply");
-        return false;
-    }
-
-    if (!LSSubscriptionReply(handle, key.c_str(), message.c_str(), &lsError)) {
-        LOG_ERROR(0, "LSSubscriptionReply failed: %s", lsError.message);
-        return false;
-    }
-    return true;
-}
-

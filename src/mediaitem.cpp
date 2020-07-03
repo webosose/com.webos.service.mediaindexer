@@ -256,7 +256,7 @@ void MediaItem::setMeta(Meta meta, MetaData value)
         break;
     default:
         LOG_DEBUG("Invalid index for setting meta '%s'", uri_.c_str());
-        break;        
+        break;
     }
 
     // make the arist the album artist of none has been set yet

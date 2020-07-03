@@ -52,8 +52,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
         return false;
 
     auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.service.db for: '%s'",
-        method.c_str());
+    LOG_INFO(0, "[%d] Received response com.webos.service.db for: '%s'", gettid(), method.c_str());
 
     if (method != std::string("find"))
         return true;
@@ -61,6 +60,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
     // we do not need to check, the service implementation should do that
     pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
     const char *payload = LSMessageGetPayload(msg);
+    LOG_DEBUG("payload : %s", payload);
 
     if (!parser.parse(payload)) {
         LOG_ERROR(0, "Invalid JSON message: %s", payload);
@@ -105,7 +105,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
 }
 
 DeviceDb::DeviceDb() :
-    DbConnector("com.webos.service.mediaindexer.devices:1")
+    DbConnector("com.webos.service.mediaindexer.devices")
 {
     std::list<std::string> indexes = {"uri", "available"}; // add index : available
     for (auto idx : indexes) {

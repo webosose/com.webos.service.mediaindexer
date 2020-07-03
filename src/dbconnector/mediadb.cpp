@@ -22,9 +22,12 @@
 #include <cstdint>
 
 std::unique_ptr<MediaDb> MediaDb::instance_;
+std::mutex MediaDb::ctorLock_;
+
 
 MediaDb *MediaDb::instance()
 {
+    std::lock_guard<std::mutex> lk(ctorLock_);
     if (!instance_.get()) {
         instance_.reset(new MediaDb);
         instance_->ensureKind();
@@ -40,40 +43,6 @@ MediaDb::~MediaDb()
     // nothing to be done here
 }
 
-bool MediaDb::setResponseDestination(const std::string &methodKey, LSHandle *hdl, LSMessage *msg)
-{
-    std::lock_guard<std::mutex> lk(lock_);
-    currMethod_ = methodKey;
-
-    respDest_.insert_or_assign(currMethod_, std::make_pair(hdl, msg));
-    LSMessageRef(reinterpret_cast<LSMessage*>(msg));
-    return true;
-}
-
-bool MediaDb::sendResponseToDestination(LSHandle *hdl, LSMessage *dst, const char *message)
-{
-    if (!dst)
-    {
-        LOG_ERROR(0, "Invalid LSMessage");
-        return false;
-    }
-    if (!hdl)
-    {
-        LOG_ERROR(0, "LSHandle extracted from msg is invalid");
-        return false;
-    }
-
-    LSError lsError;
-    LSErrorInit(&lsError);
-    if (!LSMessageReply(hdl, dst, message, &lsError))
-    {
-        LOG_ERROR(0, "Message reply error");
-        return false;
-    }
-    LSMessageUnref(reinterpret_cast<LSMessage*>(dst));
-    return true;
-}
-
 bool MediaDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
@@ -82,7 +51,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         return false;
 
     auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.service.db for: '%s'",
+    LOG_INFO(0, "[Thread %d] Received response com.webos.service.db for: '%s'",gettid(),
         method.c_str());
 
     // handle the media data exists case
@@ -95,6 +64,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
+        LOG_DEBUG("payload : %s", payload);
 
         if (!parser.parse(payload)) {
             LOG_ERROR(0, "Invalid JSON message: %s", payload);
@@ -137,8 +107,11 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         } else {
             LOG_DEBUG("Media item '%s' unchanged", mi->uri().c_str());
         }
-    }else if (method == std::string("search")) {
-
+    }
+    else if (method == std::string("search"))
+    {
+        if (!sd.object)
+            return false;
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
@@ -150,7 +123,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 
         pbnjson::JValue domTree(parser.getDom());
         // response message
-        auto reply = pbnjson::Object();
+        auto reply = static_cast<pbnjson::JValue *>(sd.object);
 
         if (!domTree.hasKey("results")){
             return false;
@@ -158,34 +131,9 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 
         // response message
         auto matches = domTree["results"];
-        reply.put("results", matches);
+        reply->put("results", matches);
 
-        std::lock_guard<std::mutex> lk(lock_);
-        if (!currMethod_.empty())
-        {
-            if (respDest_.find(currMethod_) != respDest_.end())
-            {
-                auto dst = respDest_[currMethod_];
-                LOG_DEBUG("current Method : %s", currMethod_.c_str());
-                auto resp = pbnjson::Object();
-                resp.put("returnValue", true);
-                resp.put("count", matches.arraySize());
-                resp.put("results",matches);
-                sendResponseToDestination(dst.first, dst.second, resp.stringify().c_str());
-            }
-            else
-                LOG_ERROR(0, "LSMessage information for setting desination is not enough for method %s", currMethod_.c_str());
-            currMethod_ = "";
-        }
-/*
-        std::string ret = reply.stringify();
-        if (sendNotification(getHandle(), ret, "getAudioList"))
-        {
-            LOG_DEBUG("Send Notification succeeded");
-        }
-*/
         LOG_DEBUG("search response payload : %s",payload);
-
     }
 
     return true;
@@ -335,6 +283,8 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
             break;
         case MediaItem::Type::Image:
             mergePut(IMAGE_KIND, mediaItem->uri(), true, imageProps);
+	        break;
+        default:
             break;
     }
 }
@@ -365,7 +315,7 @@ void MediaDb::grantAccess(const std::string &serviceName)
     roAccess(dbClients_);
 }
 
-bool MediaDb::getAudioList(const std::string &uri)
+bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
 {
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
@@ -381,10 +331,10 @@ bool MediaDb::getAudioList(const std::string &uri)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
-    return search(AUDIO_KIND, selectArray, URI, uri, false);
+    return search(AUDIO_KIND, selectArray, URI, uri, false, &resp, true);
 }
 
-bool MediaDb::getAudioMetadata(const std::string &uri)
+bool MediaDb::getAudioMetadata(const std::string &uri, pbnjson::JValue &resp)
 {
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
@@ -405,10 +355,10 @@ bool MediaDb::getAudioMetadata(const std::string &uri)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Lyric));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
-    return search(AUDIO_KIND, selectArray, URI, uri, true);
+    return search(AUDIO_KIND, selectArray, URI, uri, true, &resp, true);
 }
 
-bool MediaDb::getVideoList(const std::string &uri)
+bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
 {
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
@@ -419,10 +369,10 @@ bool MediaDb::getVideoList(const std::string &uri)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
-    return search(VIDEO_KIND, selectArray, URI, uri, false);
+    return search(VIDEO_KIND, selectArray, URI, uri, false, &resp, true);
 }
 
-bool MediaDb::getVideoMetadata(const std::string &uri)
+bool MediaDb::getVideoMetadata(const std::string &uri, pbnjson::JValue &resp)
 {
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
@@ -434,10 +384,10 @@ bool MediaDb::getVideoMetadata(const std::string &uri)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
-    return search(VIDEO_KIND, selectArray, URI, uri, true);
+    return search(VIDEO_KIND, selectArray, URI, uri, true, &resp, true);
 }
 
-bool MediaDb::getImageList(const std::string &uri)
+bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
 {
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
@@ -447,10 +397,10 @@ bool MediaDb::getImageList(const std::string &uri)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
-    return search(IMAGE_KIND, selectArray, URI, uri, false);
+    return search(IMAGE_KIND, selectArray, URI, uri, false, &resp, true);
 }
 
-bool MediaDb::getImageMetadata(const std::string &uri)
+bool MediaDb::getImageMetadata(const std::string &uri, pbnjson::JValue &resp)
 {
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
@@ -464,7 +414,7 @@ bool MediaDb::getImageMetadata(const std::string &uri)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocLongitude));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
-    return search(IMAGE_KIND, selectArray, URI, uri, true);
+    return search(IMAGE_KIND, selectArray, URI, uri, true, &resp, true);
 }
 
 void MediaDb::makeUriIndex(){
@@ -482,7 +432,7 @@ void MediaDb::makeUriIndex(){
 }
 
 MediaDb::MediaDb() :
-    DbConnector("com.webos.service.mediaindexer.media:1")
+    DbConnector("com.webos.service.mediaindexer.media", true)
 {
     std::list<std::string> indexes = {URI, TYPE};
     for (auto idx : indexes) {

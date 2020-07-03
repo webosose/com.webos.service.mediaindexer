@@ -16,4 +16,4 @@
 
 include_directories(./)
 include_directories(../)
-add_library(dbconnector STATIC dbconnector.cpp devicedb.cpp settingsdb.cpp mediadb.cpp)
+add_library(dbconnector STATIC dbconnector.cpp devicedb.cpp settingsdb.cpp mediadb.cpp lunaconnector.cpp)

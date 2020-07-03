@@ -94,21 +94,17 @@ public:
      */
     void grantAccess(const std::string &serviceName);
 
-    bool getAudioList(const std::string &uri);
+    bool getAudioList(const std::string &uri, pbnjson::JValue &resp);
 
-    bool getAudioMetadata(const std::string &uri);
+    bool getAudioMetadata(const std::string &uri, pbnjson::JValue &resp);
 
-    bool getVideoList(const std::string &uri);
+    bool getVideoList(const std::string &uri, pbnjson::JValue &resp);
 
-    bool getVideoMetadata(const std::string &uri);
+    bool getVideoMetadata(const std::string &uri, pbnjson::JValue &resp);
 
-    bool getImageList(const std::string &uri);
+    bool getImageList(const std::string &uri, pbnjson::JValue &resp);
 
-    bool getImageMetadata(const std::string &uri);
-
-    bool setResponseDestination(const std::string &methodKey, LSHandle *hdl, LSMessage *msg);
-
-    bool sendResponseToDestination(LSHandle *hdl, LSMessage *dst, const char *message);
+    bool getImageMetadata(const std::string &uri, pbnjson::JValue &resp);
 
     void makeUriIndex();
 
@@ -122,8 +118,7 @@ protected:
 private:
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
-    std::map<std::string, std::pair<LSHandle *, LSMessage *>> respDest_;
-    std::string currMethod_;
+    static std::mutex ctorLock_;
     mutable std::mutex lock_;
     /// List of services that should have read-only access to
     /// database.

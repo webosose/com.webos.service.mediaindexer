@@ -34,6 +34,24 @@ do { \
     return false; \
 } while(0)
 
+std::map<std::string, MediaItem::Meta> GStreamerExtractor::metaMap_ = {
+    {GST_TAG_TITLE,                     MediaItem::Meta::Title},
+    {GST_TAG_GENRE,                     MediaItem::Meta::Genre},
+    {GST_TAG_ALBUM,                     MediaItem::Meta::Album},
+    {GST_TAG_ARTIST,                    MediaItem::Meta::Artist},
+    {GST_TAG_ALBUM_ARTIST,              MediaItem::Meta::AlbumArtist},
+    {GST_TAG_TRACK_NUMBER,              MediaItem::Meta::Track},
+    {GST_TAG_TRACK_COUNT,               MediaItem::Meta::TotalTracks},
+    {GST_TAG_DATE_TIME,                 MediaItem::Meta::DateOfCreation},
+    {GST_TAG_DURATION,                  MediaItem::Meta::Duration},
+    {GST_TAG_GEO_LOCATION_LONGITUDE,    MediaItem::Meta::GeoLocLongitude},
+    {GST_TAG_GEO_LOCATION_LATITUDE,     MediaItem::Meta::GeoLocLatitude},
+    {GST_TAG_GEO_LOCATION_COUNTRY,      MediaItem::Meta::GeoLocCountry},
+    {GST_TAG_GEO_LOCATION_CITY,         MediaItem::Meta::GeoLocCity},
+    {GST_TAG_THUMBNAIL,                 MediaItem::Meta::Thumbnail}
+};
+
+
 GStreamerExtractor::StreamMeta &operator++(GStreamerExtractor::StreamMeta &meta)
 {
     if (meta == GStreamerExtractor::StreamMeta::EOL)
@@ -266,9 +284,10 @@ bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t he
     return true;
 }
 
-
 bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filename, const std::string &ext) const
 {
+    LOG_DEBUG("Thumbnail Image creation start");
+    auto begin = std::chrono::high_resolution_clock::now();;
     MediaItem::Type type = mediaItem.type();
     if (type != MediaItem::Type::Video && type != MediaItem::Type::Image)
     {
@@ -278,7 +297,8 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     }
     std::string uri = "file://";
     uri.append(mediaItem.path());
-    filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + std::filesystem::path(uri).stem().string() + "." + ext;
+    //filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + std::filesystem::path(uri).stem().string() + "." + ext;
+    filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + randFilename() + "." + ext;
 
     GstElement *pipeline = nullptr;
     GstElement *videoSink = nullptr;
@@ -291,9 +311,8 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     GstMapInfo map;
 
     gboolean res;
-
-    pipelineStr = g_strdup_printf("uridecodebin uri=%s ! qvconv ! "
-      " appsink name=video-sink caps=\"" CAPS "\"", uri.c_str());
+    LOG_DEBUG("uri : \"%s\"", uri.c_str());
+    pipelineStr = g_strdup_printf("uridecodebin uri=\"%s\" ! queue ! qvconv ! "" appsink name=video-sink caps=\"" CAPS "\"", uri.c_str());    
     pipeline = gst_parse_launch(pipelineStr, &error);
     if (error != nullptr)
     {
@@ -304,10 +323,11 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
 
     videoSink = gst_bin_get_by_name (GST_BIN (pipeline), "video-sink");
     if (videoSink == nullptr)
-        RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "Failed to get video sink");
+        RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "Failed to get video sink");    
 
     ret = gst_element_set_state (pipeline, GST_STATE_PAUSED);
     //ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);
+    LOG_DEBUG("gst_element_set_state GST_STATE_PAUSED OK");
     switch (ret)
     {
         case GST_STATE_CHANGE_FAILURE:
@@ -329,7 +349,10 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     else
         position = 1 * GST_SECOND;
 
-    gst_element_seek_simple (pipeline, GST_FORMAT_TIME, GstSeekFlags(GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_FLUSH), position);
+    gst_element_seek(pipeline, 1.0f, GST_FORMAT_TIME,
+                   GstSeekFlags(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+                   GST_SEEK_TYPE_SET, position,
+                   GST_SEEK_TYPE_NONE, 0);
 
     g_signal_emit_by_name (videoSink, "pull-preroll", &sample, NULL);
     gst_object_unref (videoSink);
@@ -365,43 +388,24 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     {
         LOG_ERROR(0, "could not make snapshot");
     }
-
     gst_element_set_state (pipeline, GST_STATE_NULL);
     gst_object_unref (pipeline);
+    
+    auto end = std::chrono::high_resolution_clock::now();;
+    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+    LOG_DEBUG("Thumbnail Image creation done, elapsed time = %d [ms]", elapsedTime);
     return true;
 }
 
 
 MediaItem::Meta GStreamerExtractor::metaFromTag(const char *gstTag) const
 {
-    // TODO: standard map is fast more than strcmp for each tags.
-    if (!strcmp(gstTag, GST_TAG_TITLE))
-        return MediaItem::Meta::Title;
-    if (!strcmp(gstTag, GST_TAG_GENRE))
-        return MediaItem::Meta::Genre;
-    if (!strcmp(gstTag, GST_TAG_ALBUM))
-        return MediaItem::Meta::Album;
-    if (!strcmp(gstTag, GST_TAG_ARTIST))
-        return MediaItem::Meta::Artist;
-    if (!strcmp(gstTag, GST_TAG_ALBUM_ARTIST))
-        return MediaItem::Meta::AlbumArtist;
-    if (!strcmp(gstTag, GST_TAG_TRACK_NUMBER))
-        return MediaItem::Meta::Track;
-    if (!strcmp(gstTag, GST_TAG_TRACK_COUNT))
-        return MediaItem::Meta::TotalTracks;
-    if (!strcmp(gstTag, GST_TAG_DATE_TIME))
-        return MediaItem::Meta::DateOfCreation;
-    if (!strcmp(gstTag, GST_TAG_DURATION))
-        return MediaItem::Meta::Duration;
-    if (!strcmp(gstTag, GST_TAG_GEO_LOCATION_LONGITUDE))
-        return MediaItem::Meta::GeoLocLongitude;
-    if (!strcmp(gstTag, GST_TAG_GEO_LOCATION_LATITUDE))
-        return MediaItem::Meta::GeoLocLatitude;
-    if (!strcmp(gstTag, GST_TAG_GEO_LOCATION_COUNTRY))
-        return MediaItem::Meta::GeoLocCountry;
-    if (!strcmp(gstTag, GST_TAG_GEO_LOCATION_CITY))
-        return MediaItem::Meta::GeoLocCity;
+    auto iter = metaMap_.find(gstTag);
+    
+    if (iter != metaMap_.end())
+        return iter->second;
 
+    LOG_ERROR(0, "Failed to find meta for tag %s",gstTag);
     return MediaItem::Meta::EOL;
 }
 

@@ -17,15 +17,16 @@
 #pragma once
 
 #include "logging.h"
-
+#include "lunaconnector.h"
 #include <luna-service2/lunaservice.h>
 #include <pbnjson.hpp>
 
 #include <string>
+#include <memory>
 #include <mutex>
+#include <thread>
 #include <map>
 #include <list>
-
 
 /// Connector to com.webos.service.db.
 class DbConnector
@@ -42,23 +43,15 @@ public:
     static void init(LSHandle *lsHandle);
 
 
-    LSHandle *getHandle() { return lsHandle_; };
+    virtual void putRespObject(bool returnValue,
+                                   pbnjson::JValue & obj,
+                                   const int& errorCode = 0,
+                                   const std::string& errorText = "No Error"
+                                   );
 
-    /**
-     * \brief Add subscriber for subscription messages
-     *
-     * \param[in] msg The Luna message.
-     */
-    bool addSubscriber(LSHandle *handle, LSMessage *msg);
+    virtual bool sendResponse(LSHandle *sender, LSMessage* message,
+                           const std::string &object);
 
-    /**
-     * \brief Remove subscriber for subscription messages
-     *
-     * \param[in] msg The Luna message.
-     */
-    bool removeSubscriber(LSHandle *handle, LSMessage *msg, const std::string key);
-
-    bool sendNotification(LSHandle *handle, std::string &message, const std::string &key);
 protected:
     /// Session data attached to each luna request
     struct SessionData {
@@ -109,7 +102,7 @@ protected:
         void *obj = nullptr);
 
     virtual bool search(const std::string &kind_names, pbnjson::JValue &selects,
-        const std::string &prop, const std::string &val, bool precise = true, void *obj = nullptr);
+        const std::string &prop, const std::string &val, bool precise = true, void *obj = nullptr, bool atomic = false);
 
     /**
      * \brief Delete all objects with the given uri.
@@ -133,15 +126,18 @@ protected:
     LOG_MSGID;
 
     /// Each specific database connection will be a singleton.
-    DbConnector(const char *kindId);
+    DbConnector(const char *kindId, bool async = false);
     DbConnector();
 
     /// Ensure database kind.
-    virtual void ensureKind();
-    void ensureKind(const std::string &kind_names);
+    virtual void ensureKind(const std::string &kind_names = "");
 
     /// Should be set from connector class constructor
     std::string kindId_;
+
+    ///service name to send message to db8 service
+    std::string serviceName_;
+
     /// Should be set from connector class constructor, gives us the
     /// indexes for kind creation
     pbnjson::JArray kindIndexes_;
@@ -161,6 +157,12 @@ private:
     /// Luna service handle.
     static LSHandle *lsHandle_;
 
+    /// suffix to service name to make kind id
+    static std::string suffix_;
+
+    /// Luna connector handle.
+    std::unique_ptr<LunaConnector> connector_;
+
     /// Map of luna service message tokens and the method along with
     /// some call specific user data.
     std::map<LSMessageToken, DbConnector::SessionData> messageMap_;
@@ -174,4 +176,5 @@ private:
     /// Remember session data.
     void rememberSessionData(LSMessageToken token, const std::string &method,
         void *object);
+
 };

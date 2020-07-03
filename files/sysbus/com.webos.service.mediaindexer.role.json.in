@@ -1,12 +1,29 @@
 {
     "exeName":"@WEBOS_INSTALL_SBINDIR@/com.webos.service.mediaindexer",
     "type": "regular",
-    "allowedNames": [ "com.webos.service.mediaindexer" ],
+    "allowedNames": [
+        "com.webos.service.mediaindexer",
+        "com.webos.service.mediaindexer.media",
+        "com.webos.service.mediaindexer.devices",
+        "com.webos.service.mediaindexer.settings"
+    ],
     "permissions": [
         {
             "service": "com.webos.service.mediaindexer",
             "outbound": [ "com.webos.service.pdm",
                           "com.webos.service.db" ]
+        },
+        {
+            "service": "com.webos.service.mediaindexer.media",
+            "outbound": [ "com.webos.service.db" ]
+        },
+        {
+            "service": "com.webos.service.mediaindexer.devices",
+            "outbound": [ "com.webos.service.db" ]
+        },
+        {
+            "service": "com.webos.service.mediaindexer.settings",
+            "outbound": [ "com.webos.service.db" ]
         }
     ]
 }

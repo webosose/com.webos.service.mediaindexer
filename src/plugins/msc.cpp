@@ -79,7 +79,12 @@ void Usb::pdmUpdate(const pbnjson::JValue &dev, bool available)
         if (!std::filesystem::is_directory(thumbnailDir))
         {
             if (!std::filesystem::create_directory(thumbnailDir, err))
-                LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir, err.message().c_str());
+            {
+                LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
+                LOG_DEBUG("Retry with create_directories");
+                if (!std::filesystem::create_directories(thumbnailDir, err))
+                    LOG_ERROR(0, "Retry Failed, error : %s",thumbnailDir.c_str(), err.message().c_str());
+            }
         }
 
         auto uri = suri.str();

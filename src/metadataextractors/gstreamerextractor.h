@@ -25,6 +25,7 @@
 #endif
 
 #include <turbojpeg.h>
+#include <chrono>
 
 #define GST_TAG_THUMBNAIL "thumbnail"
 
@@ -71,6 +72,8 @@ private:
     void setMeta(MediaItem &mediaItem, const GstDiscovererInfo *metaInfo,
         const char *tag) const;
     void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo) const;
+
+    static std::map<std::string, MediaItem::Meta> metaMap_;
 };
 
 /// Useful when iterating over enum.

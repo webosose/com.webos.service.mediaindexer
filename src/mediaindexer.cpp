@@ -218,7 +218,6 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 {
     // this helps us for logging
     auto dev = mediaItem->device();
-
     // if the media item has not yet been parsed we first check if
     // parsing is necessary at all
     if (!mediaItem->parsed()) {

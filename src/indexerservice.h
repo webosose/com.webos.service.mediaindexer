@@ -212,13 +212,59 @@ private:
      */
     static bool onGetPlaybackUri(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
+    /**
+     * \brief Callback for getAudioList() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
     static bool onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getAudioMetadata() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */    
     static bool onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getVideoList() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */    
     static bool onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getVideoMetadata() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */     
     static bool onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getImageList() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */     
     static bool onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getImageMetadata() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */     
     static bool onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
-    static bool onGetNotifyChange(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Combines functionality for onPluginGet and onPluginPut.

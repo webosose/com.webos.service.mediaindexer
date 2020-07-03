@@ -219,7 +219,7 @@ void Plugin::checkDevices(void)
         auto alive = dev.second->available();
         if (dev.second->available(true) == alive)
             continue;
-
+        
         notifyObserversStateChange(dev.second);
     }
 }
@@ -379,7 +379,6 @@ void Plugin::notifyObserversStateChange(const std::shared_ptr<Device> &device,
         observer->deviceStateChanged(device);
     } else {
         std::shared_lock lock(lock_);
-
         for (auto const obs : deviceObservers_)
             obs->deviceStateChanged(device);
     }
