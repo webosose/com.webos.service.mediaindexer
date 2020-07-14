@@ -156,137 +156,69 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
     props.put(TYPE, mediaItem->mediaTypeToString(mediaItem->type()));
     props.put(MIME, mediaItem->mime());
 
-    auto audioProps = pbnjson::Object();
-    audioProps.put(URI, mediaItem->uri());
-    audioProps.put(MIME, mediaItem->mime());
+    auto typeProps = pbnjson::Object();
+    typeProps.put(URI, mediaItem->uri());
+    typeProps.put(MIME, mediaItem->mime());
 
-    auto videoProps = pbnjson::Object();
-    videoProps.put(URI, mediaItem->uri());
-    videoProps.put(MIME, mediaItem->mime());
-
-    auto imageProps = pbnjson::Object();
-    imageProps.put(URI, mediaItem->uri());
-    imageProps.put(MIME, mediaItem->mime());
-    for (auto meta = MediaItem::Meta::Title;
-         meta < MediaItem::Meta::EOL; ++meta) {
-        auto metaStr = mediaItem->metaToString(meta);
-        auto data = mediaItem->meta(meta);
-
-        // TODO : It needs to be modified so that the app does not use media kind.
-        //if (mediaItem->isMediaMeta(meta)) {
-        if (data.has_value()) {
-            auto content = data.value();
-            switch (content.index()) {
-                case 0:
-                    props.put(metaStr, std::get<std::int64_t>(content));
-                    break;
-                case 1:
-                    props.put(metaStr, std::get<double>(content));
-                    break;
-                case 2:
-                    props.put(metaStr, std::to_string(std::get<std::int32_t>(content)));
-                    break;
-                case 3:
-                    props.put(metaStr, std::get<std::string>(content));
-                    break;
-                case 4:
-                    props.put(metaStr, std::to_string(std::get<std::uint32_t>(content)));
-                    break;
-            }
-        } else {
-            props.put(metaStr, std::string(""));
-        }
-        //}
-        if (mediaItem->isAudioMeta(meta)) {
-            if (data.has_value()) {
-                auto content = data.value();
-                switch (content.index()) {
-                case 0:
-                    audioProps.put(metaStr, std::get<std::int64_t>(content));
-                    break;
-                case 1:
-                    audioProps.put(metaStr, std::get<double>(content));
-                    break;
-                case 2:
-                    audioProps.put(metaStr, std::to_string(std::get<std::int32_t>(content)));
-                    break;
-                case 3:
-                    audioProps.put(metaStr, std::get<std::string>(content));
-                    break;
-                case 4:
-                    audioProps.put(metaStr, std::to_string(std::get<std::uint32_t>(content)));
-                    break;
-                }
-            } else {
-                audioProps.put(metaStr, std::string(""));
-            }
-        }
-
-        if (mediaItem->isVideoMeta(meta)) {
-            if (data.has_value()) {
-                auto content = data.value();
-                switch (content.index()) {
-                case 0:
-                    videoProps.put(metaStr, std::get<std::int64_t>(content));
-                    break;
-                case 1:
-                    videoProps.put(metaStr, std::get<double>(content));
-                    break;
-                case 2:
-                    videoProps.put(metaStr, std::to_string(std::get<std::int32_t>(content)));
-                    break;
-                case 3:
-                    videoProps.put(metaStr, std::get<std::string>(content));
-                    break;
-                case 4:
-                    videoProps.put(metaStr, std::to_string(std::get<std::uint32_t>(content)));
-                    break;
-                }
-            } else {
-                videoProps.put(metaStr, std::string(""));
-            }
-        }
-
-        if (mediaItem->isImageMeta(meta)) {
-            if (data.has_value()) {
-                auto content = data.value();
-                switch (content.index()) {
-                    case 0:
-                        imageProps.put(metaStr, std::get<std::int64_t>(content));
-                        break;
-                    case 1:
-                        imageProps.put(metaStr, std::get<double>(content));
-                        break;
-                    case 2:
-                        imageProps.put(metaStr, std::to_string(std::get<std::int32_t>(content)));
-                        break;
-                    case 3:
-                        imageProps.put(metaStr, std::get<std::string>(content));
-                        break;
-                    case 4:
-                        imageProps.put(metaStr, std::to_string(std::get<std::uint32_t>(content)));
-                        break;
-                }
-            } else {
-                imageProps.put(metaStr, std::string(""));
-            }
-        }
-    }
-
-    mergePut(MEDIA_KIND, mediaItem->uri(), true, props);
+    std::string kind_type;
     switch (mediaItem->type()) {
         case MediaItem::Type::Audio:
-            mergePut(AUDIO_KIND, mediaItem->uri(), true, audioProps);
+            kind_type = AUDIO_KIND;
             break;
         case MediaItem::Type::Video:
-            mergePut(VIDEO_KIND, mediaItem->uri(), true, videoProps);
+            kind_type = VIDEO_KIND;
             break;
         case MediaItem::Type::Image:
-            mergePut(IMAGE_KIND, mediaItem->uri(), true, imageProps);
-	        break;
+            kind_type = IMAGE_KIND;
+            break;
         default:
             break;
     }
+
+    for (auto meta = MediaItem::Meta::Title; meta < MediaItem::Meta::EOL; ++meta) {
+        auto metaStr = mediaItem->metaToString(meta);
+        auto data = mediaItem->meta(meta);
+
+        //Todo - Only media kind columns should be stored.
+        //if(mediaItem->isMediaMeta(meta))
+        props = putProperties(metaStr, data, props);
+
+        if ((mediaItem->type() == MediaItem::Type::Audio && mediaItem->isAudioMeta(meta))
+            ||(mediaItem->type() == MediaItem::Type::Video && mediaItem->isVideoMeta(meta))
+            ||(mediaItem->type() == MediaItem::Type::Image && mediaItem->isImageMeta(meta))) {
+            typeProps = putProperties(metaStr, data, typeProps);
+        }
+    }
+
+    mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
+    mergePut(mediaItem->uri(), true, typeProps, nullptr, kind_type);
+}
+
+pbnjson::JValue MediaDb::putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props)
+{
+    if (data.has_value()) {
+        auto content = data.value();
+        switch (content.index()) {
+            case 0:
+                props.put(metaStr, std::get<std::int64_t>(content));
+                break;
+            case 1:
+                props.put(metaStr, std::get<double>(content));
+                break;
+            case 2:
+                props.put(metaStr, std::to_string(std::get<std::int32_t>(content)));
+                break;
+            case 3:
+                props.put(metaStr, std::get<std::string>(content));
+                break;
+            case 4:
+                props.put(metaStr, std::to_string(std::get<std::uint32_t>(content)));
+                break;
+        }
+    } else {
+        props.put(metaStr, std::string(""));
+    }
+    return props;
 }
 
 void MediaDb::markDirty(std::shared_ptr<Device> device)

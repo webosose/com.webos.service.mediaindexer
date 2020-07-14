@@ -81,12 +81,11 @@ protected:
      * \param[in] precise Make precise uri match or not.
      * \param[in] props JSON object with the properties to be updated.
      * \param[in] obj Some object to send with the luna request.
+     * \param[in] kind_name kind id.
      * \return True on success, false on error.
      */
     virtual bool mergePut(const std::string &uri, bool precise,
-        pbnjson::JValue &props, void *obj = nullptr);
-    virtual bool mergePut(const std::string &kind_names, const std::string &uri, bool precise,
-        pbnjson::JValue &props, void *obj = nullptr);
+        pbnjson::JValue &props, void *obj = nullptr, const std::string &kind_name = "");
 
     /**
      * \brief Send find request with uri.
@@ -94,14 +93,25 @@ protected:
      * \param[in] uri The object uri.
      * \param[in] precise Find precise matches or 'starts with'.
      * \param[in] obj Some object to send with the luna request.
+     * \param[in] kind_name kind id.
      * \return True on success, false on error.
      */
     virtual bool find(const std::string &uri, bool precise = true,
-        void *obj = nullptr);
-    virtual bool find(const std::string &kind_names, const std::string &uri, bool precise = true,
-        void *obj = nullptr);
+        void *obj = nullptr, const std::string &kind_name = "");
 
-    virtual bool search(const std::string &kind_names, pbnjson::JValue &selects,
+    /**
+     * \brief Send search request with uri.
+     *
+     * \param[in] kind_name kind id.
+     * \param[in] selects kind column.
+     * \param[in] props JSON object with the properties to be updated.
+     * \param[in] val properties value.
+     * \param[in] precise Find precise matches or 'starts with'.
+     * \param[in] obj Some object to send with the luna request.
+     * \param[in] atomic Sync/Async.
+     * \return True on success, false on error.
+     */
+    virtual bool search(const std::string &kind_name, pbnjson::JValue &selects,
         const std::string &prop, const std::string &val, bool precise = true, void *obj = nullptr, bool atomic = false);
 
     /**
@@ -109,10 +119,10 @@ protected:
      *
      * \param[in] uri The object uri.
      * \param[in] precise Find precise matches or 'starts with'.
+     * \param[in] kind_name kind id.
      * \return True on success, false on error.
      */
-    virtual bool del(const std::string &uri, bool precise = true);
-    virtual bool del(const std::string &kind_names, const std::string &uri, bool precise = true);
+    virtual bool del(const std::string &uri, bool precise = true, const std::string &kind_name = "");
 
     /**
      * \brief Give read only access to other services.
@@ -130,7 +140,7 @@ protected:
     DbConnector();
 
     /// Ensure database kind.
-    virtual void ensureKind(const std::string &kind_names = "");
+    virtual void ensureKind(const std::string &kind_name = "");
 
     /// Should be set from connector class constructor
     std::string kindId_;

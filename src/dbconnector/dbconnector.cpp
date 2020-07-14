@@ -86,15 +86,8 @@ void DbConnector::ensureKind(const std::string &kind_name)
     }
 }
 
-// TODO : Need refactoring
 bool DbConnector::mergePut(const std::string &uri, bool precise,
-    pbnjson::JValue &props, void *obj)
-{
-    return mergePut(kindId_, uri, precise, props, obj);
-}
-
-bool DbConnector::mergePut(const std::string &kind_name, const std::string &uri, bool precise,
-    pbnjson::JValue &props, void *obj)
+    pbnjson::JValue &props, void *obj, const std::string &kind_name)
 {
     LSMessageToken sessionToken;
 
@@ -103,7 +96,11 @@ bool DbConnector::mergePut(const std::string &kind_name, const std::string &uri,
 
     // query for matching uri
     auto query = pbnjson::Object();
-    query.put("from", kind_name);
+    if (kind_name.empty())
+        query.put("from", kindId_);
+    else
+        query.put("from", kind_name);
+
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
     cond.put("prop", "uri");
@@ -114,7 +111,11 @@ bool DbConnector::mergePut(const std::string &kind_name, const std::string &uri,
 
     auto request = pbnjson::Object();
     // set the kind property in case the query fails
-    props.put("_kind", kind_name);
+    if (kind_name.empty())
+        props.put("_kind", kindId_);
+    else
+        props.put("_kind", kind_name);
+
     request.put("props", props);
     request.put("query", query);
 
@@ -130,15 +131,8 @@ bool DbConnector::mergePut(const std::string &kind_name, const std::string &uri,
     return true;
 }
 
-// TODO : Need refactoring
 bool DbConnector::find(const std::string &uri, bool precise,
-    void *obj)
-{
-    return find(kindId_, uri, precise, obj);
-}
-
-bool DbConnector::find(const std::string &kind_name, const std::string &uri, bool precise,
-    void *obj)
+    void *obj, const std::string &kind_name)
 {
     LSMessageToken sessionToken;
 
@@ -147,7 +141,11 @@ bool DbConnector::find(const std::string &kind_name, const std::string &uri, boo
 
     // query for matching uri
     auto query = pbnjson::Object();
-    query.put("from", kind_name);
+    if (kind_name.empty())
+        query.put("from", kindId_);
+    else
+        query.put("from", kind_name);
+
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
     cond.put("prop", "uri");
@@ -204,14 +202,7 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
 
     return true;
 }
-
-// TODO : Need refactoring
-bool DbConnector::del(const std::string &uri, bool precise)
-{
-    return del(kindId_, uri, precise);
-}
-
-bool DbConnector::del(const std::string &kind_name, const std::string &uri, bool precise)
+bool DbConnector::del(const std::string &uri, bool precise, const std::string &kind_name)
 {
     LSMessageToken sessionToken;
 
@@ -220,7 +211,11 @@ bool DbConnector::del(const std::string &kind_name, const std::string &uri, bool
 
     // query for matching uri
     auto query = pbnjson::Object();
-    query.put("from", kind_name);
+    if (kind_name.empty())
+        query.put("from", kindId_);
+    else
+        query.put("from", kind_name);
+
     auto where = pbnjson::Array();
     auto cond = pbnjson::Object();
     cond.put("prop", "uri");

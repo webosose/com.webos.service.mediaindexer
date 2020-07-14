@@ -23,17 +23,6 @@
 #include <mutex>
 #include <list>
 
-#define MEDIA_KIND "com.webos.service.mediaindexer.media:1"
-#define AUDIO_KIND "com.webos.service.mediaindexer.audio:1"
-#define VIDEO_KIND "com.webos.service.mediaindexer.video:1"
-#define IMAGE_KIND "com.webos.service.mediaindexer.image:1"
-
-#define URI "uri"
-#define HASH "hash"
-#define DIRTY "dirty"
-#define TYPE "type"
-#define MIME "mime"
-
 class Device;
 
 /// Connector to com.webos.service.db.
@@ -74,6 +63,15 @@ public:
     void updateMediaItem(MediaItemPtr mediaItem);
 
     /**
+     * \brief Put the meta in the database.
+     *
+     * \param[in] metaStr String of meta .
+     * \param[in] data Meta data value.
+     * \param[in] props pbnjson object.
+     */
+     pbnjson::JValue putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props);
+
+    /**
      * \brief Mark all media items of this device dirty.
      *
      * \param[in] device The device to mark dirty.
@@ -108,6 +106,7 @@ public:
 
     void makeUriIndex();
 
+
 protected:
     /// Get message id.
     LOG_MSGID;
@@ -123,4 +122,15 @@ private:
     /// List of services that should have read-only access to
     /// database.
     std::list<std::string> dbClients_;
+
+    static constexpr char MEDIA_KIND[]  = "com.webos.service.mediaindexer.media:1";
+    static constexpr char AUDIO_KIND[] = "com.webos.service.mediaindexer.audio:1";
+    static constexpr char VIDEO_KIND[] = "com.webos.service.mediaindexer.video:1";
+    static constexpr char IMAGE_KIND[] = "com.webos.service.mediaindexer.image:1";
+
+    static constexpr char URI[] = "uri";
+    static constexpr char HASH[] = "hash";
+    static constexpr char DIRTY[] = "dirty";
+    static constexpr char TYPE[] = "type";
+    static constexpr char MIME[] = "mime";
 };
