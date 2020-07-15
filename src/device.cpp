@@ -53,6 +53,9 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
     maxAlive_(alive)
 {
     lastSeen_ = std::chrono::system_clock::now();
+    LOG_DEBUG("Device Ctor, URI : %s UUID : %s, object : %p", uri_.c_str(), uuid_.c_str(), this);
+    task_ = std::thread(&Device::scanLoop, this);
+    task_.detach();
 }
 
 Device::~Device()
@@ -60,6 +63,12 @@ Device::~Device()
     // nothing to be done here, the only allocated object is the
     // scanner thread which runs in detached mode and thus does not
     // need any cleanup
+    LOG_DEBUG("Device Dtor, URI : %s UUID : %s OBJECT : %p", uri_.c_str(), uuid_.c_str(), this);
+    exit_ = true;
+    queue_.push_back("");
+    cv_.notify_one();
+    if (task_.joinable())
+        task_.join();
 }
 
 bool Device::available(bool check)
@@ -157,6 +166,31 @@ const std::chrono::system_clock::time_point &Device::lastSeen() const
     return lastSeen_;
 }
 
+void Device::scanLoop()
+{
+    while (!exit_)
+    {
+        std::unique_lock<std::mutex> lk(mutex_);
+        cv_.wait(lk, [this] { return !queue_.empty(); });
+        std::string uri = static_cast<std::string>(queue_.front());
+        if (uri.empty())
+        {
+            LOG_ERROR(0, "Deque data is invalid!");
+            continue;
+        }
+        LOG_DEBUG("scanLoop start for uri : %s",uri_.c_str());
+        // let the plugin scan the device for media items
+        auto plg = plugin();
+        if (plg == nullptr)
+        {
+            LOG_ERROR(0, "plugin for %s is not invalid",uri.c_str());
+            break;
+        }
+        plg->scan(uri);
+        queue_.pop_front();
+    }
+}
+
 bool Device::scan(IMediaItemObserver *observer)
 {
     {
@@ -172,14 +206,9 @@ bool Device::scan(IMediaItemObserver *observer)
         observer_ = observer;
     }
 
-    // let the plugin scan the device for media items
-    auto plg = plugin();
     LOG_INFO(0, "Plugin will scan '%s' for us", uri_.c_str());
-    std::thread t(&Plugin::scan, plg, std::ref(uri_));
-    // this is a worker thread, in case the device becomes unavailable
-    // the thread will terminate due to some access errors anyway
-    t.detach();
-
+    queue_.push_back(uri_);
+    cv_.notify_one();
     return true;
 }
 

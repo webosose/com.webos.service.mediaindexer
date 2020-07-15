@@ -85,7 +85,7 @@ protected:
      * \return True on success, false on error.
      */
     virtual bool mergePut(const std::string &uri, bool precise,
-        pbnjson::JValue &props, void *obj = nullptr, const std::string &kind_name = "");
+        pbnjson::JValue &props, void *obj = nullptr, const std::string &kind_name = "", bool atomic = false);
 
     /**
      * \brief Send find request with uri.
@@ -97,7 +97,7 @@ protected:
      * \return True on success, false on error.
      */
     virtual bool find(const std::string &uri, bool precise = true,
-        void *obj = nullptr, const std::string &kind_name = "");
+        void *obj = nullptr, const std::string &kind_name = "", bool atomic = false);
 
     /**
      * \brief Send search request with uri.

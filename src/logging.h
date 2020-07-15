@@ -114,21 +114,21 @@ extern PmLogContext getPmLogContext();
 #endif
 
 /// Log critical message.
-#define LOG_CRITICAL(kvcount, ...)                       \
-    PmLogCritical(logContext, __msgId(), kvcount, ##__VA_ARGS__)
+#define LOG_CRITICAL(kvcount, fmt, ...)                       \
+    PmLogCritical(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, gettid(), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log error message.
-#define LOG_ERROR(kvcount, ...)                          \
-    PmLogError(logContext, __msgId(), kvcount,##__VA_ARGS__)
+#define LOG_ERROR(kvcount, fmt, ...)                          \
+    PmLogError(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, gettid(), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log warning message.
-#define LOG_WARNING(kvcount, ...)                        \
-    PmLogWarning(logContext, __msgId(), kvcount, ##__VA_ARGS__)
+#define LOG_WARNING(kvcount, fmt, ...)                        \
+    PmLogWarning(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, gettid(), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log info message.
-#define LOG_INFO(kvcount, ...)                           \
-    PmLogInfo(logContext, __msgId(), kvcount, ##__VA_ARGS__)
+#define LOG_INFO(kvcount, fmt, ...)                           \
+    PmLogInfo(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, gettid(), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Debug log.
 #define LOG_DEBUG(fmt, ...)                                             \
-    PmLogDebug(logContext, "[%d] %s:%s() " fmt, gettid(), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogDebug(logContext, "%s [%d] %s:%s() " fmt, __msgId(), gettid(), __FILE__, __FUNCTION__, ##__VA_ARGS__)

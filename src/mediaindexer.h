@@ -91,6 +91,14 @@ public:
      */
     std::optional<std::string> getPlaybackUri(const std::string &uri) const;
 
+    /**
+     * \brief Generate device list object and push either as reply to
+     * \p msg or to all registered subscribers.
+     *
+     * This internally calls pushDeviceList of indexerservice object.
+     * \param[in] msg The Luna message.
+     */
+     bool sendDeviceNotification(LSMessage *msg = nullptr);
 protected:
     /// DeviceObserver interface.
     void deviceStateChanged(std::shared_ptr<Device> device);

@@ -38,6 +38,7 @@ void MediaParser::enqueueTask(MediaItemPtr mediaItem)
     tasks_.push(std::make_unique<MediaParser>(std::move(mediaItem)));
 
     // let's try to start the task and any other pending tasks
+    LOG_DEBUG("runTask start from enqueTask");
     runTask();
 }
 
@@ -102,13 +103,14 @@ void MediaParser::extractMeta() const
 
     // if we succeeded push the media item back to observer
     if (mediaItem_->parsed()) {
-        LOG_DEBUG("Pushing parsed mediaitem %p back to observer", mi);
+        LOG_DEBUG("Pushing parsed mediaitem %p back to observer, newMediaItem start", mi);
         mediaItem_->observer()->newMediaItem(std::move(mediaItem_));
     }
 
     // update the object state and try to run pending tasks
     std::lock_guard<std::mutex> lock(lock_);
     runningThreads_--;
+    LOG_DEBUG("runTask start from extractMeta");
     runTask(); // let's give it a try
 
     LOG_DEBUG("Media parser threads %i", runningThreads_);

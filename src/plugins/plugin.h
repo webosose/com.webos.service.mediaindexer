@@ -86,6 +86,18 @@ public:
 
     /**
      * \brief Check if device already exists, if not, register and
+     * publish new device and mark as not available.
+     *
+     * \param[in] uri    The device uri.
+     * \param[in] alive  Optional alive counter to be set on device.
+     * \param[in] avail  Set initial available state.
+     * \param[in] uuid   The device uuid.
+     * \return True if new device has been added, else false.
+     */
+    virtual bool injectDevice(const std::string &uri, int alive, bool avail = true, std::string uuid = "");
+
+    /**
+     * \brief Check if device already exists, if not, register and
      * publish new device.
      *
      * \param[in] uri The device uri.
@@ -100,6 +112,7 @@ public:
      *
      * \param[in] uri The device uri.
      * \param[in] mp The device mountpoint.
+     * \param[in] uuid The device uuid.
      * \param[in] alive Optional alive counter to be set on device.
      * \return True if device has been added, else false.
      */

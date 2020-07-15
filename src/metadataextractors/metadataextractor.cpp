@@ -91,19 +91,7 @@ std::string IMetaDataExtractor::extension(MediaItem &mediaItem) const
     ret = path.substr(path.find_last_of('.') + 1);
     return ret;
 }
-/*
-bool IMetaDataExtractor::createThumbnailDirectory() const
-{
-    bool ret = true;
-    std::error_code err;
-    if (!std::filesystem::is_directory(THUMBNAIL_DIRECTORY)) {
-        ret = std::filesystem::create_directory(THUMBNAIL_DIRECTORY, err);
-        if (!ret)
-            LOG_ERROR(0, "Failed to create directory %s, error : %s",THUMBNAIL_DIRECTORY, err.message().c_str());
-    }
-    return ret;
-}
-*/
+
 std::optional<IMetaDataExtractor::Date> IMetaDataExtractor::lastModifiedDate(MediaItem &mediaItem, bool formatted, bool localTime) const
 {
     std::string path = mediaItem.path();
@@ -138,26 +126,10 @@ std::optional<IMetaDataExtractor::Date> IMetaDataExtractor::lastModifiedDate(Med
     }
 }
 
-void IMetaDataExtractor::setMetaCommon(MediaItem &mediaItem, MediaItem::Meta flag) const
+void IMetaDataExtractor::setMetaCommon(MediaItem &mediaItem) const
 {
-    MediaItem::MetaData data;
-    switch(flag)
-    {
-        case MediaItem::Meta::LastModifiedDate:
-        {
-            std::string modified = std::get<std::string>(lastModifiedDate(mediaItem).value());
-            LOG_DEBUG("Last Modified Date : %s", modified.c_str());
-            data = {modified.c_str()};
-            break;
-        }
-        case MediaItem::Meta::LastModifiedDateRaw:
-        {
-            std::int64_t modified = std::get<std::int64_t>(lastModifiedDate(mediaItem, false).value());
-            LOG_DEBUG("Last Modified Date : %"PRId64"", modified);
-            data = {modified};
-            break;
-        }
-    }
-    LOG_DEBUG("Found tag for '%s'", MediaItem::metaToString(flag).c_str());
-    mediaItem.setMeta(flag, data);
+    std::string modified = std::get<std::string>(lastModifiedDate(mediaItem).value());
+    std::int64_t filesize = mediaItem.fileSize();
+    mediaItem.setMeta(MediaItem::Meta::LastModifiedDate, modified);
+    mediaItem.setMeta(MediaItem::Meta::FileSize, filesize);
 }

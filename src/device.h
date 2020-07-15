@@ -25,6 +25,8 @@
 #include <shared_mutex>
 #include <memory>
 #include <thread>
+#include <condition_variable>
+#include <deque>
 
 class Plugin;
 
@@ -179,6 +181,12 @@ public:
      */
     virtual int mediaItemCount(MediaItem::Type type);
 
+    /**
+     * \brief Thread loop for file scanning.
+     *
+     */
+    void scanLoop();
+
 private:
     /// Get message id.
     LOG_MSGID;
@@ -214,6 +222,12 @@ private:
     int alive_;
     /// Alive reset value.
     int maxAlive_;
+
+    std::thread task_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    std::deque<std::string> queue_;
+    bool exit_ = false;
 
     /// Media item observer.
     IMediaItemObserver *observer_;

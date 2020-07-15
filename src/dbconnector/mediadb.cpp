@@ -40,7 +40,7 @@ MediaDb *MediaDb::instance()
 
 MediaDb::~MediaDb()
 {
-    // nothing to be done here
+    mediaItemMap_.clear();
 }
 
 bool MediaDb::handleLunaResponse(LSMessage *msg)
@@ -51,20 +51,21 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         return false;
 
     auto method = sd.method;
-    LOG_INFO(0, "[Thread %d] Received response com.webos.service.db for: '%s'",gettid(),
-        method.c_str());
+    LOG_INFO(0, "Received response com.webos.service.db for: '%s'", method.c_str());
 
     // handle the media data exists case
     if (method == std::string("find")) {
-        if (!sd.object)
+        if (!sd.object) {
+            LOG_DEBUG("sd.object is invalid");
             return false;
+        }
 
         MediaItemPtr mi(static_cast<MediaItem *>(sd.object));
 
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
-        LOG_DEBUG("payload : %s", payload);
+        LOG_DEBUG("payload : %s, method : %s", payload, method.c_str());
 
         if (!parser.parse(payload)) {
             LOG_ERROR(0, "Invalid JSON message: %s", payload);
@@ -142,7 +143,18 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 void MediaDb::checkForChange(MediaItemPtr mediaItem)
 {
     auto mi = mediaItem.get();
-    find(mediaItem->uri(), true, mi);
+    auto uri = mediaItem->uri();
+    auto hash = mediaItem->hash();
+    if (mediaItemMap_.find(uri) != mediaItemMap_.end()) {
+        if (mediaItemMap_[uri] != hash) {
+            mediaItemMap_[uri] = hash;
+            find(mediaItem->uri(), true, mi, "", false);
+        }
+    } else {
+        mediaItemMap_.emplace(std::make_pair(uri, hash));
+        find(mediaItem->uri(), true, mi, "", false);
+    }
+
     mediaItem.release();
 }
 

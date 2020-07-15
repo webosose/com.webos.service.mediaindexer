@@ -176,14 +176,12 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
     // generate response
     auto reply = pbnjson::Object();
     auto pluginList = pbnjson::Array();
-
     for (auto const &[uri, plg] : indexer_->plugins_) {
         auto plugin = pbnjson::Object();
         plugin.put("active", plg->active());
         plugin.put("uri", uri);
 
         auto deviceList = pbnjson::Array();
-
         plg->lock();
         for (auto const &[uri, dev] : plg->devices()) {
             auto device = pbnjson::Object();
@@ -216,7 +214,6 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
     }
     reply.put("pluginList", pluginList);
     reply.put("returnValue", true);
-
     LSError lsError;
     LSErrorInit(&lsError);
 
@@ -233,7 +230,6 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
             return false;
         }
     }
-
     return true;
 }
 
@@ -361,7 +357,6 @@ bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ct
 
     if (domTree.hasKey("uri"))
         uri = domTree["uri"].asString();
-    
 
     bool rv = true;
     MediaDb *mdb = MediaDb::instance();
@@ -475,12 +470,11 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
 
     if (domTree.hasKey("uri"))
         uri = domTree["uri"].asString();
-
     
     bool rv = true;
     auto mdb = MediaDb::instance();
-    auto reply = pbnjson::Object();    
-    if (mdb) {        
+    auto reply = pbnjson::Object();
+    if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue respArray = pbnjson::Array();
         if (uri.empty()) {
@@ -498,7 +492,7 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
             pbnjson::JValue list = pbnjson::Object();
             rv &= mdb->getVideoList(uri, list);
             list.put("uri", uri.c_str());
-            respArray.append(list);        
+            respArray.append(list);
         }
         resp.put("videoList", respArray);
         mdb->putRespObject(rv, resp);
@@ -587,7 +581,7 @@ bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ct
 
    if (domTree.hasKey("uri"))
        uri = domTree["uri"].asString();
-   
+
    bool rv = true;
    auto mdb = MediaDb::instance();
    auto reply = pbnjson::Object();
@@ -609,7 +603,7 @@ bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ct
            pbnjson::JValue list = pbnjson::Object();
            rv &= mdb->getImageList(uri, list);
            list.put("uri", uri.c_str());
-           respArray.append(list);              
+           respArray.append(list);
        }
        resp.put("imageList", respArray);
        mdb->putRespObject(rv, resp);
@@ -724,7 +718,6 @@ bool IndexerService::detectRunStop(LSMessage *msg, bool run)
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     pbnjson::JDomParser parser;
-
     if (!parser.parse(payload, detectRunStopSchema_)) {
         LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
             payload);
@@ -753,6 +746,7 @@ bool IndexerService::detectRunStop(LSMessage *msg, bool run)
         LOG_ERROR(0, "Message reply error");
         return false;
     }
+    LOG_DEBUG("detectRunStop Done");
     return true;
 }
 

@@ -122,6 +122,7 @@ private:
     /// List of services that should have read-only access to
     /// database.
     std::list<std::string> dbClients_;
+    std::map<std::string, unsigned long> mediaItemMap_;
 
     static constexpr char MEDIA_KIND[]  = "com.webos.service.mediaindexer.media:1";
     static constexpr char AUDIO_KIND[] = "com.webos.service.mediaindexer.audio:1";

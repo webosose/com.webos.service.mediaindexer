@@ -87,10 +87,10 @@ void DbConnector::ensureKind(const std::string &kind_name)
 }
 
 bool DbConnector::mergePut(const std::string &uri, bool precise,
-    pbnjson::JValue &props, void *obj, const std::string &kind_name)
+    pbnjson::JValue &props, void *obj, const std::string &kind_name, bool atomic)
 {
     LSMessageToken sessionToken;
-
+    bool async = !atomic;
     std::string url = dbUrl_;
     url += "mergePut";
 
@@ -119,11 +119,10 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
     request.put("props", props);
     request.put("query", query);
 
-    LOG_INFO(0, "Send mergePut for '%s'", uri.c_str());
-    LOG_INFO(0, "Send mergePut request '%s'", request.stringify().c_str());
+    LOG_INFO(0, "Send mergePut for '%s', request : '%s'", uri.c_str(), request.stringify().c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, true, &sessionToken, obj)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service mergePut error");
         return false;
     }
@@ -132,10 +131,10 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
 }
 
 bool DbConnector::find(const std::string &uri, bool precise,
-    void *obj, const std::string &kind_name)
+    void *obj, const std::string &kind_name, bool atomic)
 {
     LSMessageToken sessionToken;
-
+    bool async = !atomic;
     std::string url = dbUrl_;
     url += "find";
 

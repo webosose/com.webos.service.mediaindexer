@@ -51,7 +51,6 @@ std::map<std::string, MediaItem::Meta> GStreamerExtractor::metaMap_ = {
     {GST_TAG_THUMBNAIL,                 MediaItem::Meta::Thumbnail}
 };
 
-
 GStreamerExtractor::StreamMeta &operator++(GStreamerExtractor::StreamMeta &meta)
 {
     if (meta == GStreamerExtractor::StreamMeta::EOL)
@@ -167,7 +166,7 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem) const
         std::abort();
     }
 
-    setMetaCommon(mediaItem, MediaItem::Meta::LastModifiedDate);
+    setMetaCommon(mediaItem);
 
  out:
     if (error)
@@ -288,6 +287,7 @@ bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t he
 bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filename, const std::string &ext) const
 {
     LOG_DEBUG("Thumbnail Image creation start");
+
     auto begin = std::chrono::high_resolution_clock::now();;
     MediaItem::Type type = mediaItem.type();
     if (type != MediaItem::Type::Video && type != MediaItem::Type::Image)

@@ -156,7 +156,7 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
         return;
     }
 
-    setMetaCommon(mediaItem, MediaItem::Meta::LastModifiedDate);
+    setMetaCommon(mediaItem);
 }
 
 void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,

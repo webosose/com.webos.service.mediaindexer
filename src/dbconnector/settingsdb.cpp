@@ -51,7 +51,6 @@ void SettingsDb::setEnable(const std::string &uri, bool enable)
 bool SettingsDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
-    LOG_DEBUG("payload : %s", LSMessageGetPayload(msg));
     if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
     {
         LOG_ERROR(0, "sessionDataFromToken failed");
@@ -59,8 +58,7 @@ bool SettingsDb::handleLunaResponse(LSMessage *msg)
     }
 
     auto method = sd.method;
-    LOG_INFO(0, "[Thread %d] Received response com.webos.service.db for: '%s'",gettid(),
-        method.c_str());
+    LOG_INFO(0, "Received response com.webos.service.db for: '%s'", method.c_str());
 
     if (method != std::string("find"))
         return true;
@@ -90,12 +88,10 @@ bool SettingsDb::handleLunaResponse(LSMessage *msg)
 
         auto uri = match["uri"].asString();
         auto enabled = match["enabled"].asBool();
-
         MediaIndexer *mi = MediaIndexer::instance();
-        mi->get(uri);
+        mi->sendDeviceNotification();
         mi->setDetect(enabled, uri);
     }
-
     return true;
 }
 

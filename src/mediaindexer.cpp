@@ -78,7 +78,7 @@ bool MediaIndexer::get(const std::string &uri)
             return false;
 
         std::shared_lock lock(lock_);
-        plugins_.emplace(std::make_pair(plg->uri(), plg));
+        plugins_[plg->uri()] = plg;
 
 #if defined HAS_LUNA
         // update settings for this plugin
@@ -86,7 +86,6 @@ bool MediaIndexer::get(const std::string &uri)
         settingsDb->applySettings(uri);
 #endif
     }
-
 #if defined HAS_LUNA
     // notify subscribers
     indexerService_->pushDeviceList();
@@ -162,7 +161,6 @@ bool MediaIndexer::setDetect(bool on, const std::string &uri)
 #endif
         plg->setDeviceNotifications(this, on);
     }
-
 #if defined HAS_LUNA
     // notify subscribers
     indexerService_->pushDeviceList();
@@ -180,6 +178,14 @@ std::optional<std::string> MediaIndexer::getPlaybackUri(
         return std::nullopt;
 
     return plg->getPlaybackUri(uri);
+}
+
+bool MediaIndexer::sendDeviceNotification(LSMessage * msg)
+{ 
+    if (indexerService_)
+        return indexerService_->pushDeviceList(msg); 
+    else 
+        return false;
 }
 
 void MediaIndexer::deviceStateChanged(std::shared_ptr<Device> device)
@@ -242,8 +248,7 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 #endif
     } else {
         // if parsing has been completed update the media database
-        LOG_INFO(0, "Media item '%s' has been parsed",
-            mediaItem->uri().c_str());
+        LOG_INFO(0, "Media item '%s' has been parsed", mediaItem->uri().c_str());
 #if defined HAS_LUNA
         auto mdb = MediaDb::instance();
         mdb->updateMediaItem(std::move(mediaItem));

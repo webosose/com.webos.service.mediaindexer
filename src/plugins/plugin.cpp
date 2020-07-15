@@ -97,6 +97,23 @@ bool Plugin::injectDevice(std::shared_ptr<Device> device)
     return isNew;
 }
 
+bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::string uuid)
+{
+    bool isNew = false;
+
+    if (!hasDevice(uri)) {
+        std::unique_lock lock(lock_);
+        LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());
+        devices_[uri] = std::make_shared<Device>(uri, alive, avail, uuid);
+        isNew = true;
+    }
+
+    if (isNew)
+        notifyObserversStateChange(devices_[uri]);
+    
+    return isNew;
+}
+
 bool Plugin::addDevice(const std::string &uri, int alive)
 {
     bool isNew = false;
@@ -108,6 +125,7 @@ bool Plugin::addDevice(const std::string &uri, int alive)
 
         if (!dev) {
             dev = std::make_shared<Device>(uri, alive);
+            LOG_DEBUG("Make new device for uri : %s", uri.c_str());
             devices_[uri] = dev;
             isNew = true;
         }
@@ -136,9 +154,9 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::strin
         dev = deviceUnlocked(uri);
 
         if (!dev) {
-            dev = std::make_shared<Device>(uri, alive);
+            LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());            
+            dev = std::make_shared<Device>(uri, alive, true, uuid);
             dev->setMountpoint(mp);
-            dev->setUuid(uuid);
             devices_[uri] = dev;
             isNew = true;
         }
@@ -219,7 +237,6 @@ void Plugin::checkDevices(void)
         auto alive = dev.second->available();
         if (dev.second->available(true) == alive)
             continue;
-        
         notifyObserversStateChange(dev.second);
     }
 }
@@ -239,6 +256,7 @@ bool Plugin::active() const
 
 void Plugin::scan(const std::string &uri)
 {
+    LOG_DEBUG("scan start!");
     // first get the device from the uri
     auto dev = device(uri);
     if (!dev)
@@ -252,7 +270,7 @@ void Plugin::scan(const std::string &uri)
         LOG_ERROR(0, "Device '%s' has no mountpoint", dev->uri().c_str());
         return;
     }
-
+    LOG_DEBUG("file scan start for mountpoint : %s!", mp.c_str());
     // do the file-tree-walk
     std::error_code err;
     try {
@@ -281,9 +299,10 @@ void Plugin::scan(const std::string &uri)
 
             if (mimTypeSupported) {
                 auto lastWrite = file.last_write_time();
+                auto fileSize = file.file_size();
                 auto hash = lastWrite.time_since_epoch().count();
                 MediaItemPtr mi(new MediaItem(dev,
-                        file.path(), contentType, hash));
+                        file.path(), contentType, hash, fileSize));
                 obs->newMediaItem(std::move(mi));
             }
 
@@ -293,7 +312,6 @@ void Plugin::scan(const std::string &uri)
         LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",
             mp.c_str(), ex.what());
     }
-
     LOG_INFO(0, "File-tree-walk on device '%s' has been completed",
         dev->uri().c_str());
 }
@@ -387,7 +405,6 @@ void Plugin::notifyObserversStateChange(const std::shared_ptr<Device> &device,
 void Plugin::notifyObserversModify(const std::shared_ptr<Device> &device) const
 {
     std::shared_lock lock(lock_);
-    
     for (auto const obs : deviceObservers_)
         obs->deviceModified(device);
 }

@@ -60,7 +60,7 @@ public:
         Channels, ///< Audio channels.
         BitRate, ///< Audio bitrate.
         BitPerSample, ///<Audio bit per sample.
-		Lyric, ///< Audio Lyric.
+        Lyric, ///< Audio Lyric.
         Width, ///< Video width.
         Height, ///< Video height.
         FrameRate, ///< Video framerate.
@@ -138,9 +138,10 @@ public:
      * \param[in] path The media item path.
      * \param[in] mime The MIME type information.
      * \param[in] hash Some hash to check for modifications.
+     * \param[in] filesize The media item filesize(byte).
      */
     MediaItem(std::shared_ptr<Device> device, const std::string &path,
-        const std::string &mime, unsigned long hash);
+        const std::string &mime, unsigned long hash, unsigned long filesize = 0);
     virtual ~MediaItem() {};
 
     /**
@@ -154,6 +155,13 @@ public:
      * \return The timestamp.
      */
     unsigned long hash() const;
+
+    /**
+     * \brief Get file size of media item(unit : byte).
+     *
+     * \return The filesize.
+     */
+     unsigned long fileSize() const;
 
     /**
      * \brief Give the path as set from constructor.
@@ -256,6 +264,8 @@ private:
     /// modification timestamp of a file, the file size or something
     /// else.
     unsigned long hash_;
+    /// filesize
+    unsigned long filesize_;
     /// If the media item has been parsed.
     bool parsed_;
     /// The media item uri.

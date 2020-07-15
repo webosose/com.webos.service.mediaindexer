@@ -52,7 +52,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
         return false;
 
     auto method = sd.method;
-    LOG_INFO(0, "[%d] Received response com.webos.service.db for: '%s'", gettid(), method.c_str());
+    LOG_INFO(0, "Received response com.webos.service.db for: '%s'", method.c_str());
 
     if (method != std::string("find"))
         return true;
@@ -90,15 +90,14 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
         int alive;
         match["alive"].asNumber(alive);
 
-        auto device = std::make_shared<Device>(uri, alive, false, uuid);
-        auto meta = match["name"].asString();
-        device->setMeta(Device::Meta::Name, meta);
-        meta = match["description"].asString();
-        device->setMeta(Device::Meta::Description, meta);
+        LOG_INFO(0, "Device '%s', uuid '%s' will be injected into plugin", uri.c_str(),uuid.c_str());
 
-        LOG_INFO(0, "Device '%s' will be injected into plugin", uri.c_str());
-
-        plg->injectDevice(device);
+        if (plg->injectDevice(uri, alive, false, uuid)) {
+            auto meta = match["name"].asString();
+            plg->device(uri)->setMeta(Device::Meta::Name, meta);
+            meta = match["description"].asString();
+            plg->device(uri)->setMeta(Device::Meta::Description, meta);
+        }
     }
 
     return true;

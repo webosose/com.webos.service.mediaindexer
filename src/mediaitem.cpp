@@ -152,16 +152,19 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("frame_rate");
     case MediaItem::Meta::EOL:
         return "";
+    default:
+        return "";
     }
 
     return "";
 }
 
 MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
-    const std::string &mime, unsigned long hash) :
+    const std::string &mime, unsigned long hash, unsigned long filesize) :
     device_(device),
     type_(Type::EOL),
     hash_(hash),
+    filesize_(filesize),
     parsed_(false),
     uri_(""),
     mime_(mime),
@@ -194,6 +197,11 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
 unsigned long MediaItem::hash() const
 {
     return hash_;
+}
+
+unsigned long MediaItem::fileSize() const
+{
+    return filesize_;
 }
 
 const std::string &MediaItem::path() const
@@ -299,6 +307,8 @@ bool MediaItem::isMediaMeta(Meta meta){
         case MediaItem::Meta::DateOfCreation:
         case MediaItem::Meta::LastModifiedDate:
             return true;
+        default:
+            return false;
     }
     return false;
 }
@@ -321,6 +331,8 @@ bool MediaItem::isAudioMeta(Meta meta){
         case MediaItem::Meta::Lyric:
         case MediaItem::Meta::FileSize:
             return true;
+        default:
+            return false;
     }
     return false;
 }
@@ -334,6 +346,8 @@ bool MediaItem::isVideoMeta(Meta meta){
         case MediaItem::Meta::FrameRate:
         case MediaItem::Meta::FileSize:
             return true;
+        default:
+            return false;
     }
     return false;
 }
@@ -348,6 +362,8 @@ bool MediaItem::isImageMeta(Meta meta){
         case MediaItem::Meta::GeoLocCity:
         case MediaItem::Meta::FileSize:
             return true;
+        default:
+            return false;
     }
     return false;
 }

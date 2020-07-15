@@ -60,10 +60,10 @@ public:
      * \param[in] localtime specifies time zone of returns, default : false
      * \return The observer or nullptr if none is set.
      */
-    virtual std::optional<IMetaDataExtractor::Date> lastModifiedDate(MediaItem &mediaItem, 
+    virtual std::optional<IMetaDataExtractor::Date> lastModifiedDate(MediaItem &mediaItem,
             bool formatted = true,  bool localTime = false) const;
 
-    void setMetaCommon(MediaItem &mediaItem,       MediaItem::Meta flag) const;
+    void setMetaCommon(MediaItem &mediaItem) const;
 
 protected:
     IMetaDataExtractor() {};
