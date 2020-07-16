@@ -160,6 +160,7 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem) const
         setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LATITUDE);
         setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_COUNTRY);
         setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_CITY);
+        setStreamMeta(mediaItem, streamInfo);
         break;
     }
     case MediaItem::Type::EOL:
@@ -489,54 +490,90 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
         return;
     }
 
-    if (GST_IS_DISCOVERER_AUDIO_INFO(streamInfo) && 
-            mediaItem.type() == MediaItem::Type::Audio) {
-        LOG_INFO(0, "<Audio stream info>");
-        GstDiscovererAudioInfo *audio_info = 
-            reinterpret_cast<GstDiscovererAudioInfo*>(streamInfo);
-        // SampleRate
-        data = {gst_discoverer_audio_info_get_sample_rate(audio_info)};
-        LOG_INFO(0, " -> Audio SampleRate : %u", std::get<std::uint32_t>(data));
-        meta = MediaItem::Meta::SampleRate;
-        mediaItem.setMeta(meta, data);
+    switch (mediaItem.type()) {
+    case MediaItem::Type::Audio: {
+        if (GST_IS_DISCOVERER_AUDIO_INFO(streamInfo)) {
+            /* let's get the audio meta data */
+            LOG_INFO(0, "<Audio stream info>");
+            GstDiscovererAudioInfo *audio_info =
+                reinterpret_cast<GstDiscovererAudioInfo*>(streamInfo);
+            // SampleRate
+            data = {gst_discoverer_audio_info_get_sample_rate(audio_info)};
+            LOG_INFO(0, " -> Audio SampleRate : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::SampleRate;
+            mediaItem.setMeta(meta, data);
 
-        // Channels
-        data = {gst_discoverer_audio_info_get_channels(audio_info)};
-        LOG_INFO(0, " -> Audio Channels : %u", std::get<std::uint32_t>(data));
-        meta = MediaItem::Meta::Channels;
-        mediaItem.setMeta(meta, data);
+            // Channels
+            data = {gst_discoverer_audio_info_get_channels(audio_info)};
+            LOG_INFO(0, " -> Audio Channels : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::Channels;
+            mediaItem.setMeta(meta, data);
 
-        // BitRate
-        data = {gst_discoverer_audio_info_get_bitrate(audio_info)};
-        LOG_INFO(0, " -> Audio BitRate : %u", std::get<std::uint32_t>(data));
-        meta = MediaItem::Meta::BitRate;
-        mediaItem.setMeta(meta, data);
+            // BitRate
+            data = {gst_discoverer_audio_info_get_bitrate(audio_info)};
+            LOG_INFO(0, " -> Audio BitRate : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::BitRate;
+            mediaItem.setMeta(meta, data);
 
-        // BitPerSample
-        data = {gst_discoverer_audio_info_get_depth(audio_info)};
-        LOG_INFO(0, " -> Audio BitPerSample : %u", std::get<std::uint32_t>(data));
-        meta = MediaItem::Meta::BitPerSample;
-        mediaItem.setMeta(meta, data);
-    } else if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo) &&
-            mediaItem.type() == MediaItem::Type::Video) {
-        LOG_INFO(0, "<Video stream info>");
-        GstDiscovererVideoInfo *video_info = 
-            reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
-        // Width
-        data = {gst_discoverer_video_info_get_width(video_info)};
-        LOG_INFO(0, " -> Video Width : %u", std::get<std::uint32_t>(data));
-        meta = MediaItem::Meta::Width;
-        mediaItem.setMeta(meta, data);
+            // BitPerSample
+            data = {gst_discoverer_audio_info_get_depth(audio_info)};
+            LOG_INFO(0, " -> Audio BitPerSample : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::BitPerSample;
+        }
+        break;
+    }
+    case MediaItem::Type::Video: {
+        if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
+            /* let's get the video meta data */
+            LOG_INFO(0, "<Video stream info>");
+            GstDiscovererVideoInfo *video_info =
+                reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
+            // Width
+            data = {gst_discoverer_video_info_get_width(video_info)};
+            LOG_INFO(0, " -> Video Width : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::Width;
+            mediaItem.setMeta(meta, data);
 
-        // Height
-        data = {gst_discoverer_video_info_get_height(video_info)};
-        LOG_INFO(0, " -> Video Height : %u", std::get<std::uint32_t>(data));
-        meta = MediaItem::Meta::Height;
-        mediaItem.setMeta(meta, data);
-    } else if (GST_IS_DISCOVERER_SUBTITLE_INFO(streamInfo)) {
+            // Height
+            data = {gst_discoverer_video_info_get_height(video_info)};
+            LOG_INFO(0, " -> Video Height : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::Height;
+            mediaItem.setMeta(meta, data);
+
+            // Frame rate
+            uint32_t num = gst_discoverer_video_info_get_framerate_num(video_info);
+            uint32_t denom = gst_discoverer_video_info_get_framerate_denom(video_info);
+            std::string frame_rate = std::to_string(num) + std::string("/") + std::to_string(denom);
+            data = {frame_rate};
+            LOG_INFO(0, " -> Video Frame Rate : %s", std::get<std::string>(data));
+            meta = MediaItem::Meta::FrameRate;
+            mediaItem.setMeta(meta, data);
+        }
+        break;
+    }
+    case MediaItem::Type::Image: {
+        if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
+            /* let's get the image meta data */
+            LOG_INFO(0, "<Image stream info>");
+            GstDiscovererVideoInfo *video_info =
+                reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
+            // Width
+            data = {gst_discoverer_video_info_get_width(video_info)};
+            LOG_INFO(0, " -> Image Width : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::Width;
+            mediaItem.setMeta(meta, data);
+
+            // Height
+            data = {gst_discoverer_video_info_get_height(video_info)};
+            LOG_INFO(0, " -> Image Height : %u", std::get<std::uint32_t>(data));
+            meta = MediaItem::Meta::Height;
+            mediaItem.setMeta(meta, data);
+        }
+        break;
+    }
+    default:
         LOG_INFO(0, "Subtitle case. we don't need to get subtitle information yet");
-    } else {
-        // do nothing
+        break;
     }
 
     GstDiscovererStreamInfo *nextStreamInfo =
