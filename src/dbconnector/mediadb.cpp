@@ -147,13 +147,9 @@ void MediaDb::checkForChange(MediaItemPtr mediaItem)
     auto mi = mediaItem.get();
     auto uri = mediaItem->uri();
     auto hash = mediaItem->hash();
-    if (mediaItemMap_.find(uri) != mediaItemMap_.end()) {
-        if (mediaItemMap_[uri] != hash) {
-            mediaItemMap_[uri] = hash;
-            find(mediaItem->uri(), true, mi, "", false);
-        }
-    } else {
-        mediaItemMap_.emplace(std::make_pair(uri, hash));
+    if ((mediaItemMap_.find(uri) == mediaItemMap_.end()) ||
+        ((mediaItemMap_.find(uri) != mediaItemMap_.end()) && (mediaItemMap_[uri] != hash))) {
+        mediaItemMap_[uri] = hash;
         find(mediaItem->uri(), true, mi, "", false);
     }
 

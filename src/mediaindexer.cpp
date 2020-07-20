@@ -48,6 +48,8 @@ MediaIndexer::MediaIndexer() :
 #endif
     plugins_()
 {
+    get("msc");
+    get("storage");
 }
 
 MediaIndexer::~MediaIndexer()
@@ -170,10 +172,10 @@ bool MediaIndexer::setDetect(bool on, const std::string &uri)
 }
 
 bool MediaIndexer::sendDeviceNotification(LSMessage * msg)
-{ 
+{
     if (indexerService_)
-        return indexerService_->pushDeviceList(msg); 
-    else 
+        return indexerService_->pushDeviceList(msg);
+    else
         return false;
 }
 

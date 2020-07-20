@@ -110,7 +110,7 @@ bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::st
 
     if (isNew)
         notifyObserversStateChange(devices_[uri]);
-    
+
     return isNew;
 }
 
@@ -130,7 +130,7 @@ bool Plugin::addDevice(const std::string &uri, int alive)
             isNew = true;
         }
     }
-    
+
     if (isNew) {
         notifyObserversStateChange(dev);
     } else {
@@ -154,7 +154,7 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::strin
         dev = deviceUnlocked(uri);
 
         if (!dev) {
-            LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());            
+            LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());
             dev = std::make_shared<Device>(uri, alive, true, uuid);
             dev->setMountpoint(mp);
             devices_[uri] = dev;

@@ -319,14 +319,16 @@ bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ct
                         pbnjson::JValue list = pbnjson::Object();
                         rv &= mdb->getAudioList(_uri, list);
                         list.put("uri", _uri.c_str());
+                        list.put("count", list["results"].arraySize());
                         respArray.append(list);
                     }
                 }
             }
         } else {
             pbnjson::JValue list = pbnjson::Object();
-            rv &= mdb->getAudioList(uri, list);
+            rv &= mdb->getAudioList(uri, list);            
             list.put("uri", uri.c_str());
+            list.put("count", list["results"].arraySize());
             respArray.append(list);
         }
         resp.put("audioList", respArray);
@@ -417,7 +419,7 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
 
     if (domTree.hasKey("uri"))
         uri = domTree["uri"].asString();
-    
+
     bool rv = true;
     auto mdb = MediaDb::instance();
     auto reply = pbnjson::Object();
@@ -431,6 +433,7 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
                         pbnjson::JValue list = pbnjson::Object();
                         rv &= mdb->getVideoList(_uri, list);
                         list.put("uri", _uri.c_str());
+                        list.put("count", list["results"].arraySize());
                         respArray.append(list);
                     }
                 }
@@ -439,6 +442,7 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
             pbnjson::JValue list = pbnjson::Object();
             rv &= mdb->getVideoList(uri, list);
             list.put("uri", uri.c_str());
+            list.put("count", list["results"].arraySize());
             respArray.append(list);
         }
         resp.put("videoList", respArray);
@@ -510,67 +514,69 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
 
 bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-   LOG_DEBUG("call onGetImageList");
-   IndexerService *is = static_cast<IndexerService *>(ctx);
-   std::string uri;
-   // parse incoming message
-   const char *payload = LSMessageGetPayload(msg);
-   std::string method = LSMessageGetMethod(msg);
-   pbnjson::JDomParser parser;
+    LOG_DEBUG("call onGetImageList");
+    IndexerService *is = static_cast<IndexerService *>(ctx);
+    std::string uri;
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
 
-   if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
-       LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
-           payload);
-       return false;
-   }
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
 
-   auto domTree(parser.getDom());
+    auto domTree(parser.getDom());
 
-   if (domTree.hasKey("uri"))
-       uri = domTree["uri"].asString();
+    if (domTree.hasKey("uri"))
+        uri = domTree["uri"].asString();
 
-   bool rv = true;
-   auto mdb = MediaDb::instance();
-   auto reply = pbnjson::Object();
-   if (mdb) {
-       pbnjson::JValue resp = pbnjson::Object();
-       pbnjson::JValue respArray = pbnjson::Array();
-       if (uri.empty()) {
-           for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
-               for (auto const &[_uri, _dev] : _plg->devices()) {
-                   if (_dev->available()) {
-                       pbnjson::JValue list = pbnjson::Object();
-                       rv &= mdb->getImageList(_uri, list);
-                       list.put("uri", _uri.c_str());
-                       respArray.append(list);
-                   }
-               }
-           }
-       } else {
-           pbnjson::JValue list = pbnjson::Object();
-           rv &= mdb->getImageList(uri, list);
-           list.put("uri", uri.c_str());
-           respArray.append(list);
-       }
-       resp.put("imageList", respArray);
-       mdb->putRespObject(rv, resp);
-       mdb->sendResponse(lsHandle, msg, resp.stringify());
-   } else {
-       LOG_ERROR(0, "Failed to get instance of Media Db");
-       rv = false;
-       reply.put("returnValue", rv);
-       reply.put("errorCode", -1);
-       reply.put("errorText", "Invalid MediaDb Object");
+    bool rv = true;
+    auto mdb = MediaDb::instance();
+    auto reply = pbnjson::Object();
+    if (mdb) {
+        pbnjson::JValue resp = pbnjson::Object();
+        pbnjson::JValue respArray = pbnjson::Array();
+        if (uri.empty()) {
+            for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
+                for (auto const &[_uri, _dev] : _plg->devices()) {
+                    if (_dev->available()) {
+                        pbnjson::JValue list = pbnjson::Object();
+                        rv &= mdb->getImageList(_uri, list);                        
+                        list.put("uri", _uri.c_str());
+                        list.put("count", list["results"].arraySize());
+                        respArray.append(list);
+                    }
+                }
+            }
+        } else {
+            pbnjson::JValue list = pbnjson::Object();
+            rv &= mdb->getImageList(uri, list);
+            list.put("uri", uri.c_str());
+            list.put("count", list["results"].arraySize());
+            respArray.append(list);
+        }
+        resp.put("imageList", respArray);
+        mdb->putRespObject(rv, resp);
+        mdb->sendResponse(lsHandle, msg, resp.stringify());
+    } else {
+        LOG_ERROR(0, "Failed to get instance of Media Db");
+        rv = false;
+        reply.put("returnValue", rv);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid MediaDb Object");
 
-       LSError lsError;
-       LSErrorInit(&lsError);
+        LSError lsError;
+        LSErrorInit(&lsError);
 
-       if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
-           LOG_ERROR(0, "Message reply error");
-       }
-   }
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+        }
+    }
 
-   return rv;
+    return rv;
 }
 
 bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
