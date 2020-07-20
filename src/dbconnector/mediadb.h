@@ -69,7 +69,15 @@ public:
      * \param[in] data Meta data value.
      * \param[in] props pbnjson object.
      */
-     pbnjson::JValue putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props);
+    pbnjson::JValue putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props);
+
+    /**
+     * \brief Get the file path for the given media item uri.
+     *
+     * \param[in] uri Base uri for plugin identification.
+     * \return The file path if available.
+     */
+    std::optional<std::string> getFilePath(const std::string &uri) const;
 
     /**
      * \brief Mark all media items of this device dirty.
@@ -134,4 +142,5 @@ private:
     static constexpr char DIRTY[] = "dirty";
     static constexpr char TYPE[] = "type";
     static constexpr char MIME[] = "mime";
+    static constexpr char FILE_PATH[] = "file_path";
 };

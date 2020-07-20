@@ -169,17 +169,6 @@ bool MediaIndexer::setDetect(bool on, const std::string &uri)
     return true;
 }
 
-std::optional<std::string> MediaIndexer::getPlaybackUri(
-    const std::string &uri) const
-{
-    // check if the plugin is available and get it
-    auto plg = PluginFactory().plugin(uri);
-    if (!plg)
-        return std::nullopt;
-
-    return plg->getPlaybackUri(uri);
-}
-
 bool MediaIndexer::sendDeviceNotification(LSMessage * msg)
 { 
     if (indexerService_)

@@ -144,8 +144,6 @@ private:
     static pbnjson::JSchema deviceListGetSchema_;
     /// Schema for runDetect and stopDetect.
     static pbnjson::JSchema detectRunStopSchema_;
-    /// Schema for getPlaybackUri.
-    static pbnjson::JSchema playbackUriGetSchema_;
     /// Schema for getXXXXXMetadata.
     static pbnjson::JSchema metadataGetSchema_;
 
@@ -202,15 +200,6 @@ private:
      * \param[in] ctx Pointer to IndexerService class instance.
      */
     static bool onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx);
-
-    /**
-     * \brief Callback for getPlaybackUri() Luna method.
-     *
-     * \param[in] lsHandle Luna service handle.
-     * \param[in] msg The Luna message.
-     * \param[in] ctx Pointer to IndexerService class instance.
-     */
-    static bool onGetPlaybackUri(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Callback for getAudioList() Luna method.

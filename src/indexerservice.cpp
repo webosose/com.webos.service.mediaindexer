@@ -44,7 +44,6 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "putPlugin", IndexerService::onPluginPut, LUNA_METHOD_FLAGS_NONE },
     { "getPluginList", IndexerService::onPluginListGet, LUNA_METHOD_FLAGS_NONE },
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
-    { "getPlaybackUri", IndexerService::onGetPlaybackUri, LUNA_METHOD_FLAGS_NONE },
     { "getAudioList", IndexerService::onGetAudioList, LUNA_METHOD_FLAGS_NONE },
     { "getAudioMetadata", IndexerService::onGetAudioMetadata, LUNA_METHOD_FLAGS_NONE },
     { "getVideoList", IndexerService::onGetVideoList, LUNA_METHOD_FLAGS_NONE },
@@ -88,16 +87,6 @@ pbnjson::JSchema IndexerService::detectRunStopSchema_(
         "    \"uri\": {"
         "      \"type\": \"string\" }"
         "  }"
-        "}"));
-
-pbnjson::JSchema IndexerService::playbackUriGetSchema_(
-    pbnjson::JSchema::fromString(
-        "{ \"type\": \"object\","
-        "  \"properties\": {"
-        "    \"uri\": {"
-        "      \"type\": \"string\" }"
-        "  },"
-        "  \"required\": [ \"uri\" ]"
         "}"));
 
 pbnjson::JSchema IndexerService::metadataGetSchema_(
@@ -293,48 +282,6 @@ bool IndexerService::onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     IndexerService *is = static_cast<IndexerService *>(ctx);
     return is->detectRunStop(msg, false);
-}
-
-bool IndexerService::onGetPlaybackUri(LSHandle *lsHandle, LSMessage *msg, void *ctx)
-{
-    IndexerService *is = static_cast<IndexerService *>(ctx);
-
-    // parse incoming message
-    const char *payload = LSMessageGetPayload(msg);
-    pbnjson::JDomParser parser;
-
-    if (!parser.parse(payload, playbackUriGetSchema_)) {
-        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
-            payload);
-        return false;
-    }
-
-    auto domTree(parser.getDom());
-
-    // response message
-    auto reply = pbnjson::Object();
-
-    RETURN_IF(!domTree.hasKey("uri"), false, "client must specify uri");
-
-    // get the playback uri for the given media item uri
-    auto uri = domTree["uri"].asString();
-    LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
-        uri.c_str());
-
-    auto pbUri = is->indexer_->getPlaybackUri(uri);
-    reply.put("returnValue", !!pbUri);
-    if (pbUri)
-        reply.put("playbackUri", pbUri.value());
-
-    LSError lsError;
-    LSErrorInit(&lsError);
-
-    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
-        LOG_ERROR(0, "Message reply error");
-        return false;
-    }
-
-    return true;
 }
 
 bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ctx)

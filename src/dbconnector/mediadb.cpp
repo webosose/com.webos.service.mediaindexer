@@ -18,6 +18,8 @@
 #include "mediaitem.h"
 #include "imediaitemobserver.h"
 #include "device.h"
+#include "plugins/pluginfactory.h"
+#include "plugins/plugin.h"
 
 #include <cstdint>
 
@@ -171,6 +173,8 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
     auto typeProps = pbnjson::Object();
     typeProps.put(URI, mediaItem->uri());
     typeProps.put(MIME, mediaItem->mime());
+    auto filepath = getFilePath(mediaItem->uri());
+    typeProps.put(FILE_PATH, filepath ? filepath.value() : "");
 
     std::string kind_type;
     switch (mediaItem->type()) {
@@ -231,6 +235,17 @@ pbnjson::JValue MediaDb::putProperties(std::string metaStr, std::optional<MediaI
         props.put(metaStr, std::string(""));
     }
     return props;
+}
+
+std::optional<std::string> MediaDb::getFilePath(
+    const std::string &uri) const
+{
+    // check if the plugin is available and get it
+    auto plg = PluginFactory().plugin(uri);
+    if (!plg)
+        return std::nullopt;
+
+    return plg->getPlaybackUri(uri);
 }
 
 void MediaDb::markDirty(std::shared_ptr<Device> device)

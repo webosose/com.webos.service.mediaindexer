@@ -84,14 +84,6 @@ public:
     bool setDetect(bool on, const std::string &uri);
 
     /**
-     * \brief Get the playback uri for the given media item uri.
-     *
-     * \param[in] uri Base uri for plugin identification.
-     * \return The uri if available.
-     */
-    std::optional<std::string> getPlaybackUri(const std::string &uri) const;
-
-    /**
      * \brief Generate device list object and push either as reply to
      * \p msg or to all registered subscribers.
      *
