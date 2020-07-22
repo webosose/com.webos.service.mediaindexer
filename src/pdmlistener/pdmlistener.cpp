@@ -19,7 +19,7 @@
 
 #include <algorithm>
 
-const char *PdmListener::pdmUrl_ = "luna://com.webos.service.pdm/getAttachedStorageDeviceList";
+const char *PdmListener::pdmUrl_ = "luna://com.webos.service.pdm/getAttachedAllDeviceList";
 LSHandle *PdmListener::lsHandle_ = nullptr;
 std::unique_ptr<PdmListener> PdmListener::instance_;
 
@@ -94,7 +94,7 @@ void PdmListener::subscribe()
     auto subscription = pbnjson::Object();
 
     subscription.put("subscribe", true);
-    LOG_INFO(0, "Subscribed for com.webos.service.pdm/getAttachedStorageDeviceList");
+    LOG_INFO(0, "Subscribed for com.webos.service.pdm/getAttachedAllDeviceList");
 
     LSError lsError;
     LSErrorInit(&lsError);
@@ -174,18 +174,32 @@ bool PdmListener::onDeviceNotification(LSHandle *lsHandle, LSMessage *msg,
     pbnjson::JValue domTree(parser.getDom());
 
     // check if all devices are gone
-    if (!domTree.hasKey("storageDeviceList")) {
+    if (!domTree.hasKey("deviceListInfo")) {
         pl->deviceMap_.clear();
         pl->deviceMapByType_.clear();
         return true;
     }
 
-    auto deviceList = domTree["storageDeviceList"];
+    auto deviceListInfo = domTree["deviceListInfo"];
+
+    if (!deviceListInfo.isArray()) {
+        LOG_ERROR(0, "deviceListInfo format is invalid");
+        return false;
+    }
+
+    pbnjson::JValue storageDeviceList;
+    for (ssize_t i = 0; i < deviceListInfo.arraySize(); ++i) {
+        if (deviceListInfo[i].hasKey("storageDeviceList")) {
+            storageDeviceList = deviceListInfo[i]["storageDeviceList"];
+            break;
+        }
+    }
 
     // sanity check
-    if (!deviceList.isArray())
+    if (!storageDeviceList.isArray()) {
+        LOG_DEBUG("storageDeviceList is not valid format");
         return true;
-
+    }
     // our reference list is deviceMap_, mark all devices dirty and
     // then check if they really are
     for (auto const &[uri, dev] : pl->deviceMap_)
@@ -193,13 +207,13 @@ bool PdmListener::onDeviceNotification(LSHandle *lsHandle, LSMessage *msg,
 
     // now iterate through the devices to find those where observers
     // are attached for
-    for (ssize_t i = 0; i < deviceList.arraySize(); ++i) {
-        auto dev = deviceList[i];
+    for (ssize_t i = 0; i < storageDeviceList.arraySize(); ++i) {
+        auto dev = storageDeviceList[i];
         auto rootPath = dev["rootPath"].asString();
         pl->checkDevice(rootPath, dev);
     }
 
     pl->cleanupDevices();
-    
     return true;
 }
+
