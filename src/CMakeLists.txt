@@ -115,6 +115,8 @@ add_executable(com.webos.service.mediaindexer
 
 include_directories(./)
 include_directories(./jsonparser)
+include_directories(./log)
+include_directories(./mediaindexerclient)
 
 # definitions for thumbnail directory
 add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
@@ -123,6 +125,7 @@ add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
 add_subdirectory(plugins)
 # choose a meta data extractor
 add_subdirectory(metadataextractors)
+add_subdirectory(mediaindexerclient)
 
 list(APPEND LOCAL_LIBS plugins metadataextractor pthread)
 target_link_libraries(com.webos.service.mediaindexer ${LOCAL_LIBS})

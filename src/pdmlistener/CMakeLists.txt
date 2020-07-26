@@ -16,4 +16,10 @@
 
 include_directories(./)
 include_directories(../)
-add_library(pdmlistener STATIC pdmlistener.cpp pdmdevice.cpp)
+include_directories(../log)
+
+set(SRC_LIST pdmlistener.cpp
+    pdmdevice.cpp
+    ../log/logging.cpp
+   )
+add_library(pdmlistener STATIC ${SRC_LIST})

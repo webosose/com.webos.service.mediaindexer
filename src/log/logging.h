@@ -48,8 +48,7 @@ static inline pid_t gettid()
 #if defined HAS_PMLOG
 #include <PmLogLib.h>
 
-/// Declared in main.cpp.
-extern PmLogContext getPmLogContext();
+PmLogContext getPmLogContext();
 /// We may use this as function or value, so abstract function call
 /// away.
 #define logContext getPmLogContext()

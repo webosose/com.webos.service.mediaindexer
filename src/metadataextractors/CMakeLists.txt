@@ -17,6 +17,7 @@
 include_directories(./)
 include_directories(../)
 include_directories(../jsonparser)
+include_directories(../log)
 
 if (GSTREAMER_FOUND)
   list(APPEND EXTRACTORS gstreamerextractor.cpp)

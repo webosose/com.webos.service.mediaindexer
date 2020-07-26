@@ -75,16 +75,6 @@ LOG_MSGID;
 const char *lunaServiceId = "com.webos.service.mediaindexer";
 #endif
 
-#if defined HAS_PMLOG
-PmLogContext getPmLogContext()
-{
-    static PmLogContext s_context = 0;
-    if (!s_context)
-        PmLogGetContext("com.webos.service.mediaindexer", &s_context);
-    return s_context;
-}
-#endif
-
 static void signalHandler(int sigNum)
 {
     if (terminating)
