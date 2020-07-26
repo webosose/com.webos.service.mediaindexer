@@ -1,0 +1,7 @@
+{
+    "roleFiles": [
+        "/usr/share/luna-service2/roles.d/mediaindexerclient_test.role.json"
+    ],
+    "id": "mediaindexerclient_test",
+    "version": "1.0.0"
+}

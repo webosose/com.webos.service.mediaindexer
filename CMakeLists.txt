@@ -54,6 +54,7 @@ webos_add_linker_options(ALL --no-undefined)
 
 # get the sources
 add_subdirectory(src)
+add_subdirectory(test/mediaindexerclient)
 
 # install configulation file
 add_subdirectory(files/conf)
