@@ -20,22 +20,27 @@
 /**
  * notification events that the callback function should handle
  */
-typedef enum {
+enum class MediaIndexerClientEvent : int {
     NotifyGetAudioList,
     NotifyGetVideoList,
     NotifyGetImageList,
     NotifyGetAudioMetaData,
     NotifyGetVideoMetaData,
-    NotifyGetImageMetaData
-} MediaIndexerClientEvent;
+    NotifyGetImageMetaData,
+    EOL
+};
 
-typedef enum {
+/**
+ * Media indexer client API specifiers.
+ */
+enum class MediaIndexerClientAPI : int {
     GetAudioListAPI,
     GetVideoListAPI,
     GetImageListAPI,
     GetAudioMetaDataAPI,
     GetVideoMetaDataAPI,
-    GetImageMetaDataAPI
-} MediaIndexerClientAPI;
+    GetImageMetaDataAPI,
+    EOL
+};
 
 #endif  // MEDIA_INDEXER_CLINT_COMMON_H_

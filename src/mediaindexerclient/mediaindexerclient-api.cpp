@@ -32,6 +32,10 @@ MediaIndexerHandle CreateMediaIndexerClient(MediaIndexerCallback callback, void*
 {
     std::cout << "Create MediaIndexerClient" << std::endl;
     IndexerClientWrapper* indexerWrapper = new IndexerClientWrapper(callback, userData);
+    if (indexerWrapper == nullptr) {
+        std::cout << "Failed to create MediaIndexerClient!" << std::endl;
+        return nullptr;
+    }
     return static_cast<MediaIndexerHandle>(indexerWrapper);
 }
 

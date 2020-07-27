@@ -82,19 +82,28 @@ static bool processCommand(const std::string& cmd, MediaIndexerHandle handle)
         }
         case MediaIndexerAPI::GET_AUDIO_META_DATA: {
             // call MediaIndexerClient API
-            std::string ret = GetAudioMetaData(handle, std::string());
+            std::cout << "uri : ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = GetAudioMetaData(handle, uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_VIDEO_META_DATA: {
             // call MediaIndexerClient API
-            std::string ret = GetVideoMetaData(handle, std::string());
+            std::cout << "uri : ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = GetVideoMetaData(handle, uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_IMAGE_META_DATA: {
             // call MediaIndexerClient API
-            std::string ret = GetImageMetaData(handle, std::string());
+            std::cout << "uri : ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = GetImageMetaData(handle, uri);
             std::cout << ret << std::endl;
             break;
         }
@@ -109,7 +118,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerHandle handle)
 static void my_indexer_callback(MediaIndexerClientEvent event, void* clientData, void* userData)
 {
     std::cout << "my_indexer_callback" << std::endl;
-    std::cout << "event : " << event << std::endl;
+    std::cout << "event : " << static_cast<int>(event) << std::endl;
     std::cout << "thread[" << std::this_thread::get_id() << "]" << std::endl;
 }
 

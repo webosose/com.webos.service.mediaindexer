@@ -110,7 +110,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
 static void my_indexer_callback(MediaIndexerClientEvent event, void* clientData, void* userData)
 {
     std::cout << "my_indexer_callback" << std::endl;
-    std::cout << "event : " << event << std::endl;
+    std::cout << "event : " << static_cast<int>(event) << std::endl;
     std::cout << "thread[" << std::this_thread::get_id() << "]" << std::endl;
 }
 

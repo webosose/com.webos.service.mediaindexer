@@ -20,6 +20,7 @@
 #include "lunaconnector.h"
 #include "mediaindexer-common.h"
 
+
 class MediaIndexerClient {
 public:
     using MediaIndexerCallback = std::function<void(MediaIndexerClientEvent event, void* clientData, void* userData)>;
@@ -34,8 +35,11 @@ public:
     std::string getImageMetaData(const std::string& uri);
 
 private:
-
-    static const char *dbUrl_;
+    static constexpr const char *dbUrl_ = "luna://com.webos.service.db/";
+    static constexpr const char *mediaKind_ = "com.webos.service.mediaindexer.media:1";
+    static constexpr const char *audioKind_ = "com.webos.service.mediaindexer.audio:1";
+    static constexpr const char *videoKind_ = "com.webos.service.mediaindexer.video:1";
+    static constexpr const char *imageKind_ = "com.webos.service.mediaindexer.image:1";
 
     MediaIndexerCallback callback_;
     void* userData_;
@@ -46,13 +50,12 @@ private:
     // Luna connector handle.
     std::unique_ptr<LunaConnector> connector_;
 
-    // Luna response callback and hanlder.
+    // Luna response callback and handler.
     static bool onLunaResponse(LSHandle* lsHandle, LSMessage* msg, void* ctx);
     bool handleLunaResponse(LSMessage* msg);
 
-    bool generateLunaPayload(MediaIndexerClientAPI api, const std::string& uri);
+    pbnjson::JValue generateLunaPayload(MediaIndexerClientAPI api, const std::string& uri);
 
-    
     // prevent copy & assign operation
     MediaIndexerClient(MediaIndexerClient const&) = delete;
     MediaIndexerClient(MediaIndexerClient &&) = delete;
