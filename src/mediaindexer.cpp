@@ -225,7 +225,11 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 
 #if defined HAS_LUNA
         auto mdb = MediaDb::instance();
-        mdb->checkForChange(std::move(mediaItem));
+        //mdb->checkForChange(std::move(mediaItem));
+        if (mdb->needUpdate(mediaItem.get()))
+            metaDataUpdateRequired(std::move(mediaItem));
+        else
+            mdb->unflagDirty(mediaItem->uri());
 
         // the device media item count has changed - notify
         // subscribers

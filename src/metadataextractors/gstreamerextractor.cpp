@@ -387,11 +387,11 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     }
     else
     {
-        LOG_ERROR(0, "could not make snapshot");
+         RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "could not make snapshot");
     }
     gst_element_set_state (pipeline, GST_STATE_NULL);
     gst_object_unref (pipeline);
-    
+
     auto end = std::chrono::high_resolution_clock::now();;
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
     LOG_DEBUG("Thumbnail Image creation done, elapsed time = %d [ms]", elapsedTime);
@@ -469,16 +469,6 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *
 
     g_value_unset(&val);
 }
-/*
-MediaItem::Meta GStreamerExtractor::metaFromStreamInfo(GStreamerExtractor::StreamMeta &meta) const
-{
-    for (auto type = GStreamerExtractor::StreamMeta::SampleRate;
-            type < GStreamerExtractor::StreamMeta::EOL; ++type) {
-    }
-    return MediaItem::Meta::EOL;
-}
-*/
-
 
 void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
                                        GstDiscovererStreamInfo *streamInfo) const
@@ -545,7 +535,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
             uint32_t denom = gst_discoverer_video_info_get_framerate_denom(video_info);
             std::string frame_rate = std::to_string(num) + std::string("/") + std::to_string(denom);
             data = {frame_rate};
-            LOG_INFO(0, " -> Video Frame Rate : %s", std::get<std::string>(data));
+            LOG_INFO(0, " -> Video Frame Rate : %s", std::get<std::string>(data).c_str());
             meta = MediaItem::Meta::FrameRate;
             mediaItem.setMeta(meta, data);
         }

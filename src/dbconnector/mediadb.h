@@ -56,6 +56,26 @@ public:
     void checkForChange(MediaItemPtr mediaItem);
 
     /**
+     * \brief Check whether db data of media item should be updated or not.
+     *
+     * If the media item did not change it will be free'd. If it did
+     * change, the observer will get notified.
+     *
+     * \param[in] mediaItem The media item to check.
+     */
+    bool needUpdate(MediaItem *mediaItem);
+
+    /**
+     * \brief Check whether db data of media item include enough information.
+     *
+     * If db data for media item have missing data, the observer will get notified.
+     *
+     * \param[in] mediaItem The media item to check.
+     * \param[in] val db data for media item(previously stored).
+     */
+    bool isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val);
+
+    /**
      * \brief Update the media item meta in the database.
      *
      * \param[in] mediaItem The media item to update.
@@ -127,6 +147,11 @@ private:
     static std::unique_ptr<MediaDb> instance_;
     static std::mutex ctorLock_;
     mutable std::mutex lock_;
+    std::map<MediaItem::Type, std::string> kindMap_ = {
+        {MediaItem::Type::Audio, AUDIO_KIND},
+        {MediaItem::Type::Video, VIDEO_KIND},
+        {MediaItem::Type::Image, IMAGE_KIND}
+    };
     /// List of services that should have read-only access to
     /// database.
     std::list<std::string> dbClients_;

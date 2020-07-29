@@ -208,6 +208,13 @@ public:
     void setMeta(Meta meta, MetaData value);
 
     /**
+     * \brief Set media item parsed.
+     * \param[in] value The value to indicate media item is parsed.
+     *
+     */
+    void setParsed(bool value) { parsed_ = value; }
+
+    /**
      * \brief Check if media item has been parsed.
      *
      * \return True if parsed, else false.

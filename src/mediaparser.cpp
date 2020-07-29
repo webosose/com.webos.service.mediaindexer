@@ -18,6 +18,7 @@
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
 #include "metadataextractors/imetadataextractor.h"
+#include "dbconnector/mediadb.h"
 
 std::queue<std::unique_ptr<MediaParser>> MediaParser::tasks_;
 std::map<std::pair<MediaItem::Type, std::string>, std::unique_ptr<IMetaDataExtractor>> MediaParser::extractor_;
@@ -81,37 +82,46 @@ void MediaParser::runTask()
 void MediaParser::extractMeta() const
 {
     // make sure we are deleted when this method terminates
-    std::unique_ptr<const MediaParser> me(this);
+    try {
+        std::unique_ptr<const MediaParser> me(this);
 
-    auto mi = mediaItem_.get();
-    LOG_DEBUG("Media item to extract %p with parser %p", mi, this);
+        auto mi = mediaItem_.get();
+        LOG_DEBUG("Media item to extract %p with parser %p", mi, this);
 
-    if (useDefaultExtractor_) {
-        std::pair<MediaItem::Type, std::string> p(mediaItem_->type(), mi->ext());
+        if (useDefaultExtractor_) {
+            std::pair<MediaItem::Type, std::string> p(mediaItem_->type(), mi->ext());
 
-        if (extractor_.find(p) != extractor_.end())
-            extractor_[p]->extractMeta(*mi);
-        else
-        {
-            LOG_ERROR(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mediaItem_->type()).c_str(), mi->ext().c_str());
-            return;
+            if (extractor_.find(p) != extractor_.end()) {
+                extractor_[p]->extractMeta(*mi);
+                mi->setParsed(true);
+            } else {
+                LOG_ERROR(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mediaItem_->type()).c_str(), mi->ext().c_str());
+                return;
+            }
+        } else {
+            auto plg = PluginFactory().plugin(mediaItem_->uri());
+            plg->extractMeta(*mi);
+            mi->setParsed(true);
         }
-    } else {
-        auto plg = PluginFactory().plugin(mediaItem_->uri());
-        plg->extractMeta(*mi);
-    }
 
-    // if we succeeded push the media item back to observer
-    if (mediaItem_->parsed()) {
-        LOG_DEBUG("Pushing parsed mediaitem %p back to observer, newMediaItem start", mi);
-        mediaItem_->observer()->newMediaItem(std::move(mediaItem_));
-    }
+        // if we succeeded push the media item back to observer
+        if (mediaItem_->parsed()) {
+            LOG_DEBUG("Pushing parsed mediaitem %p back to observer, newMediaItem start", mi);
+            //mediaItem_->observer()->newMediaItem(std::move(mediaItem_));
+            auto mdb = MediaDb::instance();
+            mdb->updateMediaItem(std::move(mediaItem_));
+        }
 
-    // update the object state and try to run pending tasks
-    std::lock_guard<std::mutex> lock(lock_);
-    runningThreads_--;
-    LOG_DEBUG("runTask start from extractMeta");
-    runTask(); // let's give it a try
+        // update the object state and try to run pending tasks
+        std::lock_guard<std::mutex> lock(lock_);
+        runningThreads_--;
+        LOG_DEBUG("runTask start from extractMeta");
+        runTask(); // let's give it a try
+    } catch (const std::exception & e) {
+        LOG_ERROR(0, "MediaParser::extractMeta failure: %s", e.what());
+    } catch (...) {
+        LOG_ERROR(0, "MediaParser::extractMeta failure by unexpected failure");
+    }
 
     LOG_DEBUG("Media parser threads %i", runningThreads_);
 }

@@ -237,7 +237,7 @@ std::optional<MediaItem::MetaData> MediaItem::meta(Meta meta) const
 void MediaItem::setMeta(Meta meta, MetaData value)
 {
     // if meta data is set the media item is supposed to be parsed
-    parsed_ = true;
+    // parsed_ = true;
 
     switch (value.index()) {
     case 0:

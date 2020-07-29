@@ -56,18 +56,13 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     LOG_INFO(0, "Received response com.webos.service.db for: '%s'", method.c_str());
 
     // handle the media data exists case
-    if (method == std::string("find")) {
-        if (!sd.object) {
-            LOG_DEBUG("sd.object is invalid");
+    if (method == std::string("find"))
+    {
+        if (!sd.object)
             return false;
-        }
-
-        MediaItemPtr mi(static_cast<MediaItem *>(sd.object));
-
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
-        LOG_DEBUG("payload : %s, method : %s", payload, method.c_str());
 
         if (!parser.parse(payload)) {
             LOG_ERROR(0, "Invalid JSON message: %s", payload);
@@ -75,41 +70,10 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         }
 
         pbnjson::JValue domTree(parser.getDom());
+        // response message
+        auto reply = static_cast<pbnjson::JValue *>(sd.object);
+        *reply = domTree;
 
-        // nothing found - this must be a new item which needs further
-        // inspections
-        if (!domTree.hasKey("results")) {
-            LOG_DEBUG("New media item '%s' needs meta data", mi->uri().c_str());
-            mi->observer()->metaDataUpdateRequired(std::move(mi));
-            return true;
-        }
-
-        auto matches = domTree["results"];
-
-        // sanity check
-        if (!matches.isArray() || matches.arraySize() == 0) {
-            mi->observer()->metaDataUpdateRequired(std::move(mi));
-            return true;
-        }
-
-        // gotcha
-        auto match = matches[0];
-
-        auto uri = match["uri"].asString();
-        auto hashStr = match["hash"].asString();
-        auto hash = std::stoul(hashStr);
-
-        // if present and complete, remove the dirty flag
-        unflagDirty(mi->uri());
-
-        // check if media item has changed since last visited
-        if (mi->hash() != hash) {
-            LOG_DEBUG("Media item '%s' hash changed, request meta data update",
-                mi->uri().c_str());
-            mi->observer()->metaDataUpdateRequired(std::move(mi));
-        } else {
-            LOG_DEBUG("Media item '%s' unchanged", mi->uri().c_str());
-        }
     }
     else if (method == std::string("search"))
     {
@@ -156,8 +120,90 @@ void MediaDb::checkForChange(MediaItemPtr mediaItem)
     mediaItem.release();
 }
 
+bool MediaDb::needUpdate(MediaItem *mediaItem)
+{
+    bool ret = false;
+    if (!mediaItem) {
+        LOG_ERROR(0, "Invalid input");
+        return false;
+    }
+    pbnjson::JValue resp = pbnjson::Object();
+    std::string kind = "";
+    if (mediaItem->type() != MediaItem::Type::EOL)
+        kind = kindMap_[mediaItem->type()];
+    find(mediaItem->uri(), true, &resp, kind, true);
+
+    LOG_DEBUG("find result for %s : %s",mediaItem->uri().c_str(), resp.stringify().c_str());
+
+    if (!resp.hasKey("results")) {
+        LOG_DEBUG("New media item '%s' needs meta data", mediaItem->uri().c_str());
+        return true;
+    }
+
+    auto matches = resp["results"];
+
+    // sanity check
+    if (!matches.isArray() || matches.arraySize() == 0) {
+        return true;
+    }
+
+    // gotcha
+    auto match = matches[0];
+
+    if (!match.hasKey("uri") || !match.hasKey("hash")) {
+        LOG_DEBUG("Current db data is insufficient, need update");
+        return true;
+    }
+
+    auto uri = match["uri"].asString();
+    auto hashStr = match["hash"].asString();
+    auto hash = std::stoul(hashStr);
+
+    // check if media item has changed since last visited
+    if (mediaItem->hash() != hash) {
+        LOG_DEBUG("Media item '%s' hash changed, request meta data update",
+            mediaItem->uri().c_str());
+        return true;
+    } else if (!isEnoughInfo(mediaItem, match)) {
+        LOG_DEBUG("Media item '%s' has some missing information, need to be updated");
+        return true;
+    } else {
+        LOG_DEBUG("Media item '%s' unchanged", mediaItem->uri().c_str());
+    }
+
+    LOG_DEBUG("Media item '%s' doesn't need to be changed", mediaItem->uri().c_str());
+    return ret;
+}
+
+bool MediaDb::isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val)
+{
+    bool enough = false;
+    if (!mediaItem) {
+        LOG_ERROR(0, "Invalid input");
+        return false;
+    }
+    MediaItem::Type type = mediaItem->type();
+
+    switch (type) {
+        case MediaItem::Type::Audio:
+        case MediaItem::Type::Video:
+            if (val.hasKey("thumbnail") && !val["thumbnail"].asString().empty())
+                enough = true;
+            break;
+        case MediaItem::Type::Image:
+            if (val.hasKey("width") && val.hasKey("height") &&
+                !val["width"].asString().empty() && !val["height"].asString().empty())
+                enough = true;
+            break;
+        default:
+            break;
+    }
+    return enough;
+}
+
 void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 {
+    LOG_DEBUG("%s Start for mediaItem uri : %s",__FUNCTION__, mediaItem->uri().c_str());
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put(URI, mediaItem->uri());
@@ -168,6 +214,8 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 
     auto typeProps = pbnjson::Object();
     typeProps.put(URI, mediaItem->uri());
+    typeProps.put(HASH, std::to_string(mediaItem->hash()));
+    typeProps.put(DIRTY, false);
     typeProps.put(MIME, mediaItem->mime());
     auto filepath = getFilePath(mediaItem->uri());
     typeProps.put(FILE_PATH, filepath ? filepath.value() : "");
@@ -201,7 +249,6 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
             typeProps = putProperties(metaStr, data, typeProps);
         }
     }
-
     mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
     mergePut(mediaItem->uri(), true, typeProps, nullptr, kind_type);
 }
@@ -272,6 +319,7 @@ void MediaDb::grantAccess(const std::string &serviceName)
 
 bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
@@ -291,6 +339,7 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
 
 bool MediaDb::getAudioMetadata(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
@@ -315,6 +364,7 @@ bool MediaDb::getAudioMetadata(const std::string &uri, pbnjson::JValue &resp)
 
 bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
@@ -329,6 +379,7 @@ bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
 
 bool MediaDb::getVideoMetadata(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
@@ -344,6 +395,7 @@ bool MediaDb::getVideoMetadata(const std::string &uri, pbnjson::JValue &resp)
 
 bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
@@ -357,6 +409,7 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
 
 bool MediaDb::getImageMetadata(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);

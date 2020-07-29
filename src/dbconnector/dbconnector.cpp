@@ -159,7 +159,7 @@ bool DbConnector::find(const std::string &uri, bool precise,
     LOG_INFO(0, "Send find for '%s'", uri.c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, true, &sessionToken, obj)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service find error");
         return false;
     }

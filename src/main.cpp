@@ -113,7 +113,11 @@ int main(int argc, char *argv[])
     signal(SIGABRT, signalHandler);
     signal(SIGINT, signalHandler);
 
-    LOG_INFO(0, "Mediaindexer started");
+    LOG_INFO(0, "//*****************************************//");
+    LOG_INFO(0, "//                                         //");
+    LOG_INFO(0, "//      Mediaindexer service started       //");
+    LOG_INFO(0, "//                                         //");
+    LOG_INFO(0, "//*****************************************//");
 
 #if defined HAS_GSTREAMER
     gst_init(nullptr, nullptr);
