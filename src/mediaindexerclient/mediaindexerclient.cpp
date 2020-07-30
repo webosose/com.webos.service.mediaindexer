@@ -63,7 +63,22 @@ std::string MediaIndexerClient::getVideoList(const std::string& uri)
     }
 
     std::cout << "I'm getVideoList" << std::endl;
-    return std::string("I'm getVideoList");
+    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
+
+    pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetVideoListAPI, uri);
+    std::string url = dbUrl_ + std::string("search");
+    bool async = false;
+    LSMessageToken sessionToken;
+
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
+        std::cout << "sendMessage ERROR!" << std::endl;
+        return std::string();
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::cout << "Return value_ in getVideoList : " << returnValue_ << std::endl;
+    std::cout << "I'm getVideoList END!!!!!!!!!!!!" << std::endl;
+    return returnValue_;
 }
 
 std::string MediaIndexerClient::getImageList(const std::string& uri)
@@ -120,8 +135,20 @@ std::string MediaIndexerClient::getVideoMetaData(const std::string& uri)
         return std::string();
     }
 
-    std::cout << "I'm getVideoMetaData" << std::endl;
-    return std::string("I'm getVideoMetaData");
+    pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetVideoMetaDataAPI, uri);
+    std::string url = dbUrl_ + std::string("search");
+    bool async = false;
+    LSMessageToken sessionToken;
+
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
+        std::cout << "sendMessage ERROR!" << std::endl;
+        return std::string();
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::cout << "Return value_ in getVideoMetaData : " << returnValue_ << std::endl;
+    std::cout << "I'm getVideoMetaData END!!!!!!!!!!!!" << std::endl;
+    return returnValue_;
 }
 
 std::string MediaIndexerClient::getImageMetaData(const std::string& uri)
@@ -186,17 +213,13 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
         case MediaIndexerClientAPI::GetAudioListAPI: {
             auto selectArray = pbnjson::Array();
             selectArray.append(std::string("uri"));
-            selectArray.append(std::string("mime"));
+            selectArray.append(std::string("type"));
+            selectArray.append(std::string("last_modified_date"));
+            selectArray.append(std::string("file_size"));
+            selectArray.append(std::string("file_path"));
             selectArray.append(std::string("title"));
-            selectArray.append(std::string("genre"));
-            selectArray.append(std::string("album"));
-            selectArray.append(std::string("artist"));
-            selectArray.append(std::string("album_artist"));
-            selectArray.append(std::string("track"));
-            selectArray.append(std::string("total_tracks"));
             selectArray.append(std::string("duration"));
             selectArray.append(std::string("thumbnail"));
-            selectArray.append(std::string("file_size"));
             std::string val = "storage"; // uri;
 
             auto query = pbnjson::Object();
@@ -215,17 +238,40 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
         }
         case MediaIndexerClientAPI::GetVideoListAPI: {
             // TODO: jihoon
+            auto selectArray = pbnjson::Array();
+            selectArray.append(std::string("uri"));
+            selectArray.append(std::string("type"));
+            selectArray.append(std::string("last_modified_date"));
+            selectArray.append(std::string("file_size"));
+            selectArray.append(std::string("file_path"));
+            selectArray.append(std::string("duration"));
+            selectArray.append(std::string("thumbnail"));
+            std::string val = "storage"; // uri;
+
+            auto query = pbnjson::Object();
+            query.put("select", selectArray);
+            query.put("from", videoKind_);
+            auto where = pbnjson::Array();
+            auto cond = pbnjson::Object();
+            cond.put("prop", "uri");
+            cond.put("op", "%");
+            cond.put("val", val);
+            where << cond;
+            query.put("where", where);
+
+            request.put("query", query);
             break;
         }
         case MediaIndexerClientAPI::GetImageListAPI: {
             // TODO: jaehoon
             auto selectArray = pbnjson::Array();
             selectArray.append(std::string("uri"));
-            selectArray.append(std::string("mime"));
+            selectArray.append(std::string("type"));
+            selectArray.append(std::string("last_modified_date"));
+            selectArray.append(std::string("file_size"));
+            selectArray.append(std::string("file_path"));
             selectArray.append(std::string("width"));
             selectArray.append(std::string("height"));
-            selectArray.append(std::string("thumbnail"));
-            selectArray.append(std::string("file_size"));
             std::string val = "storage"; // uri;
 
             auto query = pbnjson::Object();
@@ -246,6 +292,11 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto selectArray = pbnjson::Array();
             selectArray.append(std::string("uri"));
             selectArray.append(std::string("mime"));
+            selectArray.append(std::string("type"));
+            selectArray.append(std::string("date_of_creation"));
+            selectArray.append(std::string("last_modified_date"));
+            selectArray.append(std::string("file_size"));
+            selectArray.append(std::string("file_path"));
             selectArray.append(std::string("title"));
             selectArray.append(std::string("genre"));
             selectArray.append(std::string("album"));
@@ -260,7 +311,6 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("bit_rate"));
             selectArray.append(std::string("channels"));
             selectArray.append(std::string("lyric"));
-            selectArray.append(std::string("file_size"));
             std::string val = "storage"; // uri;
 
             auto query = pbnjson::Object();
@@ -279,6 +329,33 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
         }
         case MediaIndexerClientAPI::GetVideoMetaDataAPI: {
             // TODO: jihoon
+            auto selectArray = pbnjson::Array();
+            selectArray.append(std::string("uri"));
+            selectArray.append(std::string("mime"));
+            selectArray.append(std::string("type"));
+            selectArray.append(std::string("date_of_creation"));
+            selectArray.append(std::string("last_modified_date"));
+            selectArray.append(std::string("file_size"));
+            selectArray.append(std::string("file_path"));
+            selectArray.append(std::string("duration"));
+            selectArray.append(std::string("width"));
+            selectArray.append(std::string("height"));
+            selectArray.append(std::string("thumbnail"));
+            selectArray.append(std::string("frame_rate"));
+            std::string val = "storage"; // uri;
+
+            auto query = pbnjson::Object();
+            query.put("select", selectArray);
+            query.put("from", videoKind_);
+            auto where = pbnjson::Array();
+            auto cond = pbnjson::Object();
+            cond.put("prop", "uri");
+            cond.put("op", "%");
+            cond.put("val", val);
+            where << cond;
+            query.put("where", where);
+
+            request.put("query", query);
             break;
         }
         case MediaIndexerClientAPI::GetImageMetaDataAPI: {
@@ -286,14 +363,17 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto selectArray = pbnjson::Array();
             selectArray.append(std::string("uri"));
             selectArray.append(std::string("mime"));
+            selectArray.append(std::string("type"));
+            selectArray.append(std::string("date_of_creation"));
+            selectArray.append(std::string("last_modified_date"));
+            selectArray.append(std::string("file_size"));
+            selectArray.append(std::string("file_path"));
             selectArray.append(std::string("width"));
             selectArray.append(std::string("height"));
-            selectArray.append(std::string("thumbnail"));
             selectArray.append(std::string("geo_location_city"));
             selectArray.append(std::string("geo_location_country"));
             selectArray.append(std::string("geo_location_latitude"));
             selectArray.append(std::string("geo_location_longitude"));
-            selectArray.append(std::string("file_size"));
             std::string val = "storage"; // uri;
 
             auto query = pbnjson::Object();
