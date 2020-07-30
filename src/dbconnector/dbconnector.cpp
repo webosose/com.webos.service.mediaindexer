@@ -130,6 +130,44 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
     return true;
 }
 
+bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
+    const std::string &whereProp, const std::string &whereVal, bool precise, void *obj, bool atomic)
+{
+    LSMessageToken sessionToken;
+    bool async = !atomic;
+    std::string url = dbUrl_;
+    url += "merge";
+
+    // query for matching uri
+    auto query = pbnjson::Object();
+    query.put("from", kind_name);
+
+    auto where = pbnjson::Array();
+    auto cond = pbnjson::Object();
+    cond.put("prop", whereProp);
+    cond.put("op", precise ? "=" : "%");
+    cond.put("val", whereVal);
+    where << cond;
+    query.put("where", where);
+
+    auto request = pbnjson::Object();
+    // set the kind property in case the query fails
+    props.put("_kind", kind_name);
+
+    request.put("props", props);
+    request.put("query", query);
+
+    LOG_INFO(0, "Send merges for '%s', request : '%s'", whereVal.c_str(), request.stringify().c_str());
+
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
+        LOG_ERROR(0, "Db service mergePut error");
+        return false;
+    }
+
+    return true;
+}
+
 bool DbConnector::find(const std::string &uri, bool precise,
     void *obj, const std::string &kind_name, bool atomic)
 {

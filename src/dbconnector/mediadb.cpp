@@ -298,6 +298,9 @@ void MediaDb::markDirty(std::shared_ptr<Device> device)
     props.put(DIRTY, true);
 
     mergePut(device->uri(), false, props);
+    merge(AUDIO_KIND, props, URI, device->uri(), false);
+    merge(VIDEO_KIND, props, URI, device->uri(), false);
+    merge(IMAGE_KIND, props, URI, device->uri(), false);
 }
 
 void MediaDb::unflagDirty(const std::string &uri)
@@ -307,6 +310,9 @@ void MediaDb::unflagDirty(const std::string &uri)
     props.put(DIRTY, false);
 
     mergePut(uri, true, props);
+    merge(AUDIO_KIND, props, URI, uri, true);
+    merge(VIDEO_KIND, props, URI, uri, true);
+    merge(IMAGE_KIND, props, URI, uri, true);
 }
 
 void MediaDb::grantAccess(const std::string &serviceName)
@@ -426,17 +432,20 @@ bool MediaDb::getImageMetadata(const std::string &uri, pbnjson::JValue &resp)
 }
 
 void MediaDb::makeUriIndex(){
-    auto index = pbnjson::Object();
-    index.put("name", URI);
+    std::list<std::string> indexes = {URI, DIRTY};
+    for (auto idx : indexes) {
+        auto index = pbnjson::Object();
+        index.put("name", idx);
 
-    auto props = pbnjson::Array();
-    auto prop = pbnjson::Object();
-    prop.put("name", URI);
-    props << prop;
+        auto props = pbnjson::Array();
+        auto prop = pbnjson::Object();
+        prop.put("name", idx);
+        props << prop;
 
-    index.put("props", props);
+        index.put("props", props);
 
-    uriIndexes_ << index;
+        uriIndexes_ << index;
+    }
 }
 
 MediaDb::MediaDb() :
