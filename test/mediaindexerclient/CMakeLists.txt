@@ -30,6 +30,13 @@ webos_add_compiler_flags(ALL ${PMLOG_CFLAGS_OTHER})
 link_libraries(${PMLOG_LIBRARIES})
 add_definitions(-DHAS_PMLOG)
 
+pkg_check_modules(LUNASERVICE2 luna-service2++)
+include_directories(${LUNASERVICE2_INCLUDE_DIRS})
+link_directories(${LUNASERVICE2_LIBRARY_DIRS})
+webos_add_compiler_flags(ALL ${LUNASERVICE2_CFLAGS})
+link_libraries(${LUNASERVICE2_LIBRARIES})
+add_definitions(-DHAS_LUNA)
+
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/src/
@@ -52,12 +59,14 @@ set_target_properties(${API_TEST_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(${TESTNAME}
                       ${GLIB2_LIBRARIES}
                       ${PMLOG_LIBRARIES}
+                      ${LUNASERVICE2_LIBRARIES}
                       mediaindexerclient
                       )
 
 target_link_libraries(${API_TEST_NAME}
                       ${GLIB2_LIBRARIES}
                       ${PMLOG_LIBRARIES}
+                      ${LUNASERVICE2_LIBRARIES}
                       mediaindexerclient
                       )
 

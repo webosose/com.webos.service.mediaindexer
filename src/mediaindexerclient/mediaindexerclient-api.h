@@ -43,6 +43,11 @@ extern "C" {
     void DestroyMediaIndexerClient(MediaIndexerHandle handle);
 
     /**
+     * Get Connected Device list
+     */
+    std::string GetDeviceList(MediaIndexerHandle handle);
+
+    /**
      * Get Audio list given uri
      */
     std::string GetAudioList(MediaIndexerHandle handle, std::string uri = std::string());

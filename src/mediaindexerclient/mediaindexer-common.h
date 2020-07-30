@@ -21,6 +21,7 @@
  * notification events that the callback function should handle
  */
 enum class MediaIndexerClientEvent : int {
+    NotifyGetDeviceList,
     NotifyGetAudioList,
     NotifyGetVideoList,
     NotifyGetImageList,

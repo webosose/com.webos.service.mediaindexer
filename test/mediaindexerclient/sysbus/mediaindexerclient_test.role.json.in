@@ -2,13 +2,18 @@
     "exeName":"@WEBOS_INSTALL_SBINDIR@/mediaindexerclient_test",
     "type": "regular",
     "allowedNames": [
-        "com.webos.service.mediaindexer.media"
+        "com.webos.service.mediaindexer.client",
+        "com.webos.service.mediaindexer.client.test"
     ],
     "permissions": [
         {
-            "service":"com.webos.service.mediaindexer.media",
+            "service":"com.webos.service.mediaindexer.client",
             "outbound": ["com.webos.service.mediaindexer",
                          "com.webos.service.db"]
+        },
+        {
+            "service":"com.webos.service.mediaindexer.client.test",
+            "outbound": ["com.webos.service.mediaindexer"]
         }
     ]
 }

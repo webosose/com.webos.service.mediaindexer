@@ -50,6 +50,17 @@ void DestroyMediaIndexerClient(MediaIndexerHandle handle)
     delete indexerWrapper;
 }
 
+std::string GetDeviceList(MediaIndexerHandle handle)
+{
+    std::cout << std::string("GetDeviceList") << std::endl;
+    if (!handle) {
+        std::cout << std::string("MediaIndexerHandle is NULL!") << std::endl;
+        return std::string();
+    }
+    IndexerClientWrapper* indexerWrapper = static_cast<IndexerClientWrapper*>(handle);
+    return indexerWrapper->client_->getDeviceList();
+}
+
 std::string GetAudioList(MediaIndexerHandle handle, std::string uri)
 {
     std::cout << std::string("GetAudioList") << std::endl;

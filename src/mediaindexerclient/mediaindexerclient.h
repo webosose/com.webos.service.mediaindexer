@@ -25,8 +25,12 @@ class MediaIndexerClient {
 public:
     using MediaIndexerCallback = std::function<void(MediaIndexerClientEvent event, void* clientData, void* userData)>;
     MediaIndexerClient(MediaIndexerCallback cb = nullptr, void* userData = nullptr);
+    ~MediaIndexerClient();
 
     // Media Indexer Client API
+    std::string getDeviceList();
+
+    // Media Indexer Client Database API
     std::string getAudioList(const std::string& uri = std::string());
     std::string getVideoList(const std::string& uri = std::string());
     std::string getImageList(const std::string& uri = std::string());
@@ -47,8 +51,17 @@ private:
     std::mutex mutex_;
     std::string returnValue_;
 
+    LSHandle* lsHandle_;
+    GMainLoop* loop_;
+    GMainContext* context_;
+    std::thread task_;
+
+    static bool onGetDeviceList(LSHandle* lsHandle, LSMessage* msg, void* ctx);
+    bool handleResponseFromIndexer(LSMessage* msg);
+
     // Luna connector handle.
-    std::unique_ptr<LunaConnector> connector_;
+    std::unique_ptr<LunaConnector> dbConnector_;
+    std::unique_ptr<LunaConnector> indexerConnector_;
 
     // Luna response callback and handler.
     static bool onLunaResponse(LSHandle* lsHandle, LSMessage* msg, void* ctx);

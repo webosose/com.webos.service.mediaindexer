@@ -22,12 +22,15 @@
 #include <functional>
 #include <map>
 #include <glib.h>
+#include <luna-service2/lunaservice.h>
+//#include <luna-service2/lunaservice.hpp>
 #include "mediaindexerclient.h"
 
 #define UNUSED(expr) do { (void)(expr); } while(0)
 
 enum class MediaIndexerAPI : int {
-    GET_AUDIO_LIST = 1,
+    GET_DEVICE_LIST = 1,
+    GET_AUDIO_LIST,
     GET_VIDEO_LIST,
     GET_IMAGE_LIST,
     GET_AUDIO_META_DATA,
@@ -36,6 +39,7 @@ enum class MediaIndexerAPI : int {
 };
 
 std::map<MediaIndexerAPI, std::string> indexerMenu = {
+    { MediaIndexerAPI::GET_DEVICE_LIST,     std::string("getDeviceList") },
     { MediaIndexerAPI::GET_AUDIO_LIST,      std::string("getAudioList") },
     { MediaIndexerAPI::GET_VIDEO_LIST,      std::string("getVideoList") },
     { MediaIndexerAPI::GET_IMAGE_LIST,      std::string("getImageList") },
@@ -43,6 +47,8 @@ std::map<MediaIndexerAPI, std::string> indexerMenu = {
     { MediaIndexerAPI::GET_VIDEO_META_DATA, std::string("getVideoMetaData") },
     { MediaIndexerAPI::GET_IMAGE_META_DATA, std::string("getImageMetaData") }
 };
+
+
 
 static void printMenu(void)
 {
@@ -55,6 +61,7 @@ static void printMenu(void)
 static bool processCommand(const std::string& cmd, MediaIndexerClient &client, GMainLoop* loop)
 {
     if (cmd.compare("q") == 0) {
+//        handle.detach();
         g_main_loop_quit(loop);
         return false;
     }
@@ -63,6 +70,11 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
     MediaIndexerAPI api = static_cast<MediaIndexerAPI>(std::stoi(cmd));
 
     switch(api) {
+        case MediaIndexerAPI::GET_DEVICE_LIST: {
+            std::string ret = client.getDeviceList();
+            std::cout << ret << std::endl;
+            break;
+        }
         case MediaIndexerAPI::GET_AUDIO_LIST: {
             // call MediaIndexerClient API
             std::string ret = client.getAudioList();
@@ -114,6 +126,12 @@ static void my_indexer_callback(MediaIndexerClientEvent event, void* clientData,
     std::cout << "thread[" << std::this_thread::get_id() << "]" << std::endl;
 }
 
+static bool onGetDeviceList(LSHandle *sh, LSMessage *request, void *context)
+{
+    std::cout << "onGetDeviceList!!!!!!!!" << std::endl;
+    return true;
+}
+
 int main(int argc, char* argv[])
 {
     std::cout << "main thread[" << std::this_thread::get_id() << "]" << std::endl;
@@ -121,7 +139,28 @@ int main(int argc, char* argv[])
 
     std::thread th([](GMainLoop *loop) -> void {
         std::cout << "thread[" << std::this_thread::get_id() << "]" << std::endl;
+//        handle.attachToLoop(loop);
         MediaIndexerClient client(my_indexer_callback);
+//        LS::Call call = handle.callOneReply("luna://com.webos.service.mediaindexer/getDeviceList", 
+//                                            R"({"subscribe" : true"})", onGetDeviceList, &client);
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+        LSHandle *handle;
+        if (!LSRegister("com.webos.service.mediaindexer.client.test", &handle, &lsError)) {
+            std::cout << "LSResigter error!" << std::endl;
+        }
+
+        if (!LSGmainAttach(handle, loop, &lsError)) {
+            std::cout << "LSGmainAttach error!" << std::endl;
+        }
+
+        LSMessageToken sessionToken;
+        auto subscription = pbnjson::Object();
+        subscription.put("subscribe", true);
+        if (!LSCall(handle, "luna://com.webos.service.mediaindexer/getDeviceList", subscription.stringify().c_str(), onGetDeviceList, NULL, &sessionToken, &lsError)) {
+            std::cout << "getDeviceList subscription error" << std::endl;
+        }
         while(1) {
             printMenu();
             std::string cmd;
@@ -129,6 +168,9 @@ int main(int argc, char* argv[])
             bool ret = processCommand(cmd, client, loop);
             if (!ret) {
                 std::cout << std::string("Exit thread!") << std::endl;
+                if (!LSUnregister(handle, &lsError)) {
+                    std::cout << std::string("LSUnregister error") << std::endl;
+                }
                 break;
             }
         }
