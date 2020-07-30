@@ -330,6 +330,8 @@ bool MediaItem::isAudioMeta(Meta meta){
         case MediaItem::Meta::BitRate:
         case MediaItem::Meta::Lyric:
         case MediaItem::Meta::FileSize:
+        case MediaItem::Meta::DateOfCreation:
+        case MediaItem::Meta::LastModifiedDate:
             return true;
         default:
             return false;
@@ -339,12 +341,15 @@ bool MediaItem::isAudioMeta(Meta meta){
 
 bool MediaItem::isVideoMeta(Meta meta){
     switch (meta) {
+        case MediaItem::Meta::Title:
         case MediaItem::Meta::Duration:
         case MediaItem::Meta::Width:
         case MediaItem::Meta::Height:
         case MediaItem::Meta::Thumbnail:
         case MediaItem::Meta::FrameRate:
         case MediaItem::Meta::FileSize:
+        case MediaItem::Meta::DateOfCreation:
+        case MediaItem::Meta::LastModifiedDate:
             return true;
         default:
             return false;
@@ -354,6 +359,7 @@ bool MediaItem::isVideoMeta(Meta meta){
 
 bool MediaItem::isImageMeta(Meta meta){
     switch (meta) {
+        case MediaItem::Meta::Title:
         case MediaItem::Meta::Width:
         case MediaItem::Meta::Height:
         case MediaItem::Meta::GeoLocLongitude:
@@ -361,6 +367,8 @@ bool MediaItem::isImageMeta(Meta meta){
         case MediaItem::Meta::GeoLocCountry:
         case MediaItem::Meta::GeoLocCity:
         case MediaItem::Meta::FileSize:
+        case MediaItem::Meta::DateOfCreation:
+        case MediaItem::Meta::LastModifiedDate:
             return true;
         default:
             return false;

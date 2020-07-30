@@ -216,6 +216,7 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
     typeProps.put(URI, mediaItem->uri());
     typeProps.put(HASH, std::to_string(mediaItem->hash()));
     typeProps.put(DIRTY, false);
+    typeProps.put(TYPE, mediaItem->mediaTypeToString(mediaItem->type()));
     typeProps.put(MIME, mediaItem->mime());
     auto filepath = getFilePath(mediaItem->uri());
     typeProps.put(FILE_PATH, filepath ? filepath.value() : "");
@@ -328,17 +329,13 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
-    selectArray.append(MIME);
+    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
+    selectArray.append(FILE_PATH);
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Genre));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Album));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Artist));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::AlbumArtist));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Track));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::TotalTracks));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
     return search(AUDIO_KIND, selectArray, URI, uri, false, &resp, true);
 }
@@ -349,6 +346,11 @@ bool MediaDb::getAudioMetadata(const std::string &uri, pbnjson::JValue &resp)
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
+    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::DateOfCreation));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
+    selectArray.append(FILE_PATH);
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Genre));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Album));
@@ -373,12 +375,13 @@ bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
-    selectArray.append(MIME);
+    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
+    selectArray.append(FILE_PATH);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
     return search(VIDEO_KIND, selectArray, URI, uri, false, &resp, true);
 }
@@ -389,12 +392,17 @@ bool MediaDb::getVideoMetadata(const std::string &uri, pbnjson::JValue &resp)
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
+    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::DateOfCreation));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
+    selectArray.append(FILE_PATH);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FrameRate));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FrameRate));
 
     return search(VIDEO_KIND, selectArray, URI, uri, true, &resp, true);
 }
@@ -404,11 +412,13 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
-    selectArray.append(MIME);
+    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
+    selectArray.append(FILE_PATH);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
     return search(IMAGE_KIND, selectArray, URI, uri, false, &resp, true);
 }
@@ -419,14 +429,18 @@ bool MediaDb::getImageMetadata(const std::string &uri, pbnjson::JValue &resp)
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(MIME);
+    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::DateOfCreation));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
+    selectArray.append(FILE_PATH);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocCity));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocCountry));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocLatitude));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocLongitude));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
 
     return search(IMAGE_KIND, selectArray, URI, uri, true, &resp, true);
 }
