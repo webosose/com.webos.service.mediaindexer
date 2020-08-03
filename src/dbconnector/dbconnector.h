@@ -135,6 +135,16 @@ protected:
      */
     virtual bool roAccess(std::list<std::string> &services);
 
+    /**
+     * \brief Give read only access to other services.
+     *
+     * \param[in] services List of service names.
+     * \param[in] kind List of service names.
+     * \param[in] obj user data.
+     * \return True on success, false on error.
+     */
+    virtual bool roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj = nullptr);
+
     /// Get message id.
     LOG_MSGID;
 

@@ -56,8 +56,8 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     LOG_INFO(0, "Received response com.webos.service.db for: '%s'", method.c_str());
 
     // handle the media data exists case
-    if (method == std::string("find"))
-    {
+    if (method == std::string("find") ||
+        method == std::string("putPermissions")) {
         if (!sd.object)
             return false;
         // we do not need to check, the service implementation should do that
@@ -68,15 +68,14 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
             LOG_ERROR(0, "Invalid JSON message: %s", payload);
             return false;
         }
+        LOG_DEBUG("payload : %s",payload);
 
         pbnjson::JValue domTree(parser.getDom());
         // response message
         auto reply = static_cast<pbnjson::JValue *>(sd.object);
         *reply = domTree;
 
-    }
-    else if (method == std::string("search"))
-    {
+    } else if (method == std::string("search")) {
         if (!sd.object)
             return false;
         // we do not need to check, the service implementation should do that
@@ -102,7 +101,6 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 
         LOG_DEBUG("search response payload : %s",payload);
     }
-
     return true;
 }
 
@@ -323,6 +321,16 @@ void MediaDb::grantAccess(const std::string &serviceName)
     dbClients_.push_back(serviceName);
     roAccess(dbClients_);
 }
+
+void MediaDb::grantAccessAll(const std::string &serviceName, pbnjson::JValue &resp)
+{
+    LOG_INFO(0, "Add read-only access to media db for '%s'",
+        serviceName.c_str());
+    dbClients_.push_back(serviceName);
+    std::list<std::string> kindList_ = {AUDIO_KIND, VIDEO_KIND, IMAGE_KIND};
+    roAccess(dbClients_, kindList_, &resp);
+}
+
 
 bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
 {

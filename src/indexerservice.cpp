@@ -19,6 +19,8 @@
 #include "pdmlistener/pdmlistener.h"
 #include "dbconnector/dbconnector.h"
 #include "mediaitem.h"
+#include "dbconnector/settingsdb.h"
+#include "dbconnector/devicedb.h"
 #include "dbconnector/mediadb.h"
 
 #include <glib.h>
@@ -43,6 +45,7 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getPlugin", IndexerService::onPluginGet, LUNA_METHOD_FLAGS_NONE },
     { "putPlugin", IndexerService::onPluginPut, LUNA_METHOD_FLAGS_NONE },
     { "getPluginList", IndexerService::onPluginListGet, LUNA_METHOD_FLAGS_NONE },
+    { "getMediaDbPermission", IndexerService::onMediaDbPermissionGet, LUNA_METHOD_FLAGS_NONE },
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
     { "getAudioList", IndexerService::onGetAudioList, LUNA_METHOD_FLAGS_NONE },
     { "getAudioMetadata", IndexerService::onGetAudioMetadata, LUNA_METHOD_FLAGS_NONE },
@@ -131,6 +134,9 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
 
     PdmListener::init(lsHandle_);
     DbConnector::init(lsHandle_);
+    MediaDb::instance();
+    SettingsDb::instance();
+    DeviceDb::instance();
 
 }
 
@@ -282,6 +288,59 @@ bool IndexerService::onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     IndexerService *is = static_cast<IndexerService *>(ctx);
     return is->detectRunStop(msg, false);
+}
+
+bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_DEBUG("call onGetAudioList");
+    IndexerService *is = static_cast<IndexerService *>(ctx);
+    std::string uri;
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", method.c_str(),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+
+    MediaDb *mdb = MediaDb::instance();
+    auto reply = pbnjson::Object();
+    if (mdb) {
+        if (!domTree.hasKey("serviceName")) {
+            LOG_ERROR(0, "serviceName field is mandatory input");
+            mdb->putRespObject(false, reply, -1, "serviceName field is mandatory input");
+            mdb->sendResponse(lsHandle, msg, reply.stringify());
+            return false;
+        }
+        std::string serviceName = domTree["serviceName"].asString();
+        if (serviceName.empty()) {
+            LOG_ERROR(0, "empty string input");
+            mdb->putRespObject(false, reply, -1, "empty string input");
+            mdb->sendResponse(lsHandle, msg, reply.stringify());
+            return false;
+        }
+        mdb->grantAccessAll(serviceName, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
+    } else {
+        LOG_ERROR(0, "Failed to get instance of Media Db");
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid MediaDb Object");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+        }
+        return false;
+    }
+    return true;
 }
 
 bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ctx)

@@ -120,6 +120,8 @@ public:
      */
     void grantAccess(const std::string &serviceName);
 
+    void grantAccessAll(const std::string &serviceName, pbnjson::JValue &resp);
+
     bool getAudioList(const std::string &uri, pbnjson::JValue &resp);
 
     bool getAudioMetadata(const std::string &uri, pbnjson::JValue &resp);

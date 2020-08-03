@@ -12,6 +12,7 @@
         "com.webos.service.mediaindexer/getVideoMetadata",
         "com.webos.service.mediaindexer/getImageList",
         "com.webos.service.mediaindexer/getImageMetadata",
+        "com.webos.service.mediaindexer/getMediaDbPermission",
         "com.webos.service.mediaindexer/getNotifyChange"
     ]
 }

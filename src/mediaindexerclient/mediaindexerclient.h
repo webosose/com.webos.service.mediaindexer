@@ -19,7 +19,7 @@
 #include <mutex>
 #include "lunaconnector.h"
 #include "mediaindexer-common.h"
-
+#include "logging.h"
 
 class MediaIndexerClient {
 public:
@@ -39,6 +39,9 @@ public:
     std::string getImageMetaData(const std::string& uri);
 
 private:
+    LOG_MSGID
+    static constexpr const char *dbClientService = "com.webos.service.mediaindexer.client.db";
+    static constexpr const char *indexerClientService = "com.webos.service.mediaindexer.client";
     static constexpr const char *dbUrl_ = "luna://com.webos.service.db/";
     static constexpr const char *mediaKind_ = "com.webos.service.mediaindexer.media:1";
     static constexpr const char *audioKind_ = "com.webos.service.mediaindexer.audio:1";

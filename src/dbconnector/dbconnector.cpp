@@ -316,6 +316,51 @@ bool DbConnector::roAccess(std::list<std::string> &services)
     return true;
 }
 
+bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj)
+{
+    if (!lsHandle_) {
+        LOG_CRITICAL(0, "Luna bus handle not set");
+        return false;
+    }
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+    LSMessageToken sessionToken;
+
+    std::string url = dbUrl_;
+    url += "putPermissions";
+
+    auto permissions = pbnjson::Array();
+    for (auto s : services) {
+        for (auto k : kinds) {
+            auto perm = pbnjson::Object();
+            auto oper = pbnjson::Object();
+            oper.put("read", "allow");
+            perm.put("operations", oper);
+            perm.put("object", k);
+            perm.put("type", "db.kind");
+            perm.put("caller", s);
+
+            permissions << perm;
+        }
+    }
+
+    auto request = pbnjson::Object();
+    request.put("permissions", permissions);
+
+    LOG_INFO(0, "Send putPermissions");
+    LOG_DEBUG("Request : %s", request.stringify().c_str());
+
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, false, &sessionToken, obj)) {
+        LOG_ERROR(0, "Db service permissions error");
+        return false;
+    }
+
+    return true;
+}
+
+
 void DbConnector::putRespObject(bool returnValue, pbnjson::JValue & obj,
                 const int& errorCode,
                 const std::string& errorText)

@@ -184,6 +184,15 @@ private:
     static bool onDeviceListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
+     * \brief Callback for getMediaDbPermission() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
      * \brief Callback for runDetect() Luna method.
      *
      * \param[in] lsHandle Luna service handle.

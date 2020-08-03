@@ -16,6 +16,7 @@
 
 #include "mediaindexerclient.h"
 #include <iostream>
+#include <list>
 
 MediaIndexerClient::MediaIndexerClient(MediaIndexerCallback cb, void* userData)
     : callback_(cb),
@@ -23,12 +24,12 @@ MediaIndexerClient::MediaIndexerClient(MediaIndexerCallback cb, void* userData)
 {
     std::cout << std::string("MediaIndexerClient ctor!") << std::endl;
 
-    dbConnector_ = std::unique_ptr<LunaConnector>(new LunaConnector(std::string("com.webos.service.mediaindexer.client.db"), true));
+    dbConnector_ = std::unique_ptr<LunaConnector>(new LunaConnector(std::string(dbClientService), true));
 
     if (!dbConnector_)
         std::cout << "Failed to create dbConnector object" << std::endl;
 
-    indexerConnector_ = std::unique_ptr<LunaConnector>(new LunaConnector(std::string("com.webos.service.mediaindexer.client"), true));
+    indexerConnector_ = std::unique_ptr<LunaConnector>(new LunaConnector(std::string(indexerClientService), true));
 
     if (!indexerConnector_)
         std::cout << "Failed to create indexerConnector object" << std::endl;
