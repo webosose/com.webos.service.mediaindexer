@@ -1,7 +1,7 @@
 {
-    "com.webos.service.mediaindexer.client": [
-	    "com.webos.service.mediaindexer",
-        "database",
-        "database.internal"
-    ]
+    "com.webos.service.mediaindexer.client*": [ 
+	  "com.webos.service.mediaindexer",
+	  "database",
+	  "database.internal"
+	]
 }

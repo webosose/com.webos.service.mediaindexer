@@ -41,6 +41,8 @@ add_definitions(-DHAS_LUNA)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/src/
                     ${CMAKE_SOURCE_DIR}/src/mediaindexerclient
+                    ${CMAKE_SOURCE_DIR}/src/mediaindexerclient/connector
+                    ${CMAKE_SOURCE_DIR}/src/mediaindexerclient/utils
                     ${CMAKE_SOURCE_DIR}/src/dbconnector
                     ${CMAKE_SOURCE_DIR}/src/log
                     )

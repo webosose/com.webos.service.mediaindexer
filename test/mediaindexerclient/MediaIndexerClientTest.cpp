@@ -77,37 +77,55 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
         }
         case MediaIndexerAPI::GET_AUDIO_LIST: {
             // call MediaIndexerClient API
-            std::string ret = client.getAudioList();
+            std::cout << "input uri(ex. msc or storage) >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = client.getAudioList(uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_VIDEO_LIST: {
             // call MediaIndexerClient API
-            std::string ret = client.getVideoList();
+            std::cout << "input uri(ex. msc or storage) >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = client.getVideoList(uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_IMAGE_LIST: {
             // call MediaIndexerClient API
-            std::string ret = client.getImageList();
+            std::cout << "input uri(ex. msc or storage) >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = client.getImageList(uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_AUDIO_META_DATA: {
             // call MediaIndexerClient API
-            std::string ret = client.getAudioMetaData(std::string());
+            std::cout << "input uri >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = client.getAudioMetaData(uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_VIDEO_META_DATA: {
             // call MediaIndexerClient API
-            std::string ret = client.getVideoMetaData(std::string());
+            std::cout << "input uri >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = client.getVideoMetaData(uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_IMAGE_META_DATA: {
             // call MediaIndexerClient API
-            std::string ret = client.getImageMetaData(std::string());
+            std::cout << "input uri >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = client.getImageMetaData(uri);
             std::cout << ret << std::endl;
             break;
         }
@@ -141,9 +159,11 @@ int main(int argc, char* argv[])
         std::cout << "thread[" << std::this_thread::get_id() << "]" << std::endl;
 //        handle.attachToLoop(loop);
         MediaIndexerClient client(my_indexer_callback);
+        client.initialize();
 //        LS::Call call = handle.callOneReply("luna://com.webos.service.mediaindexer/getDeviceList", 
 //                                            R"({"subscribe" : true"})", onGetDeviceList, &client);
 
+        /*
         LSError lsError;
         LSErrorInit(&lsError);
         LSHandle *handle;
@@ -161,6 +181,7 @@ int main(int argc, char* argv[])
         if (!LSCall(handle, "luna://com.webos.service.mediaindexer/getDeviceList", subscription.stringify().c_str(), onGetDeviceList, NULL, &sessionToken, &lsError)) {
             std::cout << "getDeviceList subscription error" << std::endl;
         }
+        */
         while(1) {
             printMenu();
             std::string cmd;
@@ -168,9 +189,11 @@ int main(int argc, char* argv[])
             bool ret = processCommand(cmd, client, loop);
             if (!ret) {
                 std::cout << std::string("Exit thread!") << std::endl;
+                /*
                 if (!LSUnregister(handle, &lsError)) {
                     std::cout << std::string("LSUnregister error") << std::endl;
                 }
+                */
                 break;
             }
         }

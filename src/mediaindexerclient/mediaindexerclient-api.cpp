@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2020 LG Electronics, Inc.
+/* Copyright (c) 2020 LG Electronics, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,9 @@ struct IndexerClientWrapper {
     IndexerClientWrapper(MediaIndexerCallback callback, void* userData) {
         client_ = new MediaIndexerClient(callback, userData);
     };
+    void initialize() {
+        if (client_) client_->initialize();
+    };
     MediaIndexerClient* client_;
 };
 
@@ -36,6 +39,8 @@ MediaIndexerHandle CreateMediaIndexerClient(MediaIndexerCallback callback, void*
         std::cout << "Failed to create MediaIndexerClient!" << std::endl;
         return nullptr;
     }
+
+    indexerWrapper->initialize();
     return static_cast<MediaIndexerHandle>(indexerWrapper);
 }
 
@@ -61,7 +66,7 @@ std::string GetDeviceList(MediaIndexerHandle handle)
     return indexerWrapper->client_->getDeviceList();
 }
 
-std::string GetAudioList(MediaIndexerHandle handle, std::string uri)
+std::string GetAudioList(MediaIndexerHandle handle, const std::string& uri)
 {
     std::cout << std::string("GetAudioList") << std::endl;
     if (!handle) {
@@ -72,7 +77,7 @@ std::string GetAudioList(MediaIndexerHandle handle, std::string uri)
     return indexerWrapper->client_->getAudioList(uri);
 }
 
-std::string GetVideoList(MediaIndexerHandle handle, std::string uri)
+std::string GetVideoList(MediaIndexerHandle handle, const std::string& uri)
 {
     std::cout << std::string("GetVideoList") << std::endl;
     if (!handle) {
@@ -83,7 +88,7 @@ std::string GetVideoList(MediaIndexerHandle handle, std::string uri)
     return indexerWrapper->client_->getVideoList(uri);
 }
 
-std::string GetImageList(MediaIndexerHandle handle, std::string uri)
+std::string GetImageList(MediaIndexerHandle handle, const std::string& uri)
 {
     std::cout << std::string("GetImageList") << std::endl;
     if (!handle) {
@@ -95,7 +100,7 @@ std::string GetImageList(MediaIndexerHandle handle, std::string uri)
 }
 
 
-std::string GetAudioMetaData(MediaIndexerHandle handle, std::string uri)
+std::string GetAudioMetaData(MediaIndexerHandle handle, const std::string& uri)
 {
     std::cout << std::string("GetAudioMetaData") << std::endl;
     if (!handle) {
@@ -106,7 +111,7 @@ std::string GetAudioMetaData(MediaIndexerHandle handle, std::string uri)
     return indexerWrapper->client_->getAudioMetaData(uri);
 }
 
-std::string GetVideoMetaData(MediaIndexerHandle handle, std::string uri)
+std::string GetVideoMetaData(MediaIndexerHandle handle, const std::string& uri)
 {
     std::cout << std::string("GetVideoMetaData") << std::endl;
     if (!handle) {
@@ -117,7 +122,7 @@ std::string GetVideoMetaData(MediaIndexerHandle handle, std::string uri)
     return indexerWrapper->client_->getVideoMetaData(uri);
 }
 
-std::string GetImageMetaData(MediaIndexerHandle handle, std::string uri)
+std::string GetImageMetaData(MediaIndexerHandle handle, const std::string& uri)
 {
     std::cout << std::string("GetVideoMetaData") << std::endl;
     if (!handle) {

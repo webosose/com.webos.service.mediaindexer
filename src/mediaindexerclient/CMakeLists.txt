@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 LG Electronics, Inc.
+# Copyright (c) 2020 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ include_directories(./)
 include_directories(../)
 include_directories(
                    ${CMAKE_CURRENT_SOURCE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/connector
+                   ${CMAKE_CURRENT_SOURCE_DIR}/utils
                    ${CMAKE_SOURCE_DIR}/src
                    ${CMAKE_SOURCE_DIR}/src/dbconnector
                    ${CMAKE_SOURCE_DIR}/src/log
@@ -47,6 +49,9 @@ set(MEDIA_INDEXER_CLIENT_HEADERS
 set(MEDIA_INDEXER_CLIENT_SRC
     mediaindexerclient.cpp
     mediaindexerclient-api.cpp
+    connector/indexerconnector.cpp
+    connector/mediadbconnector.cpp
+    connector/connector.cpp
    )
 
 set(MEDIA_INDEXER_CLIENT_LIB

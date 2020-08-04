@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2020 LG Electronics, Inc.
+/* Copyright (c) 2020 LG Electronics, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,33 +50,33 @@ extern "C" {
     /**
      * Get Audio list given uri
      */
-    std::string GetAudioList(MediaIndexerHandle handle, std::string uri = std::string());
+    std::string GetAudioList(MediaIndexerHandle handle, const std::string& uri);
 
     /**
      * Get Video list given uri
      */
-    std::string GetVideoList(MediaIndexerHandle handle, std::string uri = std::string());
+    std::string GetVideoList(MediaIndexerHandle handle, const std::string& uri);
 
     /**
      * Get Image list given uri
      */
-    std::string GetImageList(MediaIndexerHandle handle, std::string uri = std::string());
+    std::string GetImageList(MediaIndexerHandle handle, const std::string& uri);
 
 
     /**
      * Get Audio meta data given uri
      */
-    std::string GetAudioMetaData(MediaIndexerHandle handle, std::string uri);
+    std::string GetAudioMetaData(MediaIndexerHandle handle, const std::string& uri);
 
     /**
      * Get Video meta data given uri
      */
-    std::string GetVideoMetaData(MediaIndexerHandle handle, std::string uri);
+    std::string GetVideoMetaData(MediaIndexerHandle handle, const std::string& uri);
 
     /**
      * Get Image meta data given uri
      */
-    std::string GetImageMetaData(MediaIndexerHandle handle, std::string uri);
+    std::string GetImageMetaData(MediaIndexerHandle handle, const std::string& uri);
 
 #ifdef __cplusplus
 }

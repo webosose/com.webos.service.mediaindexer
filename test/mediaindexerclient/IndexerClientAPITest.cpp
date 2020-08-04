@@ -27,7 +27,8 @@
 #define UNUSED(expr) do { (void)(expr); } while(0)
 
 enum class MediaIndexerAPI : int {
-    GET_AUDIO_LIST = 1,
+    GET_DEVICE_LIST = 1,
+    GET_AUDIO_LIST,
     GET_VIDEO_LIST,
     GET_IMAGE_LIST,
     GET_AUDIO_META_DATA,
@@ -36,9 +37,10 @@ enum class MediaIndexerAPI : int {
 };
 
 std::map<MediaIndexerAPI, std::string> indexerMenu = {
-    { MediaIndexerAPI::GET_AUDIO_LIST,      std::string("getAudioList") },
-    { MediaIndexerAPI::GET_VIDEO_LIST,      std::string("getVideoList") },
-    { MediaIndexerAPI::GET_IMAGE_LIST,      std::string("getImageList") },
+    { MediaIndexerAPI::GET_DEVICE_LIST,     std::string("getDeviceList") },
+    { MediaIndexerAPI::GET_AUDIO_LIST,      std::string("getAudioList")  },
+    { MediaIndexerAPI::GET_VIDEO_LIST,      std::string("getVideoList")  },
+    { MediaIndexerAPI::GET_IMAGE_LIST,      std::string("getImageList")  },
     { MediaIndexerAPI::GET_AUDIO_META_DATA, std::string("getAudioMetaData") },
     { MediaIndexerAPI::GET_VIDEO_META_DATA, std::string("getVideoMetaData") },
     { MediaIndexerAPI::GET_IMAGE_META_DATA, std::string("getImageMetaData") }
@@ -62,27 +64,42 @@ static bool processCommand(const std::string& cmd, MediaIndexerHandle handle)
     MediaIndexerAPI api = static_cast<MediaIndexerAPI>(std::stoi(cmd));
 
     switch(api) {
+        case MediaIndexerAPI::GET_DEVICE_LIST: {
+            // call MediaIndexerClient API
+            std::string ret = GetDeviceList(handle);
+            std::cout << ret << std::endl;
+            break;
+        }
         case MediaIndexerAPI::GET_AUDIO_LIST: {
             // call MediaIndexerClient API
-            std::string ret = GetAudioList(handle);
+            std::cout << "input uri(ex. msc or storage) >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = GetAudioList(handle, uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_VIDEO_LIST: {
             // call MediaIndexerClient API
-            std::string ret = GetVideoList(handle);
+            std::cout << "input uri(ex. msc or storage) >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = GetVideoList(handle, uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_IMAGE_LIST: {
             // call MediaIndexerClient API
-            std::string ret = GetImageList(handle);
+            std::cout << "input uri(ex. msc or storage) >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = GetImageList(handle, uri);
             std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_AUDIO_META_DATA: {
             // call MediaIndexerClient API
-            std::cout << "uri : ";
+            std::cout << "uri >> ";
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = GetAudioMetaData(handle, uri);
@@ -91,7 +108,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerHandle handle)
         }
         case MediaIndexerAPI::GET_VIDEO_META_DATA: {
             // call MediaIndexerClient API
-            std::cout << "uri : ";
+            std::cout << "uri >> ";
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = GetVideoMetaData(handle, uri);
@@ -100,7 +117,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerHandle handle)
         }
         case MediaIndexerAPI::GET_IMAGE_META_DATA: {
             // call MediaIndexerClient API
-            std::cout << "uri : ";
+            std::cout << "uri >> ";
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = GetImageMetaData(handle, uri);

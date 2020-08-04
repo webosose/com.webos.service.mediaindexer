@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 LG Electronics, Inc.
+// Copyright (c) 2020 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 #include "mediaindexerclient.h"
 #include <iostream>
 #include <list>
+#include <functional>
+
 
 MediaIndexerClient::MediaIndexerClient(MediaIndexerCallback cb, void* userData)
     : callback_(cb),
@@ -24,27 +26,36 @@ MediaIndexerClient::MediaIndexerClient(MediaIndexerCallback cb, void* userData)
 {
     std::cout << std::string("MediaIndexerClient ctor!") << std::endl;
 
-    dbConnector_ = std::unique_ptr<LunaConnector>(new LunaConnector(std::string(dbClientService), true));
+    mediaDBConnector_ = std::unique_ptr<MediaDBConnector>(new MediaDBConnector);
 
-    if (!dbConnector_)
-        std::cout << "Failed to create dbConnector object" << std::endl;
+    if (!mediaDBConnector_)
+        std::cout << "Failed to create mediaDBConnector object" << std::endl;
+    std::cout << "mediaDBConnector service name : " << mediaDBConnector_->getServiceName() << std::endl;
 
-    indexerConnector_ = std::unique_ptr<LunaConnector>(new LunaConnector(std::string(indexerClientService), true));
+    indexerConnector_ = std::unique_ptr<IndexerConnector>(new IndexerConnector);
 
     if (!indexerConnector_)
         std::cout << "Failed to create indexerConnector object" << std::endl;
+    std::cout << "indexerConnector service name : " << indexerConnector_->getServiceName() << std::endl;
+
 }
 
 MediaIndexerClient::~MediaIndexerClient()
 {
-    dbConnector_.reset();
+    mediaDBConnector_.reset();
     indexerConnector_.reset();
 }
 
-std::string MediaIndexerClient::getAudioList(const std::string& uri)
+void MediaIndexerClient::initialize() const
 {
-    if (!dbConnector_) {
-        std::cout << "LunaConnector is NULL!" << std::endl;
+    //let's get the DB permission
+    getMediaDBPermission();
+}
+
+std::string MediaIndexerClient::getAudioList(const std::string& uri) const
+{
+    if (!mediaDBConnector_) {
+        std::cout << "mediaDBConnector is NULL!" << std::endl;
         return std::string();
     }
 
@@ -52,24 +63,15 @@ std::string MediaIndexerClient::getAudioList(const std::string& uri)
     std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
 
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetAudioListAPI, uri);
-    std::string url = dbUrl_ + std::string("search");
-    bool async = false;
-    LSMessageToken sessionToken;
-
-    if (!dbConnector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
-        std::cout << "sendMessage ERROR!" << std::endl;
-        return std::string();
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value_ in getAudioList : " << returnValue_ << std::endl;
+    std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
+    std::cout << "Return value_ in getAudioList : " << ret << std::endl;
     std::cout << "I'm getAudioList END!!!!!!!!!!!!" << std::endl;
-    return returnValue_;
+    return ret;
 }
 
-std::string MediaIndexerClient::getVideoList(const std::string& uri)
+std::string MediaIndexerClient::getVideoList(const std::string& uri) const
 {
-    if (!dbConnector_) {
+    if (!mediaDBConnector_) {
         std::cout << "LunaConnector is NULL!" << std::endl;
         return std::string();
     }
@@ -78,147 +80,71 @@ std::string MediaIndexerClient::getVideoList(const std::string& uri)
     std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
 
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetVideoListAPI, uri);
-    std::string url = dbUrl_ + std::string("search");
-    bool async = false;
-    LSMessageToken sessionToken;
-
-    if (!dbConnector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
-        std::cout << "sendMessage ERROR!" << std::endl;
-        return std::string();
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value_ in getVideoList : " << returnValue_ << std::endl;
+    std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
+    std::cout << "Return value_ in getVideoList : " << ret << std::endl;
     std::cout << "I'm getVideoList END!!!!!!!!!!!!" << std::endl;
-    return returnValue_;
+    return ret;
 }
 
-std::string MediaIndexerClient::getImageList(const std::string& uri)
+std::string MediaIndexerClient::getImageList(const std::string& uri) const
 {
-    if (!dbConnector_) {
+    if (!mediaDBConnector_) {
         std::cout << "LunaConnector is NULL!" << std::endl;
         return std::string();
     }
 
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetImageListAPI, uri);
-    std::string url = dbUrl_ + std::string("search");
-    bool async = false;
-    LSMessageToken sessionToken;
-
-    if (!dbConnector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
-        std::cout << "sendMessage ERROR!" << std::endl;
-        return std::string();
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value_ in getImageList : " << returnValue_ << std::endl;
+    std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
+    std::cout << "Return value_ in getImageList : " << ret << std::endl;
     std::cout << "I'm getImageList END!!!!!!!!!!!!" << std::endl;
-    return returnValue_;
-
+    return ret;
 }
 
-std::string MediaIndexerClient::getAudioMetaData(const std::string& uri)
+std::string MediaIndexerClient::getAudioMetaData(const std::string& uri) const
 {
-    if (!dbConnector_) {
+    if (!mediaDBConnector_) {
         std::cout << "LunaConnector is NULL!" << std::endl;
         return std::string();
     }
 
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetAudioMetaDataAPI, uri);
-    std::string url = dbUrl_ + std::string("search");
-    bool async = false;
-    LSMessageToken sessionToken;
-
-    if (!dbConnector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
-        std::cout << "sendMessage ERROR!" << std::endl;
-        return std::string();
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value_ in getAudioMetaData : " << returnValue_ << std::endl;
+    std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
+    std::cout << "Return value_ in getAudioMetaData : " << ret << std::endl;
     std::cout << "I'm getAudioMetaData END!!!!!!!!!!!!" << std::endl;
-    return returnValue_;
+    return ret;
 }
 
-std::string MediaIndexerClient::getVideoMetaData(const std::string& uri)
+std::string MediaIndexerClient::getVideoMetaData(const std::string& uri) const
 {
-    if (!dbConnector_) {
+    if (!mediaDBConnector_) {
         std::cout << "LunaConnector is NULL!" << std::endl;
         return std::string();
     }
 
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetVideoMetaDataAPI, uri);
-    std::string url = dbUrl_ + std::string("search");
-    bool async = false;
-    LSMessageToken sessionToken;
-
-    if (!dbConnector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
-        std::cout << "sendMessage ERROR!" << std::endl;
-        return std::string();
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value_ in getVideoMetaData : " << returnValue_ << std::endl;
+    std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
+    std::cout << "Return value_ in getVideoMetaData : " << ret << std::endl;
     std::cout << "I'm getVideoMetaData END!!!!!!!!!!!!" << std::endl;
-    return returnValue_;
+    return ret;
 }
 
-std::string MediaIndexerClient::getImageMetaData(const std::string& uri)
+std::string MediaIndexerClient::getImageMetaData(const std::string& uri) const
 {
-    if (!dbConnector_) {
+    if (!mediaDBConnector_) {
         std::cout << "LunaConnector is NULL!" << std::endl;
         return std::string();
     }
 
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetImageMetaDataAPI, uri);
-    std::string url = dbUrl_ + std::string("search");
-    bool async = false;
-    LSMessageToken sessionToken;
-
-    if (!dbConnector_->sendMessage(url.c_str(), request.stringify().c_str(), MediaIndexerClient::onLunaResponse, this, async, &sessionToken)) {
-        std::cout << "sendMessage ERROR!" << std::endl;
-        return std::string();
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value_ in getImageMetaData : " << returnValue_ << std::endl;
+    std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
+    std::cout << "Return value_ in getImageMetaData : " << ret << std::endl;
     std::cout << "I'm getImageMetaData END!!!!!!!!!!!!" << std::endl;
-    return returnValue_;    
-}
-
-bool MediaIndexerClient::onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx)
-{
-    MediaIndexerClient *client = static_cast<MediaIndexerClient*>(ctx);
-    std::cout << "I'm onLunaResponse" << std::endl;
-    return client->handleLunaResponse(msg);
-}
-
-bool MediaIndexerClient::handleLunaResponse(LSMessage *msg)
-{
-    std::cout << "I'm handleLunaResponse" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
-
-    pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
-    const char *payload = LSMessageGetPayload(msg);
-
-    std::cout << "payload : " << payload << std::endl;
-
-    if (!parser.parse(payload)) {
-        std::cout << "Invalid JSON message: " << payload << std::endl;
-        return false;
-    }
-
-    pbnjson::JValue domTree(parser.getDom());
-    std::cout << "Message : " << domTree.stringify() << std::endl;
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    returnValue_ = domTree.stringify();
-    return true;
+    return ret;    
 }
 
 // TODO: remove duplicated append for each requested function.
 pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI api,
-                                                        const std::string& uri)
+                                                        const std::string& uri) const
 {
     auto request = pbnjson::Object();
     switch(api) {
@@ -232,25 +158,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("title"));
             selectArray.append(std::string("duration"));
             selectArray.append(std::string("thumbnail"));
-            std::string val = "storage"; // uri;
 
-            auto query = pbnjson::Object();
-            query.put("select", selectArray);
-            query.put("from", audioKind_);
-            auto where = pbnjson::Array();
-            auto cond = pbnjson::Object();
-            if (uri.empty()) {
-                cond.put("prop", "dirty");
-                cond.put("op", "=");
-                cond.put("val", false);
-            } else {
-                cond.put("prop", "uri");
-                cond.put("op", "%");
-                cond.put("val", uri);
-            }
-            where << cond;
-            query.put("where", where);
-
+            std::string prop = "uri";
+            bool precise = false;
+            auto query = prepareQuery(prop, uri, precise, audioKind_, selectArray);
             request.put("query", query);
             break;
         }
@@ -264,25 +175,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("duration"));
             selectArray.append(std::string("title"));
             selectArray.append(std::string("thumbnail"));
-            std::string val = "storage"; // uri;
 
-            auto query = pbnjson::Object();
-            query.put("select", selectArray);
-            query.put("from", videoKind_);
-            auto where = pbnjson::Array();
-            auto cond = pbnjson::Object();
-            if (val.empty()) {
-                cond.put("prop", "dirty");
-                cond.put("op", "=");
-                cond.put("val", false);
-            } else {
-                cond.put("prop", "uri");
-                cond.put("op", "%");
-                cond.put("val", val);
-            }
-            where << cond;
-            query.put("where", where);
-
+            std::string prop = "uri";
+            bool precise = false;
+            auto query = prepareQuery(prop, uri, precise, videoKind_, selectArray);
             request.put("query", query);
             break;
         }
@@ -296,25 +192,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("title"));
             selectArray.append(std::string("width"));
             selectArray.append(std::string("height"));
-            std::string val = "storage"; // uri;
 
-            auto query = pbnjson::Object();
-            query.put("select", selectArray);
-            query.put("from", imageKind_);
-            auto where = pbnjson::Array();
-            auto cond = pbnjson::Object();
-            if (val.empty()) {
-                cond.put("prop", "dirty");
-                cond.put("op", "=");
-                cond.put("val", false);
-            } else {
-                cond.put("prop", "uri");
-                cond.put("op", "%");
-                cond.put("val", val);
-            }
-            where << cond;
-            query.put("where", where);
-
+            std::string prop = "uri";
+            bool precise = false;
+            auto query = prepareQuery(prop, uri, precise, imageKind_, selectArray);
             request.put("query", query);
             break;
         }
@@ -341,19 +222,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("bit_rate"));
             selectArray.append(std::string("channels"));
             selectArray.append(std::string("lyric"));
-            std::string val = "storage"; // uri;
 
-            auto query = pbnjson::Object();
-            query.put("select", selectArray);
-            query.put("from", audioKind_);
-            auto where = pbnjson::Array();
-            auto cond = pbnjson::Object();
-            cond.put("prop", "uri");
-            cond.put("op", "=");
-            cond.put("val", val);
-            where << cond;
-            query.put("where", where);
-
+            std::string prop = "uri";
+            bool precise = true;
+            auto query = prepareQuery(prop, uri, precise, audioKind_, selectArray);
             request.put("query", query);
             break;
         }
@@ -372,19 +244,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("height"));
             selectArray.append(std::string("thumbnail"));
             selectArray.append(std::string("frame_rate"));
-            std::string val = "storage"; // uri;
 
-            auto query = pbnjson::Object();
-            query.put("select", selectArray);
-            query.put("from", videoKind_);
-            auto where = pbnjson::Array();
-            auto cond = pbnjson::Object();
-            cond.put("prop", "uri");
-            cond.put("op", "=");
-            cond.put("val", val);
-            where << cond;
-            query.put("where", where);
-
+            std::string prop = "uri";
+            bool precise = true;
+            auto query = prepareQuery(prop, uri, precise, videoKind_, selectArray);
             request.put("query", query);
             break;
         }
@@ -404,19 +267,9 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("geo_location_country"));
             selectArray.append(std::string("geo_location_latitude"));
             selectArray.append(std::string("geo_location_longitude"));
-            std::string val = "storage"; // uri;
-
-            auto query = pbnjson::Object();
-            query.put("select", selectArray);
-            query.put("from", imageKind_);
-            auto where = pbnjson::Array();
-            auto cond = pbnjson::Object();
-            cond.put("prop", "uri");
-            cond.put("op", "=");
-            cond.put("val", val);
-            where << cond;
-            query.put("where", where);
-
+            std::string prop = "uri";
+            bool precise = true;
+            auto query = prepareQuery(prop, uri, precise, imageKind_, selectArray);
             request.put("query", query);
             break;
         }
@@ -426,61 +279,79 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
 
     return request;
 }
-bool MediaIndexerClient::onGetDeviceList(LSHandle* lsHandle, LSMessage* msg, void* ctx)
+
+pbnjson::JValue MediaIndexerClient::prepareWhere(const std::string &key,
+                                                 const std::string &value,
+                                                 bool precise,
+                                                 pbnjson::JValue whereClause) const
 {
-    MediaIndexerClient *client = static_cast<MediaIndexerClient*>(ctx);
-    std::cout << "I'm onGetDeviceList" << std::endl;
-    return client->handleResponseFromIndexer(msg);
+    auto cond = pbnjson::Object();
+    cond.put("prop", key);
+    cond.put("op", precise ? "=" : "%");
+    cond.put("val", value);
+    whereClause << cond;
+    return whereClause;
 }
 
-bool MediaIndexerClient::handleResponseFromIndexer(LSMessage* msg)
+pbnjson::JValue MediaIndexerClient::prepareQuery(pbnjson::JValue selectArray,
+                                                 const std::string& kindId,
+                                                 pbnjson::JValue where) const
 {
-    std::cout << "I'm handleResponseFromIndexer" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
-
-    pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
-    const char *payload = LSMessageGetPayload(msg);
-
-    std::cout << "payload : " << payload << std::endl;
-
-    if (!parser.parse(payload)) {
-        std::cout << "Invalid JSON message: " << payload << std::endl;
-        return false;
-    }
-
-    pbnjson::JValue domTree(parser.getDom());
-    std::cout << "Message : " << domTree.stringify() << std::endl;
-/*
-    if (callback_) {
-        callback_(MediaIndexerClientEvent::NotifyGetDeviceList, domTree.stringify(), userData_); 
-    }
-*/
-    std::lock_guard<std::mutex> lock(mutex_);
-    returnValue_ = domTree.stringify();
-    return true;
-
+    auto query = pbnjson::Object();
+    query.put("select", selectArray);
+    query.put("from", kindId);
+    query.put("where", where);
+    return query;
 }
 
-std::string MediaIndexerClient::getDeviceList()
+pbnjson::JValue MediaIndexerClient::prepareQuery(const std::string &key,
+                                                 const std::string &value, 
+                                                 bool precise,
+                                                 const std::string& kindId,
+                                                 pbnjson::JValue selectArray) const
 {
-    std::cout << "I'm getDeviceList" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
+    auto where = prepareWhere(key, value, precise);
+    return prepareQuery(selectArray, kindId, where);
+}
+
+
+std::string MediaIndexerClient::getDeviceList() const
+{
     if (!indexerConnector_) {
         std::cout << "indexerConnector is NULL!" << std::endl;
         return std::string();
     }
 
-    LSMessageToken sessionToken;
-    auto subscription = pbnjson::Object();
-    subscription.put("subscribe", true);
+    std::cout << "I'm getDeviceList" << std::endl;
+    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
+    
+    std::string url = indexerConnector_->getIndexerUrl();
+    url.append(std::string("getDeviceList"));
+    auto request = pbnjson::Object();
+    request.put("subscribe", true);
+    std::cout << "url : " << url << "request : " << request.stringify() << std::endl;
 
-    if (!indexerConnector_->sendMessage("luna://com.webos.service.mediaindexer/getDeviceList", subscription.stringify().c_str(), MediaIndexerClient::onGetDeviceList, this, false, &sessionToken)) {
-        std::cout << "sendMessage ERROR!" << std::endl;
-        return std::string();
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value_ in getDeviceList : " << returnValue_ << std::endl;
+    std::string ret = indexerConnector_->sendMessage(url, request.stringify());
+    std::cout << "Return value_ in getDeviceList : " << ret << std::endl;
     std::cout << "I'm getDeviceList END!!!!!!!!!!!!" << std::endl;
-    return returnValue_;
+    return ret;
+}
+
+void MediaIndexerClient::getMediaDBPermission() const
+{
+    if (!mediaDBConnector_ || !indexerConnector_)
+        return;
+
+    std::cout << "I'm MediaIndexerClient::getMediaDBPermission" << std::endl;
+    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
+
+    std::string url = indexerConnector_->getIndexerUrl();
+    url.append(std::string("getMediaDbPermission"));
+    auto request = pbnjson::Object();
+    request.put("serviceName", mediaDBConnector_->getServiceName());
+    std::cout << "url : " << url << " request : " << request.stringify() << std::endl;
+
+    std::string ret = indexerConnector_->sendMessage(url, request.stringify());
+    std::cout << "Return value_ in getMediaDBPermission : " << ret << std::endl;
+    std::cout << "I'm MediaIndexerClient::getMediaDBPermission END!!!!!!!!!!!!" << std::endl;
 }

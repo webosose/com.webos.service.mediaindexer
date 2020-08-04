@@ -17,7 +17,8 @@
 #include <string>
 #include <memory>
 #include <mutex>
-#include "lunaconnector.h"
+#include "mediadbconnector.h"
+#include "indexerconnector.h"
 #include "mediaindexer-common.h"
 #include "logging.h"
 
@@ -27,22 +28,41 @@ public:
     MediaIndexerClient(MediaIndexerCallback cb = nullptr, void* userData = nullptr);
     ~MediaIndexerClient();
 
+    void initialize() const;
+
     // Media Indexer Client API
-    std::string getDeviceList();
+    std::string getDeviceList() const;
+    void getMediaDBPermission() const;
 
     // Media Indexer Client Database API
-    std::string getAudioList(const std::string& uri = std::string());
-    std::string getVideoList(const std::string& uri = std::string());
-    std::string getImageList(const std::string& uri = std::string());
-    std::string getAudioMetaData(const std::string& uri);
-    std::string getVideoMetaData(const std::string& uri);
-    std::string getImageMetaData(const std::string& uri);
+    std::string getAudioList(const std::string& uri) const;
+    std::string getVideoList(const std::string& uri) const;
+    std::string getImageList(const std::string& uri) const;
+    std::string getAudioMetaData(const std::string& uri) const;
+    std::string getVideoMetaData(const std::string& uri) const;
+    std::string getImageMetaData(const std::string& uri) const;
 
 private:
     LOG_MSGID
-    static constexpr const char *dbClientService = "com.webos.service.mediaindexer.client.db";
-    static constexpr const char *indexerClientService = "com.webos.service.mediaindexer.client";
-    static constexpr const char *dbUrl_ = "luna://com.webos.service.db/";
+
+    pbnjson::JValue generateLunaPayload(MediaIndexerClientAPI api,
+                                        const std::string& uri) const;
+
+    pbnjson::JValue prepareWhere(const std::string &key,
+                                 const std::string &value,
+                                 bool precise,
+                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+
+    pbnjson::JValue prepareQuery(pbnjson::JValue selectArray,
+                                 const std::string& kindId,
+                                 pbnjson::JValue where) const;
+
+    pbnjson::JValue prepareQuery(const std::string &key,
+                                 const std::string &value, 
+                                 bool precise,
+                                 const std::string& kindId,
+                                 pbnjson::JValue selectArray) const;
+
     static constexpr const char *mediaKind_ = "com.webos.service.mediaindexer.media:1";
     static constexpr const char *audioKind_ = "com.webos.service.mediaindexer.audio:1";
     static constexpr const char *videoKind_ = "com.webos.service.mediaindexer.video:1";
@@ -51,26 +71,15 @@ private:
     MediaIndexerCallback callback_;
     void* userData_;
 
-    std::mutex mutex_;
-    std::string returnValue_;
-
     LSHandle* lsHandle_;
     GMainLoop* loop_;
     GMainContext* context_;
     std::thread task_;
 
-    static bool onGetDeviceList(LSHandle* lsHandle, LSMessage* msg, void* ctx);
-    bool handleResponseFromIndexer(LSMessage* msg);
-
-    // Luna connector handle.
-    std::unique_ptr<LunaConnector> dbConnector_;
-    std::unique_ptr<LunaConnector> indexerConnector_;
-
-    // Luna response callback and handler.
-    static bool onLunaResponse(LSHandle* lsHandle, LSMessage* msg, void* ctx);
-    bool handleLunaResponse(LSMessage* msg);
-
-    pbnjson::JValue generateLunaPayload(MediaIndexerClientAPI api, const std::string& uri);
+    // indexer service connector.
+    std::unique_ptr<IndexerConnector> indexerConnector_;
+    // mediadb connector.
+    std::unique_ptr<MediaDBConnector> mediaDBConnector_;
 
     // prevent copy & assign operation
     MediaIndexerClient(MediaIndexerClient const&) = delete;
