@@ -58,7 +58,7 @@ bool SettingsDb::handleLunaResponse(LSMessage *msg)
     }
 
     auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.service.db for: '%s'", method.c_str());
+    LOG_INFO(0, "Received response com.webos.mediadb for: '%s'", method.c_str());
 
     if (method != std::string("find"))
         return true;

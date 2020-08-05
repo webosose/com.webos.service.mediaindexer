@@ -12,7 +12,7 @@
         },
         {
             "service":"com.webos.service.mediaindexer.client.db*",
-            "outbound": ["com.webos.service.db"]
+            "outbound": ["com.webos.mediadb"]
         }
     ]
 }

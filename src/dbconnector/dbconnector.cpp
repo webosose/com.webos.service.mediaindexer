@@ -19,7 +19,7 @@
 /// From main.cpp.
 extern const char *lunaServiceId;
 
-const char *DbConnector::dbUrl_ = "luna://com.webos.service.db/";
+const char *DbConnector::dbUrl_ = "luna://com.webos.mediadb/";
 LSHandle *DbConnector::lsHandle_ = nullptr;
 std::string DbConnector::suffix_ = ":1";
 

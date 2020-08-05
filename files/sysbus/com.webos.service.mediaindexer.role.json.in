@@ -11,19 +11,19 @@
         {
             "service": "com.webos.service.mediaindexer",
             "outbound": [ "com.webos.service.pdm",
-                          "com.webos.service.db" ]
+                          "com.webos.mediadb" ]
         },
         {
             "service": "com.webos.service.mediaindexer.media",
-            "outbound": [ "com.webos.service.db" ]
+            "outbound": [ "com.webos.mediadb" ]
         },
         {
             "service": "com.webos.service.mediaindexer.devices",
-            "outbound": [ "com.webos.service.db" ]
+            "outbound": [ "com.webos.mediadb" ]
         },
         {
             "service": "com.webos.service.mediaindexer.settings",
-            "outbound": [ "com.webos.service.db" ]
+            "outbound": [ "com.webos.mediadb" ]
         }
     ]
 }

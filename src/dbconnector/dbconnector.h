@@ -28,7 +28,7 @@
 #include <map>
 #include <list>
 
-/// Connector to com.webos.service.db.
+/// Connector to com.webos.mediadb.
 class DbConnector
 {
 public:

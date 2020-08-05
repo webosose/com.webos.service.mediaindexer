@@ -21,7 +21,7 @@
 
 #include <memory>
 
-/// Connector to com.webos.service.db.
+/// Connector to com.webos.mediadb.
 class DeviceDb : public DbConnector, public IDeviceObserver
 {
 public:

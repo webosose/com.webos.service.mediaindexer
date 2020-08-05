@@ -25,7 +25,7 @@
 
 class Device;
 
-/// Connector to com.webos.service.db.
+/// Connector to com.webos.mediadb.
 class MediaDb : public DbConnector
 {
 public:

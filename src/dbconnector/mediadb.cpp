@@ -53,7 +53,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         return false;
 
     auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.service.db for: '%s'", method.c_str());
+    LOG_INFO(0, "Received response com.webos.mediadb for: '%s'", method.c_str());
 
     // handle the media data exists case
     if (method == std::string("find") ||

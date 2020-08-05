@@ -20,7 +20,7 @@
 
 #include <functional>
 
-/// Connector to com.webos.service.db.
+/// Connector to com.webos.mediadb.
 class SettingsDb : public DbConnector
 {
 public:
