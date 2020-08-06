@@ -18,6 +18,8 @@
 #include <fileref.h>
 #include <mpegfile.h>
 #include <id3v2tag.h>
+#include <mpegfile.h>
+#include <mpegproperties.h>
 //#include <filesystem>
 #include <unistd.h>
 #include <tfilestream.h>
@@ -46,30 +48,34 @@ TaglibExtractor::~TaglibExtractor()
     // nothing to be done here
 }
 
-std::string TaglibExtractor::getTextFrame(TagLib::ID3v2::Tag &tag,  const TagLib::ByteVector &flag) const
+std::string TaglibExtractor::getTextFrame(TagLib::ID3v2::Tag *tag,  const TagLib::ByteVector &flag) const
 {
     std::string ret;
-    if (!tag.frameListMap()[flag].isEmpty())
+    if (!tag) {
+        LOG_ERROR(0, "tag is invalid");
+        return "";
+    }
+    if (!tag->frameListMap()[flag].isEmpty())
     {
         ID3v2::TextIdentificationFrame* frame
-            = dynamic_cast<TagLib::ID3v2::TextIdentificationFrame*>(tag.frameListMap()[flag].front());
+            = dynamic_cast<TagLib::ID3v2::TextIdentificationFrame*>(tag->frameListMap()[flag].front());
         if (frame)
         {
             bool isUnicode = (frame->textEncoding() != TagLib::String::Latin1);
-            ret = (flag == "TCON") ? tag.genre().toCString(isUnicode) : frame->toString().toCString(isUnicode);
+            ret = (flag == "TCON") ? tag->genre().toCString(isUnicode) : frame->toString().toCString(isUnicode);
         }
     }
     return ret;
 }
 
-std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag, const std::string &fname) const
+std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag, const std::string &fname) const
 {
     std::string of = "";
-    if (tag.frameListMap().contains("APIC"))
+    if (tag->frameListMap().contains("APIC"))
     {
         std::string ext = "";
         ID3v2::AttachedPictureFrame *frame
-            = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(tag.frameListMap()["APIC"].front());
+            = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(tag->frameListMap()["APIC"].front());
         if (frame->mimeType().find(TAGLIB_EXT_JPG) || frame->mimeType().find(TAGLIB_EXT_JPG))
             ext = TAGLIB_EXT_JPG;
         else if (frame->mimeType().find(TAGLIB_EXT_PNG))
@@ -91,16 +97,9 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
 }
 
 
-void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
+void TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
 {
     std::string uri(mediaItem.path());
-
-    FileRef f(uri.c_str());
-    if (f.isNull()) {
-        LOG_ERROR(0, "file uri(%s) is invalid to extract meta from taglibextractor",
-            uri.c_str());
-        return;
-    }
 
     if (mediaItem.type() != MediaItem::Type::Audio) {
         LOG_ERROR(0, "mediaitem type is not audio");
@@ -112,42 +111,54 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
 
     if (uri.rfind(TAGLIB_EXT_MP3) != std::string::npos)
     {
-        ID3v2::Tag tag(f.file(), 0);
-        if (tag.isEmpty())
+        TagLib::MPEG::File f(uri.c_str());
+        ID3v2::Tag *tag = f.ID3v2Tag();
+        if (!tag || tag->isEmpty())
         {
             LOG_ERROR(0, "tag for %s is empty", uri.c_str());
             return;
         }
         LOG_DEBUG("Setting Meta data for Mp3");
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Title);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::DateOfCreation);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Genre);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Album);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Artist);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::AlbumArtist);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Track);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Year);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Duration);
-        setMetaMp3(mediaItem, tag, MediaItem::Meta::Thumbnail);
+        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Title);
+        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Genre);
+        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Album);
+        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Artist);
+        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Duration);
+        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Thumbnail);
+        if (expand) {
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::DateOfCreation);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::AlbumArtist);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Track);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Year);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::SampleRate);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::BitRate);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Channels);
+        }
         LOG_DEBUG("Setting Meta data for Mp3 Done");
     }
     else if (uri.rfind(TAGLIB_EXT_OGG) != std::string::npos)
     {
-        TagLib::Vorbis::File oggf(f.file()->name());
+        TagLib::Vorbis::File oggf(uri.c_str());
         Ogg::XiphComment *tag = oggf.tag();
         if (!tag || tag->isEmpty()) {
             LOG_ERROR(0, "tag for %s is empty", uri.c_str());
             return;
         }
         LOG_DEBUG("Setting Meta data for Ogg");
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::Title);
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::DateOfCreation);
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::Genre);
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::Album);
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::Artist);
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::AlbumArtist);
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::Track);
-        setMetaOgg(mediaItem, tag, MediaItem::Meta::Year);
+        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Title);
+        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Genre);
+        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Album);
+        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Artist);
+        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Duration);
+        if (expand) {
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::DateOfCreation);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::AlbumArtist);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Track);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Year);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::SampleRate);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::BitRate);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Channels);
+        }
         LOG_DEBUG("Setting Meta data for Ogg Done");
     }
     else
@@ -159,8 +170,8 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem) const
     setMetaCommon(mediaItem);
 }
 
-void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
-        MediaItem::Meta flag) const
+void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag,
+         TagLib::MPEG::File &file, MediaItem::Meta flag) const
 
 {
     MediaItem::MetaData data;
@@ -186,13 +197,22 @@ void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
             data = {getTextFrame(tag, "TPE2")};
             break;
         case MediaItem::Meta::Year:
-            data = {static_cast<std::int32_t>(tag.year())};
+            data = {static_cast<std::int32_t>(tag->year())};
             break;
         case MediaItem::Meta::Track:
-            data = {static_cast<std::int32_t>(tag.track())};
+            data = {getTextFrame(tag, "TPOS")};
             break;
         case MediaItem::Meta::Duration:
-            data = {getTextFrame(tag, "TLEN")};
+            data = {file.audioProperties()->lengthInSeconds()};
+            break;
+        case MediaItem::Meta::SampleRate:
+            data = {file.audioProperties()->sampleRate()};
+            break;
+        case MediaItem::Meta::BitRate:
+            data = {file.audioProperties()->bitrate()};
+            break;
+        case MediaItem::Meta::Channels:
+            data = {file.audioProperties()->channels()};
             break;
         case MediaItem::Meta::Thumbnail:
         {
@@ -218,7 +238,7 @@ void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
 }
 
 void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag,
-    MediaItem::Meta flag) const
+    TagLib::Ogg::File &file, MediaItem::Meta flag) const
 {
     MediaItem::MetaData data;
     Ogg::FieldListMap fieldListMap = tag->fieldListMap();
@@ -260,6 +280,17 @@ void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment 
                 data = {fieldListMap["TRACKNUM"].toString().toCString(true)};
             break;
         case MediaItem::Meta::Duration:
+            data = {file.audioProperties()->lengthInSeconds()};
+            break;
+        case MediaItem::Meta::SampleRate:
+            data = {file.audioProperties()->sampleRate()};
+            break;
+        case MediaItem::Meta::BitRate:
+            data = {file.audioProperties()->bitrate()};
+            break;
+        case MediaItem::Meta::Channels:
+            data = {file.audioProperties()->channels()};
+            break;
         case MediaItem::Meta::Thumbnail:
         default:
             break;

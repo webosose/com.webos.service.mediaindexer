@@ -51,6 +51,11 @@ public:
     static std::string metaTypeToString(Device::Meta meta);
 
     /**
+    * \brief System wide search for a device by uri.
+    */
+    static std::shared_ptr<Device> device(const std::string &uri);
+
+    /**
      * \brief Construct device by uri.
      *
      * \param[in] uri Full device uri.

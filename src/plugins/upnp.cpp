@@ -76,7 +76,7 @@ void Upnp::scan(const std::string &uri)
         dev->uri().c_str());
 }
 
-void Upnp::extractMeta(MediaItem &mediaItem)
+void Upnp::extractMeta(MediaItem &mediaItem, bool expand)
 {
     auto path = mediaItem.path();
     LOG_INFO(0, "Request meta data for item '%s'", path.c_str());

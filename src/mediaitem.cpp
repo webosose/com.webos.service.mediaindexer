@@ -19,6 +19,7 @@
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
 #include <cinttypes>
+#include <gio/gio.h>
 
 
 // Not part of Device class, this is defined at the bottom of device.h
@@ -142,6 +143,10 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return std::string("bit_rate");
     case MediaItem::Meta::BitPerSample:
         return std::string("bit_per_sample");
+    case MediaItem::Meta::VideoCodec:
+        return std::string("video_codec");
+    case MediaItem::Meta::AudioCodec:
+        return std::string("audio_codec");
     case MediaItem::Meta::Lyric:
         return std::string("lyric");
     case MediaItem::Meta::Width:
@@ -154,6 +159,64 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
         return "";
     default:
         return "";
+    }
+
+    return "";
+}
+
+bool MediaItem::putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props)
+{
+    if (data.has_value()) {
+        auto content = data.value();
+        switch (content.index()) {
+            case 0:
+                props.put(metaStr, std::get<std::int64_t>(content));
+                LOG_DEBUG("Setting '%s' to '%" PRIu64 "'", metaStr.c_str(), std::get<std::int64_t>(content));
+                break;
+            case 1:
+                props.put(metaStr, std::get<double>(content));
+                LOG_DEBUG("Setting '%s' to '%f'", metaStr.c_str(), std::get<double>(content));
+                break;
+            case 2:
+                props.put(metaStr, std::get<std::int32_t>(content));
+                LOG_DEBUG("Setting '%s' to '%d'", metaStr.c_str(), std::get<std::int32_t>(content));
+                break;
+            case 3:
+                props.put(metaStr, std::get<std::string>(content));
+                LOG_DEBUG("Setting '%s' to '%s'", metaStr.c_str(), std::get<std::string>(content).c_str());
+                break;
+            case 4:
+                props.put(metaStr, static_cast<int32_t>(std::get<std::uint32_t>(content)));
+                LOG_DEBUG("Setting '%s' to '%d'", metaStr.c_str(), std::get<std::uint32_t>(content));
+                break;
+        }
+    } else {
+        props.put(metaStr, std::string(""));
+        LOG_WARNING(0, "data doesn't have value for meta type %s",metaStr.c_str());
+    }
+    return true;
+}
+
+
+std::string MediaItem::metaToString(MediaItem::CommonType meta)
+{
+    switch (meta) {
+        case MediaItem::CommonType::URI:
+            return std::string("uri");
+        case MediaItem::CommonType::DIRTY:
+            return std::string("dirty");
+        case MediaItem::CommonType::HASH:
+            return std::string("hash");
+        case MediaItem::CommonType::TYPE:
+            return std::string("type");
+        case MediaItem::CommonType::MIME:
+            return std::string("mime");
+        case MediaItem::CommonType::FILEPATH:
+            return std::string("file_path");
+        case MediaItem::CommonType::EOL:
+            return "";
+        default:
+            return "";
     }
 
     return "";
@@ -193,6 +256,81 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     if (type_ != Type::EOL)
         device_->incrementMediaItemCount(type_);
 }
+
+MediaItem::MediaItem(const std::string &uri) :
+    device_(Device::device(uri)),
+    type_(Type::EOL),
+    parsed_(false),
+    uri_(uri)
+{
+    try {
+        LOG_DEBUG("uri_ : %s, device->uri() : %s", uri_.c_str(), device_->uri().c_str());
+        std::size_t sz = uri_.find(device_->uri());
+        if (sz == std::string::npos) {
+            LOG_ERROR(0, "Failed to found %s for uri : %s",device_->uri().c_str(), uri_.c_str());
+        }
+        sz += device_->uri().length();
+        path_ = uri_.substr(sz);
+        LOG_DEBUG("path_ : %s",path_.c_str());
+        ext_ = path_.substr(path_.find_last_of('.') + 1);
+        auto fpath = std::filesystem::path(path_);
+        gboolean uncertain;
+        mime_ = g_content_type_guess(path_.c_str(), NULL, 0, &uncertain);
+        filesize_ = std::filesystem::file_size(fpath);
+        hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
+
+        // set the type
+        for (auto type = MediaItem::Type::Audio;
+             type < MediaItem::Type::EOL; ++type) {
+            auto typeString = MediaItem::mediaTypeToString(type);
+            if (!!mime_.compare(0, typeString.size(), typeString))
+                continue;
+
+            type_ = type;
+            break;
+        }
+    } catch (const std::exception & e) {
+        LOG_ERROR(0, "MediaItem::Ctor failure: %s", e.what());
+    } catch (...) {
+        LOG_ERROR(0, "MediaItem::Ctor failure by unexpected failure");
+    }
+}
+
+bool MediaItem::putAllMetaToJson(pbnjson::JValue &meta)
+{
+    meta.put(metaToString(CommonType::URI), uri_);
+    meta.put(metaToString(CommonType::HASH), std::to_string(hash_));
+    meta.put(metaToString(CommonType::DIRTY), false);
+    meta.put(metaToString(CommonType::TYPE), mediaTypeToString(type_));
+    meta.put(metaToString(CommonType::MIME), mime_);
+    // check if the plugin is available and get it
+    LOG_DEBUG("Try to find plugin for uri_ : %s", uri_.c_str());
+    auto plg = PluginFactory().plugin(uri_);
+    if (!plg)
+        return false;
+
+    auto filepath = plg->getPlaybackUri(uri_);
+    LOG_DEBUG("filepath : %s", filepath.value().c_str());
+    meta.put(metaToString(CommonType::FILEPATH), filepath ? filepath.value() : "");
+
+
+    for (auto _meta = MediaItem::Meta::Title; _meta < MediaItem::Meta::EOL; ++_meta) {
+        auto metaStr = metaToString(_meta);
+        auto data = this->meta(_meta);
+
+        if ((type_ == MediaItem::Type::Audio && isAudioMeta(_meta))
+            ||(type_ == MediaItem::Type::Video && isVideoMeta(_meta))
+            ||(type_ == MediaItem::Type::Image && isImageMeta(_meta))) {
+            if (!putProperties(metaStr, data, meta)) {
+                LOG_ERROR(0, "Failed to meta data to json object, type : %s", metaStr.c_str());
+                return false;
+            }
+        }
+    }
+    return true;
+
+}
+
 
 unsigned long MediaItem::hash() const
 {
@@ -319,19 +457,19 @@ bool MediaItem::isAudioMeta(Meta meta){
         case MediaItem::Meta::Genre:
         case MediaItem::Meta::Album:
         case MediaItem::Meta::Artist:
+        case MediaItem::Meta::Duration:
+        case MediaItem::Meta::Thumbnail:
+        case MediaItem::Meta::FileSize:
+        case MediaItem::Meta::LastModifiedDate:
         case MediaItem::Meta::AlbumArtist:
         case MediaItem::Meta::Track:
         case MediaItem::Meta::TotalTracks:
-        case MediaItem::Meta::Duration:
-        case MediaItem::Meta::Thumbnail:
         case MediaItem::Meta::SampleRate:
         case MediaItem::Meta::BitPerSample:
         case MediaItem::Meta::Channels:
         case MediaItem::Meta::BitRate:
         case MediaItem::Meta::Lyric:
-        case MediaItem::Meta::FileSize:
         case MediaItem::Meta::DateOfCreation:
-        case MediaItem::Meta::LastModifiedDate:
             return true;
         default:
             return false;
@@ -345,6 +483,8 @@ bool MediaItem::isVideoMeta(Meta meta){
         case MediaItem::Meta::Duration:
         case MediaItem::Meta::Width:
         case MediaItem::Meta::Height:
+        case MediaItem::Meta::VideoCodec:
+        case MediaItem::Meta::AudioCodec:
         case MediaItem::Meta::Thumbnail:
         case MediaItem::Meta::FrameRate:
         case MediaItem::Meta::FileSize:

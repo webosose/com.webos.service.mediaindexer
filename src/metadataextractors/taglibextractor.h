@@ -33,7 +33,10 @@
 #define TAGLIB_FILE_NAME_SIZE 16
 
 namespace TagLib { namespace ID3v2 { class Tag; } }
+namespace TagLib { namespace MPEG { class File; } }
+namespace TagLib { namespace MPEG { class Properties; } }
 namespace TagLib { namespace Ogg { class XiphComment; } }
+namespace TagLib { namespace Ogg { class File; } }
 namespace TagLib { class ByteVector; }
 
 /**
@@ -48,23 +51,23 @@ class TaglibExtractor : public IMetaDataExtractor
     virtual ~TaglibExtractor();
 
     /// From interface.
-    void extractMeta(MediaItem &mediaItem) const;
+    void extractMeta(MediaItem &mediaItem, bool expand = false) const;
 
  private:
     /// Get message id.
     LOG_MSGID;
 
     /// Get text frame from id3 tag key value
-    std::string getTextFrame(TagLib::ID3v2::Tag &tag,      const TagLib::ByteVector &flag) const;
+    std::string getTextFrame(TagLib::ID3v2::Tag *tag,      const TagLib::ByteVector &flag) const;
 
     /// Get attached image of mp3 from APIC key frame
-    std::string saveAttachedImage(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag, const std::string &fname) const;
+    std::string saveAttachedImage(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag, const std::string &fname) const;
 
     /// Set media item media per media type(for mp3 file format).
-    void setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag &tag,
+    void setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag, TagLib::MPEG::File &file,
         MediaItem::Meta flag) const;
 
     /// Set media item media per media type(for ogg file format).
-    void setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag,
+    void setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag, TagLib::Ogg::File &file,
         MediaItem::Meta flag) const;
 };

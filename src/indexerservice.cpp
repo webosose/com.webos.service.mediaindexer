@@ -19,6 +19,7 @@
 #include "pdmlistener/pdmlistener.h"
 #include "dbconnector/dbconnector.h"
 #include "mediaitem.h"
+#include "mediaparser.h"
 #include "dbconnector/settingsdb.h"
 #include "dbconnector/devicedb.h"
 #include "dbconnector/mediadb.h"
@@ -434,12 +435,17 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
         uri.c_str());
     bool rv = false;
     auto mdb = MediaDb::instance();
+    auto mparser = std::make_unique<MediaParser>(uri);
     auto reply = pbnjson::Object();
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
-        rv = mdb->getAudioMetadata(uri, resp);
-        mdb->putRespObject(rv, resp);
-        mdb->sendResponse(lsHandle, msg, resp.stringify());
+        pbnjson::JValue metadata = pbnjson::Object();
+        rv = mdb->getAudioList(uri, resp);
+        metadata << resp["results"];
+        rv = mparser->extractMetaDirect(metadata);
+        reply.put("metadata", metadata);
+        mdb->putRespObject(rv, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
     } else {
         LOG_ERROR(0, "Failed to get instance of Media Db");
         reply.put("returnValue", false);
@@ -453,10 +459,11 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
             LOG_ERROR(0, "Message reply error");
         }
     }
-
+    mparser.reset();
     return rv;
 
 }
+
 
 bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
@@ -548,12 +555,17 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
         uri.c_str());
     bool rv = false;
     auto mdb = MediaDb::instance();
+    auto mparser = std::make_unique<MediaParser>(uri);
     auto reply = pbnjson::Object();
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
-        rv = mdb->getVideoMetadata(uri, resp);
-        mdb->putRespObject(rv, resp);
-        mdb->sendResponse(lsHandle, msg, resp.stringify());
+        pbnjson::JValue metadata = pbnjson::Object();
+        rv = mdb->getVideoList(uri, resp);
+        metadata << resp["results"];
+        rv = mparser->extractMetaDirect(metadata);
+        reply.put("metadata", metadata);
+        mdb->putRespObject(rv, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
     } else {
         LOG_ERROR(0, "Failed to get instance of Media Db");
         reply.put("returnValue", false);
@@ -567,7 +579,7 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
             LOG_ERROR(0, "Message reply error");
         }
     }
-
+    mparser.reset();
     return rv;
 }
 
@@ -662,12 +674,17 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
         uri.c_str());
     bool rv = false;
     auto mdb = MediaDb::instance();
+    auto mparser = std::make_unique<MediaParser>(uri);
     auto reply = pbnjson::Object();
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
-        rv = mdb->getImageMetadata(uri, resp);
-        mdb->putRespObject(rv, resp);
-        mdb->sendResponse(lsHandle, msg, resp.stringify());
+        pbnjson::JValue metadata = pbnjson::Object();
+        rv = mdb->getVideoList(uri, resp);
+        metadata << resp["results"];
+        rv = mparser->extractMetaDirect(metadata);
+        reply.put("metadata", metadata);
+        mdb->putRespObject(rv, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
     } else {
         LOG_ERROR(0, "Failed to get instance of Media Db");
         reply.put("returnValue", false);
@@ -681,8 +698,9 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
             LOG_ERROR(0, "Message reply error");
         }
     }
-
+    mparser.reset();
     return rv;
+
 }
 
 bool IndexerService::pluginPutGet(LSMessage *msg, bool get)

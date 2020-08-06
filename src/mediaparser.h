@@ -18,6 +18,7 @@
 
 #include "mediaitem.h"
 #include "metadataextractors/imetadataextractor.h"
+#include <pbnjson.hpp>
 
 #include <thread>
 #include <mutex>
@@ -34,6 +35,12 @@ class MediaParser
 
     /// Get media parser instance for certain device.
     MediaParser(MediaItemPtr mediaItem);
+
+    /// Get media parser instance for direct metadata extraction
+    MediaParser(std::string &uri);
+
+    /// For the purpose of direct meta extraction from indexer service api
+    bool extractMetaDirect(pbnjson::JValue &meta);
     virtual ~MediaParser();
 
  private:

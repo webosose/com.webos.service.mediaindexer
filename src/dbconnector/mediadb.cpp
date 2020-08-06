@@ -32,7 +32,7 @@ MediaDb *MediaDb::instance()
     std::lock_guard<std::mutex> lk(ctorLock_);
     if (!instance_.get()) {
         instance_.reset(new MediaDb);
-        instance_->ensureKind();
+        //instance_->ensureKind();
         instance_->ensureKind(AUDIO_KIND);
         instance_->ensureKind(VIDEO_KIND);
         instance_->ensureKind(IMAGE_KIND);
@@ -203,19 +203,20 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 {
     LOG_DEBUG("%s Start for mediaItem uri : %s",__FUNCTION__, mediaItem->uri().c_str());
     // update or create the device in the database
+/*
     auto props = pbnjson::Object();
     props.put(URI, mediaItem->uri());
     props.put(HASH, std::to_string(mediaItem->hash()));
     props.put(DIRTY, false);
     props.put(TYPE, mediaItem->mediaTypeToString(mediaItem->type()));
     props.put(MIME, mediaItem->mime());
-
+*/
     auto typeProps = pbnjson::Object();
     typeProps.put(URI, mediaItem->uri());
     typeProps.put(HASH, std::to_string(mediaItem->hash()));
     typeProps.put(DIRTY, false);
-    typeProps.put(TYPE, mediaItem->mediaTypeToString(mediaItem->type()));
-    typeProps.put(MIME, mediaItem->mime());
+    //typeProps.put(TYPE, mediaItem->mediaTypeToString(mediaItem->type()));
+    //typeProps.put(MIME, mediaItem->mime());
     auto filepath = getFilePath(mediaItem->uri());
     typeProps.put(FILE_PATH, filepath ? filepath.value() : "");
 
@@ -240,43 +241,17 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 
         //Todo - Only media kind columns should be stored.
         //if(mediaItem->isMediaMeta(meta))
-        props = putProperties(metaStr, data, props);
+        //mediaItem->putProperties(metaStr, data, props);
 
         if ((mediaItem->type() == MediaItem::Type::Audio && mediaItem->isAudioMeta(meta))
             ||(mediaItem->type() == MediaItem::Type::Video && mediaItem->isVideoMeta(meta))
             ||(mediaItem->type() == MediaItem::Type::Image && mediaItem->isImageMeta(meta))) {
-            typeProps = putProperties(metaStr, data, typeProps);
+            mediaItem->putProperties(metaStr, data, typeProps);
         }
     }
-    mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
+    //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
     mergePut(mediaItem->uri(), true, typeProps, nullptr, kind_type);
-}
-
-pbnjson::JValue MediaDb::putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props)
-{
-    if (data.has_value()) {
-        auto content = data.value();
-        switch (content.index()) {
-            case 0:
-                props.put(metaStr, std::get<std::int64_t>(content));
-                break;
-            case 1:
-                props.put(metaStr, std::get<double>(content));
-                break;
-            case 2:
-                props.put(metaStr, std::to_string(std::get<std::int32_t>(content)));
-                break;
-            case 3:
-                props.put(metaStr, std::get<std::string>(content));
-                break;
-            case 4:
-                props.put(metaStr, std::to_string(std::get<std::uint32_t>(content)));
-                break;
-        }
-    } else {
-        props.put(metaStr, std::string(""));
-    }
-    return props;
+    mediaItem.release();
 }
 
 std::optional<std::string> MediaDb::getFilePath(
@@ -296,7 +271,7 @@ void MediaDb::markDirty(std::shared_ptr<Device> device)
     auto props = pbnjson::Object();
     props.put(DIRTY, true);
 
-    mergePut(device->uri(), false, props);
+    //mergePut(device->uri(), false, props);
     merge(AUDIO_KIND, props, URI, device->uri(), false);
     merge(VIDEO_KIND, props, URI, device->uri(), false);
     merge(IMAGE_KIND, props, URI, device->uri(), false);
@@ -308,7 +283,7 @@ void MediaDb::unflagDirty(const std::string &uri)
     auto props = pbnjson::Object();
     props.put(DIRTY, false);
 
-    mergePut(uri, true, props);
+    //mergePut(uri, true, props);
     merge(AUDIO_KIND, props, URI, uri, true);
     merge(VIDEO_KIND, props, URI, uri, true);
     merge(IMAGE_KIND, props, URI, uri, true);
@@ -336,11 +311,13 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
 {
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
-    selectArray.append(URI);
-    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::FILEPATH));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Genre));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Album));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Artist));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
-    selectArray.append(FILE_PATH);
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
@@ -348,71 +325,21 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
     return search(AUDIO_KIND, selectArray, URI, uri, false, &resp, true);
 }
 
-bool MediaDb::getAudioMetadata(const std::string &uri, pbnjson::JValue &resp)
-{
-    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
-    auto selectArray = pbnjson::Array();
-    selectArray.append(URI);
-    selectArray.append(MIME);
-    selectArray.append(TYPE);
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::DateOfCreation));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
-    selectArray.append(FILE_PATH);
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Genre));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Album));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Artist));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::AlbumArtist));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Track));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::TotalTracks));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::SampleRate));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::BitPerSample));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::BitRate));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Channels));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Lyric));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
-
-    return search(AUDIO_KIND, selectArray, URI, uri, true, &resp, true);
-}
-
 bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
 {
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
-    selectArray.append(URI);
-    selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::FILEPATH));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
-    selectArray.append(FILE_PATH);
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
     return search(VIDEO_KIND, selectArray, URI, uri, false, &resp, true);
-}
-
-bool MediaDb::getVideoMetadata(const std::string &uri, pbnjson::JValue &resp)
-{
-    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
-    auto selectArray = pbnjson::Array();
-    selectArray.append(URI);
-    selectArray.append(MIME);
-    selectArray.append(TYPE);
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::DateOfCreation));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
-    selectArray.append(FILE_PATH);
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FrameRate));
-
-    return search(VIDEO_KIND, selectArray, URI, uri, true, &resp, true);
 }
 
 bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
@@ -429,28 +356,6 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
 
     return search(IMAGE_KIND, selectArray, URI, uri, false, &resp, true);
-}
-
-bool MediaDb::getImageMetadata(const std::string &uri, pbnjson::JValue &resp)
-{
-    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
-    auto selectArray = pbnjson::Array();
-    selectArray.append(URI);
-    selectArray.append(MIME);
-    selectArray.append(TYPE);
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::DateOfCreation));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
-    selectArray.append(FILE_PATH);
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocCity));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocCountry));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocLatitude));
-    selectArray.append(MediaItem::metaToString(MediaItem::Meta::GeoLocLongitude));
-
-    return search(IMAGE_KIND, selectArray, URI, uri, true, &resp, true);
 }
 
 void MediaDb::makeUriIndex(){

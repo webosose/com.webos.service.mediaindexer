@@ -316,7 +316,7 @@ void Plugin::scan(const std::string &uri)
         dev->uri().c_str());
 }
 
-void Plugin::extractMeta(MediaItem &mediaItem)
+void Plugin::extractMeta(MediaItem &mediaItem, bool expand)
 {
     LOG_ERROR(0, "No meta data extraction for '%s'", mediaItem.uri().c_str());
     // nothing to be done here, this should be implemented in the

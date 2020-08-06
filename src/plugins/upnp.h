@@ -52,7 +52,7 @@ public:
     void scan(const std::string &uri);
 
     /// From base class.
-    void extractMeta(MediaItem &mediaItem);
+    void extractMeta(MediaItem &mediaItem, bool expand = false);
 
     /// From base class.
     std::optional<std::string> getPlaybackUri(const std::string &uri);

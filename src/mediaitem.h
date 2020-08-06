@@ -18,6 +18,7 @@
 
 #include "logging.h"
 #include "imediaitemobserver.h"
+#include <pbnjson.hpp>
 
 #include <memory>
 #include <map>
@@ -35,6 +36,16 @@ class Device;
 class MediaItem
 {
 public:
+    /// Common Meta data type specifiers.
+    enum class CommonType : int {
+        URI, ///< Uri of media item
+        DIRTY, ///< Dirty flag of media item set when device is unavailable
+        HASH, ///< Unique value for media item
+        TYPE, ///< Media type, possible value : audio / video / image
+        MIME, ///< Mime type of media item
+        FILEPATH, ///< Accessible file path
+        EOL
+    };
     /// Meta data type specifiers.
     enum class Meta : int {
         Title, ///< Media title, mandatory.
@@ -56,6 +67,8 @@ public:
         LastModifiedDate, ///< Last modified date.(formatted)
         LastModifiedDateRaw, ///< Last modified date.(not formatted)
         FileSize, ///< File size.
+        VideoCodec, ///< Video Codec Information.
+        AudioCodec, ///< Audio Codec Information.
         SampleRate, ///< Audio sample rate.
         Channels, ///< Audio channels.
         BitRate, ///< Audio bitrate.
@@ -121,11 +134,28 @@ public:
      */
     static std::string metaToString(MediaItem::Meta meta);
 
+    /**
+     * \brief Convert common meta type to string.
+     *
+     * \param[in] meta The common meta type.
+     * \return The related string.
+     */
+    static std::string metaToString(MediaItem::CommonType meta);
+
     /// Simplify type definition for use with std::optional.
     typedef std::variant<std::int64_t, double, std::int32_t, std::string, std::uint32_t> MetaData;
 
     /**
-     * \brief Construct device by uri.
+     * \brief put specific meta data to json object.
+     *
+     * \param[in] metaStr Meta type indicator.
+     * \param[in] data Meta data corresponds to meta type.
+     * \return result(true or false).
+     */
+    static bool putProperties(std::string metaStr, std::optional<MetaData> data, pbnjson::JValue &props);
+
+    /**
+     * \brief Construct media item.
      *
      * The device is referenced from a std::shared_ptr as the device
      * might be destroyed in the plugin while still in use from this
@@ -142,7 +172,34 @@ public:
      */
     MediaItem(std::shared_ptr<Device> device, const std::string &path,
         const std::string &mime, unsigned long hash, unsigned long filesize = 0);
+
+    /**
+     * \brief Construct media item only with uri.
+     *
+     * The media item is created with only referencing uri of media file.
+     *
+     * The purpose of this constructor is for direct meta data extraction.
+     *
+     * \param[in] device The device this media item belongs to.
+     * \param[in] path The media item path.
+     * \param[in] mime The MIME type information.
+     * \param[in] hash Some hash to check for modifications.
+     * \param[in] filesize The media item filesize(byte).
+     */
+    MediaItem(const std::string &uri);
+
     virtual ~MediaItem() {};
+
+    /**
+     * \brief put all meta data of this media item to given json object.
+     *
+     * This will write all available meta data to json object
+     * given as input parameter.
+     *
+     * \param[in] meta Json object that meta data of this item to be stored.
+     * \return result(true or false).
+     */
+    bool putAllMetaToJson(pbnjson::JValue &meta);
 
     /**
      * \brief Get the identifier of this media item.

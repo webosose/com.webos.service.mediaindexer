@@ -40,7 +40,7 @@ public:
      *
      * \param[in] mediaItem The media item.
      */
-    virtual void extractMeta(MediaItem &mediaItem) const = 0;
+    virtual void extractMeta(MediaItem &mediaItem, bool expand = false) const = 0;
 
 
     /// Get base filename from mediaItem

@@ -43,6 +43,19 @@ std::string Device::metaTypeToString(Device::Meta meta)
     return "";
 }
 
+std::shared_ptr<Device> Device::device(const std::string &uri)
+{
+    PluginFactory factory;
+    auto plg = factory.plugin(uri);
+    if (!plg)
+        return nullptr;
+
+    if (!plg->hasDevice(uri))
+        return nullptr;
+
+    return plg->device(uri);
+}
+
 Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) :
     uri_(uri),
     mountpoint_(""),

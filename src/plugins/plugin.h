@@ -195,7 +195,7 @@ public:
      *
      * \param[in] mediaItem The media item.
      */
-    virtual void extractMeta(MediaItem &mediaItem);
+    virtual void extractMeta(MediaItem &mediaItem, bool expand = false);
 
     /**
      * \brief Build playback uri from media item uri.

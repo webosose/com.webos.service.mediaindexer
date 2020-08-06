@@ -83,15 +83,6 @@ public:
     void updateMediaItem(MediaItemPtr mediaItem);
 
     /**
-     * \brief Put the meta in the database.
-     *
-     * \param[in] metaStr String of meta .
-     * \param[in] data Meta data value.
-     * \param[in] props pbnjson object.
-     */
-    pbnjson::JValue putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props);
-
-    /**
      * \brief Get the file path for the given media item uri.
      *
      * \param[in] uri Base uri for plugin identification.
@@ -124,15 +115,9 @@ public:
 
     bool getAudioList(const std::string &uri, pbnjson::JValue &resp);
 
-    bool getAudioMetadata(const std::string &uri, pbnjson::JValue &resp);
-
     bool getVideoList(const std::string &uri, pbnjson::JValue &resp);
 
-    bool getVideoMetadata(const std::string &uri, pbnjson::JValue &resp);
-
     bool getImageList(const std::string &uri, pbnjson::JValue &resp);
-
-    bool getImageMetadata(const std::string &uri, pbnjson::JValue &resp);
 
     void makeUriIndex();
 
@@ -159,7 +144,7 @@ private:
     std::list<std::string> dbClients_;
     std::map<std::string, unsigned long> mediaItemMap_;
 
-    static constexpr char MEDIA_KIND[]  = "com.webos.service.mediaindexer.media:1";
+    //static constexpr char MEDIA_KIND[]  = "com.webos.service.mediaindexer.media:1";
     static constexpr char AUDIO_KIND[] = "com.webos.service.mediaindexer.audio:1";
     static constexpr char VIDEO_KIND[] = "com.webos.service.mediaindexer.video:1";
     static constexpr char IMAGE_KIND[] = "com.webos.service.mediaindexer.image:1";

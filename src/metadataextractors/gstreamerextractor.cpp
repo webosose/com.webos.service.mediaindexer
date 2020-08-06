@@ -48,6 +48,8 @@ std::map<std::string, MediaItem::Meta> GStreamerExtractor::metaMap_ = {
     {GST_TAG_GEO_LOCATION_LATITUDE,     MediaItem::Meta::GeoLocLatitude},
     {GST_TAG_GEO_LOCATION_COUNTRY,      MediaItem::Meta::GeoLocCountry},
     {GST_TAG_GEO_LOCATION_CITY,         MediaItem::Meta::GeoLocCity},
+    {GST_TAG_VIDEO_CODEC,               MediaItem::Meta::VideoCodec},
+    {GST_TAG_AUDIO_CODEC,               MediaItem::Meta::AudioCodec},
     {GST_TAG_THUMBNAIL,                 MediaItem::Meta::Thumbnail}
 };
 
@@ -69,7 +71,7 @@ GStreamerExtractor::~GStreamerExtractor()
     // nothing to be done here
 }
 
-void GStreamerExtractor::extractMeta(MediaItem &mediaItem) const
+void GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
 {
     bool force_sw_decoders = false;
     GstDiscoverer *discoverer = gst_discoverer_new(GST_SECOND, NULL);
@@ -125,7 +127,7 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem) const
     }
 
     // get stream info from discover info.
-    GstDiscovererStreamInfo *streamInfo = 
+    GstDiscovererStreamInfo *streamInfo =
         gst_discoverer_info_get_stream_info(discoverInfo);
 
     if (!streamInfo)
@@ -134,32 +136,41 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem) const
     switch (mediaItem.type()) {
     case MediaItem::Type::Audio: {
         setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
+        setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
         setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
         setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM);
         setMeta(mediaItem, discoverInfo, GST_TAG_ARTIST);
-        setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM_ARTIST);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
-        setStreamMeta(mediaItem, streamInfo);
+        if (expand) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
+            setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM_ARTIST);
+            setMeta(mediaItem, discoverInfo, GST_TAG_TRACK_NUMBER);
+        }
+        setStreamMeta(mediaItem, streamInfo, expand);
         break;
     }
     case MediaItem::Type::Video: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
-        setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
+        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);    
         setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
         setMeta(mediaItem, discoverInfo, GST_TAG_THUMBNAIL);
-        setStreamMeta(mediaItem, streamInfo);
+        if (expand) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
+            setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_VIDEO_CODEC);
+            setMeta(mediaItem, discoverInfo, GST_TAG_AUDIO_CODEC);
+        }
+        setStreamMeta(mediaItem, streamInfo, expand);
         break;
     }
     case MediaItem::Type::Image: {
         setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
-        setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LONGITUDE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LATITUDE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_COUNTRY);
-        setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_CITY);
-        setStreamMeta(mediaItem, streamInfo);
+        if (expand) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
+            setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LONGITUDE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LATITUDE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_COUNTRY);
+            setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_CITY);
+        }
+        setStreamMeta(mediaItem, streamInfo, expand);
         break;
     }
     case MediaItem::Type::EOL:
@@ -471,7 +482,7 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *
 }
 
 void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
-                                       GstDiscovererStreamInfo *streamInfo) const
+                                       GstDiscovererStreamInfo *streamInfo, bool expand) const
 {
     MediaItem::MetaData data;
     MediaItem::Meta meta;
@@ -482,33 +493,35 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
 
     switch (mediaItem.type()) {
     case MediaItem::Type::Audio: {
-        if (GST_IS_DISCOVERER_AUDIO_INFO(streamInfo)) {
-            /* let's get the audio meta data */
-            LOG_INFO(0, "<Audio stream info>");
-            GstDiscovererAudioInfo *audio_info =
-                reinterpret_cast<GstDiscovererAudioInfo*>(streamInfo);
-            // SampleRate
-            data = {gst_discoverer_audio_info_get_sample_rate(audio_info)};
-            LOG_INFO(0, " -> Audio SampleRate : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::SampleRate;
-            mediaItem.setMeta(meta, data);
+        if (expand) {
+            if (GST_IS_DISCOVERER_AUDIO_INFO(streamInfo)) {
+                /* let's get the audio meta data */
+                LOG_INFO(0, "<Audio stream info>");
+                GstDiscovererAudioInfo *audio_info =
+                    reinterpret_cast<GstDiscovererAudioInfo*>(streamInfo);
+                // SampleRate
+                data = {gst_discoverer_audio_info_get_sample_rate(audio_info)};
+                LOG_INFO(0, " -> Audio SampleRate : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::SampleRate;
+                mediaItem.setMeta(meta, data);
 
-            // Channels
-            data = {gst_discoverer_audio_info_get_channels(audio_info)};
-            LOG_INFO(0, " -> Audio Channels : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Channels;
-            mediaItem.setMeta(meta, data);
+                // Channels
+                data = {gst_discoverer_audio_info_get_channels(audio_info)};
+                LOG_INFO(0, " -> Audio Channels : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Channels;
+                mediaItem.setMeta(meta, data);
 
-            // BitRate
-            data = {gst_discoverer_audio_info_get_bitrate(audio_info)};
-            LOG_INFO(0, " -> Audio BitRate : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::BitRate;
-            mediaItem.setMeta(meta, data);
+                // BitRate
+                data = {gst_discoverer_audio_info_get_bitrate(audio_info)};
+                LOG_INFO(0, " -> Audio BitRate : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::BitRate;
+                mediaItem.setMeta(meta, data);
 
-            // BitPerSample
-            data = {gst_discoverer_audio_info_get_depth(audio_info)};
-            LOG_INFO(0, " -> Audio BitPerSample : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::BitPerSample;
+                // BitPerSample
+                data = {gst_discoverer_audio_info_get_depth(audio_info)};
+                LOG_INFO(0, " -> Audio BitPerSample : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::BitPerSample;
+            }
         }
         break;
     }
@@ -529,15 +542,16 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
             LOG_INFO(0, " -> Video Height : %u", std::get<std::uint32_t>(data));
             meta = MediaItem::Meta::Height;
             mediaItem.setMeta(meta, data);
-
-            // Frame rate
-            uint32_t num = gst_discoverer_video_info_get_framerate_num(video_info);
-            uint32_t denom = gst_discoverer_video_info_get_framerate_denom(video_info);
-            std::string frame_rate = std::to_string(num) + std::string("/") + std::to_string(denom);
-            data = {frame_rate};
-            LOG_INFO(0, " -> Video Frame Rate : %s", std::get<std::string>(data).c_str());
-            meta = MediaItem::Meta::FrameRate;
-            mediaItem.setMeta(meta, data);
+            if (expand) {
+                // Frame rate
+                uint32_t num = gst_discoverer_video_info_get_framerate_num(video_info);
+                uint32_t denom = gst_discoverer_video_info_get_framerate_denom(video_info);
+                std::string frame_rate = std::to_string(num) + std::string("/") + std::to_string(denom);
+                data = {frame_rate};
+                LOG_INFO(0, " -> Video Frame Rate : %s", std::get<std::string>(data).c_str());
+                meta = MediaItem::Meta::FrameRate;
+                mediaItem.setMeta(meta, data);
+            }
         }
         break;
     }
@@ -570,7 +584,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
         gst_discoverer_stream_info_get_next(streamInfo);
 
     if (nextStreamInfo) {
-        setStreamMeta(mediaItem, nextStreamInfo);
+        setStreamMeta(mediaItem, nextStreamInfo, expand);
         gst_discoverer_stream_info_unref(nextStreamInfo);
     } else if (GST_IS_DISCOVERER_CONTAINER_INFO(streamInfo)) {
         GList *streams =
@@ -578,7 +592,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
         for (GList *stream = streams; stream; stream = stream->next) {
             GstDiscovererStreamInfo *strInfo =
                 reinterpret_cast<GstDiscovererStreamInfo*>(stream->data);
-            setStreamMeta(mediaItem, strInfo);
+            setStreamMeta(mediaItem, strInfo, expand);
         }
         gst_discoverer_stream_info_list_free(streams);
     } else {
