@@ -28,6 +28,12 @@
 #include <cinttypes>
 #include <fstream>
 #include <iostream>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 
 std::unique_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
     MediaItem::Type type, std::string &ext) {
@@ -101,11 +107,15 @@ std::optional<IMetaDataExtractor::Date> IMetaDataExtractor::lastModifiedDate(Med
         return std::nullopt;
     }
 
-    auto ftime = std::filesystem::last_write_time(path);
-    std::stringstream ss;
     if (formatted)
     {
-        std::time_t timeFormatted = decltype(ftime)::clock::to_time_t(ftime);
+        struct stat fStatus;
+        if (stat(path.c_str(), &fStatus) < 0) {
+            LOG_ERROR(0, "stat error, caused by : %s", strerror(errno));
+            return std::nullopt;
+        }
+        std::stringstream ss;
+        std::time_t timeFormatted = fStatus.st_mtime;
         if (localTime)
         {
             ss << std::put_time(std::localtime(&timeFormatted), "%c %Z");
@@ -121,10 +131,12 @@ std::optional<IMetaDataExtractor::Date> IMetaDataExtractor::lastModifiedDate(Med
     }
     else
     {
+        std::filesystem::file_time_type ftime = std::filesystem::last_write_time(path);
         LOG_DEBUG("Return time with unformatted value %"PRId64"", ftime.time_since_epoch().count());
         return ftime.time_since_epoch().count();
     }
 }
+
 
 void IMetaDataExtractor::setMetaCommon(MediaItem &mediaItem) const
 {

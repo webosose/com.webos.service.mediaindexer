@@ -91,7 +91,17 @@ public:
      * \param[in] msg The Luna message.
      */
      bool sendDeviceNotification(LSMessage *msg = nullptr);
+
+     /**
+      * \brief Activate plugins to detect
+      *
+      * This internally calls get and setDetect.
+      */
+     bool activate();
+     
 protected:
+    /// Activate plugins and detection
+    static gboolean _activate(gpointer data);
     /// DeviceObserver interface.
     void deviceStateChanged(std::shared_ptr<Device> device);
 
