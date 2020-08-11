@@ -374,6 +374,7 @@ bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ct
         pbnjson::JValue respArray = pbnjson::Array();
         if (uri.empty()) {
             for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
+                _plg->lock();
                 for (auto const &[_uri, _dev] : _plg->devices()) {
                     if (_dev->available()) {
                         pbnjson::JValue list = pbnjson::Object();
@@ -383,10 +384,11 @@ bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ct
                         respArray.append(list);
                     }
                 }
+                _plg->unlock();
             }
         } else {
             pbnjson::JValue list = pbnjson::Object();
-            rv &= mdb->getAudioList(uri, list);            
+            rv &= mdb->getAudioList(uri, list);
             list.put("uri", uri.c_str());
             list.put("count", list["results"].arraySize());
             respArray.append(list);
@@ -494,6 +496,7 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
         pbnjson::JValue respArray = pbnjson::Array();
         if (uri.empty()) {
             for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
+                _plg->lock();
                 for (auto const &[_uri, _dev] : _plg->devices()) {
                     if (_dev->available()) {
                         pbnjson::JValue list = pbnjson::Object();
@@ -503,6 +506,7 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
                         respArray.append(list);
                     }
                 }
+                _plg->unlock();
             }
         } else {
             pbnjson::JValue list = pbnjson::Object();
@@ -612,15 +616,17 @@ bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ct
         pbnjson::JValue respArray = pbnjson::Array();
         if (uri.empty()) {
             for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
+                _plg->lock();
                 for (auto const &[_uri, _dev] : _plg->devices()) {
                     if (_dev->available()) {
                         pbnjson::JValue list = pbnjson::Object();
-                        rv &= mdb->getImageList(_uri, list);                        
+                        rv &= mdb->getImageList(_uri, list); 
                         list.put("uri", _uri.c_str());
                         list.put("count", list["results"].arraySize());
                         respArray.append(list);
                     }
                 }
+                _plg->unlock();
             }
         } else {
             pbnjson::JValue list = pbnjson::Object();
