@@ -17,7 +17,7 @@
 #include "mediadbconnector.h"
 
 const char *MediaDBConnector::mediaDBClientService_ = "com.webos.service.mediaindexer.client.db";
-const char *MediaDBConnector::dbUrl_ = "luna://com.webos.service.db/";
+const char *MediaDBConnector::dbUrl_ = "luna://com.webos.mediadb/";
 
 MediaDBConnector::MediaDBConnector()
     : Connector(mediaDBClientService_)

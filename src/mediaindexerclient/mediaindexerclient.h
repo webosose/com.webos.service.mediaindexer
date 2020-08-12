@@ -53,15 +53,19 @@ private:
                                  bool precise,
                                  pbnjson::JValue whereClause = pbnjson::Array()) const;
 
+    pbnjson::JValue prepareWhere(const std::string &key,
+                                 bool value,
+                                 bool precise,
+                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+
     pbnjson::JValue prepareQuery(pbnjson::JValue selectArray,
                                  const std::string& kindId,
                                  pbnjson::JValue where) const;
 
-    pbnjson::JValue prepareQuery(const std::string &key,
-                                 const std::string &value, 
-                                 bool precise,
+    pbnjson::JValue prepareQuery(pbnjson::JValue selectArray,
                                  const std::string& kindId,
-                                 pbnjson::JValue selectArray) const;
+                                 pbnjson::JValue where,
+                                 pbnjson::JValue filter) const;
 
     static constexpr const char *mediaKind_ = "com.webos.service.mediaindexer.media:1";
     static constexpr const char *audioKind_ = "com.webos.service.mediaindexer.audio:1";
