@@ -1,5 +1,5 @@
 {
-    "com.webos.service.mediaindexer.control": [
+    "mediaindexer.control": [
         "com.webos.service.mediaindexer/getPlugin",
         "com.webos.service.mediaindexer/putPlugin",
         "com.webos.service.mediaindexer/getPluginList",

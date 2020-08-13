@@ -3,8 +3,7 @@
     "type": "regular",
     "allowedNames": [
         "com.webos.service.mediaindexer.client*",
-        "com.webos.service.mediaindexer.client.db*",
-        "com.webos.service.mediaindexer.client.test"
+        "com.webos.service.mediaindexer.client.db*"
     ],
     "permissions": [
         {
@@ -14,11 +13,6 @@
         {
             "service":"com.webos.service.mediaindexer.client.db*",
             "outbound": ["com.webos.mediadb"]
-        },
-        {
-            "service":"com.webos.service.mediaindexer.client.test",
-            "outbound": ["com.webos.service.mediaindexer",
-                         "com.webos.mediadb"]
         }
     ]
 }

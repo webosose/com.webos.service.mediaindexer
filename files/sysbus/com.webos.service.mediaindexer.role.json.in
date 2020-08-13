@@ -11,7 +11,9 @@
         {
             "service": "com.webos.service.mediaindexer",
             "outbound": [ "com.webos.service.pdm",
-                          "com.webos.mediadb" ]
+                          "com.webos.mediadb",
+                          "com.webos.service.mediaindexer.client*"
+            ]
         },
         {
             "service": "com.webos.service.mediaindexer.media",
