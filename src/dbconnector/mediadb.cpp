@@ -25,7 +25,7 @@
 
 std::unique_ptr<MediaDb> MediaDb::instance_;
 std::mutex MediaDb::ctorLock_;
-
+std::mutex MediaDb::handlerLock_;
 
 MediaDb *MediaDb::instance()
 {
@@ -48,7 +48,7 @@ MediaDb::~MediaDb()
 bool MediaDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
-
+    std::lock_guard<std::mutex> lk(handlerLock_);
     if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
         return false;
 
@@ -76,8 +76,10 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         *reply = domTree;
 
     } else if (method == std::string("search")) {
-        if (!sd.object)
+        if (!sd.object) {
+            LOG_ERROR(0, "Search should include SessionData");
             return false;
+        }
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
@@ -90,14 +92,15 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         pbnjson::JValue domTree(parser.getDom());
         // response message
         auto reply = static_cast<pbnjson::JValue *>(sd.object);
-
-        if (!domTree.hasKey("results")){
-            return false;
-        }
-
-        // response message
-        auto matches = domTree["results"];
-        reply->put("results", matches);
+        pbnjson::JValue array = pbnjson::Array();
+        if (domTree.hasKey("results")){
+            auto matches = domTree["results"];
+            if (matches.isArray() && matches.isValid() && !matches.isNull())
+                reply->put("results", matches);
+            else
+                reply->put("results", array);
+        } else
+            reply->put("results", array);
 
         LOG_DEBUG("search response payload : %s",payload);
     }
@@ -251,7 +254,7 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
     }
     //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
     mergePut(mediaItem->uri(), true, typeProps, nullptr, kind_type);
-    mediaItem.release();
+    //mediaItem.release();
 }
 
 std::optional<std::string> MediaDb::getFilePath(
@@ -265,28 +268,35 @@ std::optional<std::string> MediaDb::getFilePath(
     return plg->getPlaybackUri(uri);
 }
 
-void MediaDb::markDirty(std::shared_ptr<Device> device)
+void MediaDb::markDirty(std::shared_ptr<Device> device, MediaItem::Type type)
 {
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put(DIRTY, true);
 
     //mergePut(device->uri(), false, props);
-    merge(AUDIO_KIND, props, URI, device->uri(), false);
-    merge(VIDEO_KIND, props, URI, device->uri(), false);
-    merge(IMAGE_KIND, props, URI, device->uri(), false);
+    if (type == MediaItem::Type::EOL) {
+        merge(AUDIO_KIND, props, URI, device->uri(), false);
+        merge(VIDEO_KIND, props, URI, device->uri(), false);
+        merge(IMAGE_KIND, props, URI, device->uri(), false);
+    } else
+        merge(kindMap_[type], props, URI, device->uri(), false);
 }
 
-void MediaDb::unflagDirty(const std::string &uri)
+void MediaDb::unflagDirty(const std::string &uri, MediaItem::Type type)
 {
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put(DIRTY, false);
 
     //mergePut(uri, true, props);
-    merge(AUDIO_KIND, props, URI, uri, true);
-    merge(VIDEO_KIND, props, URI, uri, true);
-    merge(IMAGE_KIND, props, URI, uri, true);
+    if (type == MediaItem::Type::EOL) {
+        merge(AUDIO_KIND, props, URI, uri, true);
+        merge(VIDEO_KIND, props, URI, uri, true);
+        merge(IMAGE_KIND, props, URI, uri, true);
+    } else {
+        merge(kindMap_[type], props, URI, uri, true);
+    }
 }
 
 void MediaDb::grantAccess(const std::string &serviceName)
@@ -297,13 +307,16 @@ void MediaDb::grantAccess(const std::string &serviceName)
     roAccess(dbClients_);
 }
 
-void MediaDb::grantAccessAll(const std::string &serviceName, pbnjson::JValue &resp)
+void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp)
 {
     LOG_INFO(0, "Add read-only access to media db for '%s'",
         serviceName.c_str());
     dbClients_.push_back(serviceName);
     std::list<std::string> kindList_ = {AUDIO_KIND, VIDEO_KIND, IMAGE_KIND};
-    roAccess(dbClients_, kindList_, &resp);
+    if (atomic)
+        roAccess(dbClients_, kindList_, &resp, atomic);
+    else
+        roAccess(dbClients_, kindList_, nullptr, atomic);
 }
 
 

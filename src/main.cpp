@@ -100,8 +100,8 @@ int main(int argc, char *argv[])
     using namespace std::chrono_literals;
 
     // install signal handler
-    signal(SIGABRT, signalHandler);
-    signal(SIGINT, signalHandler);
+    //signal(SIGABRT, signalHandler);
+    //signal(SIGINT, signalHandler);
 
     LOG_INFO(0, "//*****************************************//");
     LOG_INFO(0, "//                                         //");

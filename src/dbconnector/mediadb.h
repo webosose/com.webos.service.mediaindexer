@@ -95,14 +95,14 @@ public:
      *
      * \param[in] device The device to mark dirty.
      */
-    void markDirty(std::shared_ptr<Device> device);
+    void markDirty(std::shared_ptr<Device> device, MediaItem::Type type = MediaItem::Type::EOL);
 
     /**
      * \brief Mark media item as not dirty.
      *
      * \param[in] uri Uri of the media item to unflag.
      */
-    void unflagDirty(const std::string &uri);
+    void unflagDirty(const std::string &uri, MediaItem::Type type = MediaItem::Type::EOL);
 
     /**
      * \brief Add service to db access list.
@@ -111,7 +111,7 @@ public:
      */
     void grantAccess(const std::string &serviceName);
 
-    void grantAccessAll(const std::string &serviceName, pbnjson::JValue &resp);
+    void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp);
 
     bool getAudioList(const std::string &uri, pbnjson::JValue &resp);
 
@@ -133,6 +133,7 @@ private:
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
     static std::mutex ctorLock_;
+    static std::mutex handlerLock_;
     mutable std::mutex lock_;
     std::map<MediaItem::Type, std::string> kindMap_ = {
         {MediaItem::Type::Audio, AUDIO_KIND},

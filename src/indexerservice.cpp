@@ -15,6 +15,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "mediaindexer.h"
+#include "mediaparser.h"
 #include "plugins/pluginfactory.h"
 #include "pdmlistener/pdmlistener.h"
 #include "dbconnector/dbconnector.h"
@@ -39,6 +40,7 @@
 
 /// From main.cpp.
 extern const char *lunaServiceId;
+std::mutex IndexerService::mutex_;
 
 LSMethod IndexerService::serviceMethods_[] = {
     { "runDetect", IndexerService::onRun, LUNA_METHOD_FLAGS_NONE },
@@ -135,10 +137,18 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
 
     PdmListener::init(lsHandle_);
     DbConnector::init(lsHandle_);
-    MediaDb::instance();
-    SettingsDb::instance();
-    DeviceDb::instance();
-
+    auto dbInitialized = [&] () -> void {
+        MediaDb::instance();
+        SettingsDb::instance();
+        DeviceDb::instance();   
+        if(indexer_) {
+            indexer_->addPlugin("msc");
+            indexer_->addPlugin("storage");
+            indexer_->setDetect(true);
+        }
+    };
+    
+    dbObserver_ = new DbObserver(lsHandle_, dbInitialized);
 }
 
 IndexerService::~IndexerService()
@@ -151,6 +161,9 @@ IndexerService::~IndexerService()
 
     if (!LSUnregister(lsHandle_, &lsError))
         LOG_ERROR(0, "Service unregister failed");
+
+    if (dbObserver_)
+        delete dbObserver_;
 }
 
 bool IndexerService::pushDeviceList(LSMessage *msg)
@@ -212,7 +225,7 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
     reply.put("returnValue", true);
     LSError lsError;
     LSErrorInit(&lsError);
-
+    std::lock_guard<std::mutex> lk(mutex_);
     if (msg) {
         if (!LSMessageReply(lsHandle_, msg, reply.stringify().c_str(),
                 &lsError)) {
@@ -311,6 +324,7 @@ bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, 
 
     MediaDb *mdb = MediaDb::instance();
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
     if (mdb) {
         if (!domTree.hasKey("serviceName")) {
             LOG_ERROR(0, "serviceName field is mandatory input");
@@ -325,7 +339,7 @@ bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, 
             mdb->sendResponse(lsHandle, msg, reply.stringify());
             return false;
         }
-        mdb->grantAccessAll(serviceName, reply);
+        mdb->grantAccessAll(serviceName, true, reply);
         mdb->sendResponse(lsHandle, msg, reply.stringify());
     } else {
         LOG_ERROR(0, "Failed to get instance of Media Db");
@@ -369,9 +383,11 @@ bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ct
     MediaDb *mdb = MediaDb::instance();
     // response message
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue respArray = pbnjson::Array();
+        
         if (uri.empty()) {
             for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
                 _plg->lock();
@@ -439,6 +455,7 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
     auto mdb = MediaDb::instance();
     auto mparser = std::make_unique<MediaParser>(uri);
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
@@ -491,9 +508,11 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
     bool rv = true;
     auto mdb = MediaDb::instance();
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue respArray = pbnjson::Array();
+        
         if (uri.empty()) {
             for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
                 _plg->lock();
@@ -561,6 +580,7 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
     auto mdb = MediaDb::instance();
     auto mparser = std::make_unique<MediaParser>(uri);
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
@@ -611,9 +631,11 @@ bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ct
     bool rv = true;
     auto mdb = MediaDb::instance();
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue respArray = pbnjson::Array();
+        
         if (uri.empty()) {
             for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
                 _plg->lock();
@@ -682,6 +704,7 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
     auto mdb = MediaDb::instance();
     auto mparser = std::make_unique<MediaParser>(uri);
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
@@ -806,5 +829,6 @@ void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
     auto pos = sn.find_last_of("-");
     if (pos != std::string::npos)
         sn.erase(pos);
-    mdb->grantAccess(sn);
+    auto reply = pbnjson::Object();
+    mdb->grantAccessAll(sn, false, reply);
 }

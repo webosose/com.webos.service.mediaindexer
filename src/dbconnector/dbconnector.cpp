@@ -316,7 +316,7 @@ bool DbConnector::roAccess(std::list<std::string> &services)
     return true;
 }
 
-bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj)
+bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj, bool atomic)
 {
     if (!lsHandle_) {
         LOG_CRITICAL(0, "Luna bus handle not set");
@@ -326,7 +326,7 @@ bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::stri
     LSError lsError;
     LSErrorInit(&lsError);
     LSMessageToken sessionToken;
-
+    bool async = !atomic;
     std::string url = dbUrl_;
     url += "putPermissions";
 
@@ -352,7 +352,7 @@ bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::stri
     LOG_DEBUG("Request : %s", request.stringify().c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, false, &sessionToken, obj)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service permissions error");
         return false;
     }

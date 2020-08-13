@@ -143,7 +143,7 @@ protected:
      * \param[in] obj user data.
      * \return True on success, false on error.
      */
-    virtual bool roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj = nullptr);
+    virtual bool roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj = nullptr, bool atomic = false);
 
     /// Get message id.
     LOG_MSGID;

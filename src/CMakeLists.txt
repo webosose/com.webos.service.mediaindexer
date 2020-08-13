@@ -111,6 +111,8 @@ add_executable(com.webos.service.mediaindexer
   device.cpp
   mediaitem.cpp
   mediaparser.cpp
+  dbobserver.cpp
+  task.cpp
   mediaindexer.cpp)
 
 include_directories(./)

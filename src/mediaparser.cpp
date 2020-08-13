@@ -24,6 +24,8 @@ std::queue<std::unique_ptr<MediaParser>> MediaParser::tasks_;
 std::map<std::pair<MediaItem::Type, std::string>, std::unique_ptr<IMetaDataExtractor>> MediaParser::extractor_;
 int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
+std::map<MediaItem::Type, Task> taskMap_;
+
 
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
@@ -32,7 +34,7 @@ void MediaParser::enqueueTask(MediaItemPtr mediaItem)
     auto type = mediaItem->type();
     std::pair<MediaItem::Type, std::string> p(type, ext);
     if (extractor_.find(p) == extractor_.end()) {
-        LOG_DEBUG("Extractor is added for type = %d, ext = %s", type, ext.c_str());
+        LOG_DEBUG("Extractor is added for type = %d, ext = %s", static_cast<int>(type), ext.c_str());
         extractor_[p] = std::move(IMetaDataExtractor::extractor(type, ext));
     }
 

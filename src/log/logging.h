@@ -40,6 +40,18 @@
         return msgId;                                   \
     }
 
+/// Red shell output.
+#define COLOR_RED "\33[0;31m"
+/// Yellow shell output.
+#define COLOR_YELLOW "\033[1;33m"
+/// Green shell output.
+#define COLOR_GREEN "\033[1;32m"
+/// Blue shell output.
+#define COLOR_BLUE "\033[1;34m"
+/// Uncolored shell output.
+#define COLOR_NC "\033[0m"
+
+
 #if defined HAS_PMLOG
 #include <PmLogLib.h>
 
@@ -55,14 +67,7 @@ PmLogContext getPmLogContext();
 /// Dummy variable for standalone substitution.
 #define logContext 0
 
-/// Red shell output.
-#define COLOR_RED "\033[0;31m"
-/// Yellow shell output.
-#define COLOR_YELLOW "\033[1;33m"
-/// Green shell output.
-#define COLOR_GREEN "\033[1;32m"
-/// Uncolored shell output.
-#define COLOR_NC "\033[0m"
+
 
 /// Helper macro for standalone mode.
 #define PmLog(ctx, msgid, kvcount, fmt, ...)    \
@@ -109,20 +114,20 @@ PmLogContext getPmLogContext();
 
 /// Log critical message.
 #define LOG_CRITICAL(kvcount, fmt, ...)                       \
-    PmLogCritical(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogCritical(logContext, __msgId(), kvcount,  "[%d] %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log error message.
 #define LOG_ERROR(kvcount, fmt, ...)                          \
-    PmLogError(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogError(logContext, __msgId(), kvcount, COLOR_RED "[%d] %s:%s() " fmt , (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log warning message.
 #define LOG_WARNING(kvcount, fmt, ...)                        \
-    PmLogWarning(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogWarning(logContext, __msgId(), kvcount, COLOR_YELLOW "[%d] %s:%s() " fmt , (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log info message.
 #define LOG_INFO(kvcount, fmt, ...)                           \
-    PmLogInfo(logContext, __msgId(), kvcount, "[%d] %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogInfo(logContext, __msgId(), kvcount, COLOR_GREEN "[%d] %s:%s() " fmt , (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Debug log.
 #define LOG_DEBUG(fmt, ...)                                             \
-    PmLogDebug(logContext, "%s [%d] %s:%s() " fmt, __msgId(), (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogDebug(logContext, COLOR_BLUE "%s [%d] %s:%s() " fmt, __msgId(), (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)

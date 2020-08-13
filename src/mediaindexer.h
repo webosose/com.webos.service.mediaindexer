@@ -62,6 +62,14 @@ public:
     bool get(const std::string &uri);
 
     /**
+     * \brief Add plugin if not yet exists.
+     *
+     *
+     * \param[in] uri Base uri.
+     */
+    bool addPlugin(const std::string &uri);
+
+    /**
      * \brief Decrease plugin refcount and release if unused.
      *
      * \param[in] uri Base uri.
@@ -101,7 +109,7 @@ public:
      
 protected:
     /// Activate plugins and detection
-    static gboolean _activate(gpointer data);
+    static gboolean _activate(gpointer data);    
     /// DeviceObserver interface.
     void deviceStateChanged(std::shared_ptr<Device> device);
 

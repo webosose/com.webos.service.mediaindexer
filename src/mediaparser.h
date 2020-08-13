@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "task.h"
 #include "mediaitem.h"
 #include "metadataextractors/imetadataextractor.h"
 #include <pbnjson.hpp>
@@ -62,6 +63,8 @@ class MediaParser
     /// Meta data extrator.
     static std::map<std::pair<MediaItem::Type, std::string>,
            std::unique_ptr<IMetaDataExtractor>> extractor_;
+
+    static std::map<MediaItem::Type, Task> taskMap_;
 
     /// Do the meta data extraction.
     void extractMeta() const;

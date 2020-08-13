@@ -147,6 +147,7 @@ bool LunaConnector::_syncCallback(LSHandle *hdl, LSMessage *msg, void *ctx)
 
     SyncCallbackWrapper *wrapper = static_cast<SyncCallbackWrapper *>(ctx);
     if (!wrapper) {
+        LOG_ERROR(0, "Fatal Error : sync callback wrapper broken");
         return false;
     }
     LSMessageRef(msg);

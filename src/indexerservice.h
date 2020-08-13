@@ -17,10 +17,11 @@
 #pragma once
 
 #include "logging.h"
-
+#include "dbobserver.h"
 #include <pbnjson.hpp>
 #include <luna-service2/lunaservice.h>
 #include <string.h>
+#include <mutex>
 
 class MediaIndexer;
 
@@ -298,5 +299,7 @@ private:
     /// Luna service handle.
     LSHandle *lsHandle_;
     /// Media indexer.
+    DbObserver *dbObserver_;
     MediaIndexer *indexer_;
+    static std::mutex mutex_;
 };

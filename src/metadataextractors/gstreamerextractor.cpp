@@ -174,7 +174,7 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
         break;
     }
     case MediaItem::Type::EOL:
-        std::abort();
+        break;
     }
 
     setMetaCommon(mediaItem);
@@ -298,7 +298,7 @@ bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t he
 bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filename, const std::string &ext) const
 {
     LOG_DEBUG("Thumbnail Image creation start");
-
+    std::lock_guard<std::mutex> lk(mutex_);
     auto begin = std::chrono::high_resolution_clock::now();;
     MediaItem::Type type = mediaItem.type();
     if (type != MediaItem::Type::Video && type != MediaItem::Type::Image)
@@ -453,8 +453,7 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *
                 gst_date_time_unref(dateTime);
             }
         } else {
-            std::abort(); // we should not request a tag which type is
-                          // not supported
+            return;
         }
     } else if (!strcmp(tag, GST_TAG_TITLE)) {
         auto p = std::filesystem::path(mediaItem.path());

@@ -48,9 +48,7 @@ MediaIndexer::MediaIndexer() :
 #endif
     plugins_()
 {
-    get("msc");
-    get("storage");
-    //activate();
+    
 }
 
 MediaIndexer::~MediaIndexer()
@@ -81,6 +79,7 @@ bool MediaIndexer::get(const std::string &uri)
             return false;
 
         std::shared_lock lock(lock_);
+        LOG_DEBUG("add plugin uri : %s to plugins",plg->uri().c_str());
         plugins_[plg->uri()] = plg;
 
 #if defined HAS_LUNA
@@ -94,6 +93,26 @@ bool MediaIndexer::get(const std::string &uri)
     indexerService_->pushDeviceList();
 #endif
 
+    return true;
+}
+
+bool MediaIndexer::addPlugin(const std::string &uri)
+{
+    PluginFactory factory;
+    if (!uri.empty()) {
+        if (!hasPlugin(uri)) {
+            auto plg = factory.plugin(uri);
+            if (!plg)
+                return false;
+
+            std::shared_lock lock(lock_);
+            plugins_[plg->uri()] = plg;
+            LOG_DEBUG("add plugin uri : %s to plugins",plg->uri().c_str());
+        }
+    } else {
+        LOG_ERROR(0, "Invalid Input parameter");
+        return false;
+    }
     return true;
 }
 
@@ -179,41 +198,6 @@ bool MediaIndexer::sendDeviceNotification(LSMessage * msg)
     else
         return false;
 }
-
-bool MediaIndexer::activate()
-{
-    if (!mainLoop_) {
-        LOG_ERROR(0, "Invalid Main Loop for Media Indexer");
-        return false;
-    }
-    g_timeout_add_full(G_PRIORITY_HIGH, 0, &MediaIndexer::_activate, NULL, NULL);
-    return true;
-}
-
-gboolean MediaIndexer::_activate(gpointer data)
-{
-    MediaIndexer *mi = MediaIndexer::instance();//static_cast<MediaIndexer *>(data);
-    if (!mi) {
-        LOG_ERROR(0, "Invalid Object");
-        return G_SOURCE_REMOVE;
-    }
-    try {
-        if (g_main_loop_is_running(MediaIndexer::mainLoop_)) {
-            LOG_DEBUG("Mainloop run has been checked, activate plugins and detection");
-            mi->get("msc");
-            mi->get("storage");
-            mi->setDetect(true);            
-        }
-    } catch (const std::runtime_error& e) {
-        LOG_ERROR(0, "Runtime error occurred in activation procedure, message : %s",e.what());
-        return G_SOURCE_REMOVE;
-    } catch (...) {
-        LOG_ERROR(0, "Unexpected failure occurred in activation procedure");
-        return G_SOURCE_REMOVE;
-    }
-    return G_SOURCE_REMOVE;
-}
-
 
 void MediaIndexer::deviceStateChanged(std::shared_ptr<Device> device)
 {
