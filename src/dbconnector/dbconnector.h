@@ -107,25 +107,23 @@ protected:
      *
      * \param[in] kind_name kind id.
      * \param[in] selects kind column.
-     * \param[in] props JSON object with the properties to be updated.
-     * \param[in] val properties value.
-     * \param[in] precise Find precise matches or 'starts with'.
+     * \param[in] where JSON object with the properties to search.
+     * \param[in] filter JSON object with the properties to search.
      * \param[in] obj Some object to send with the luna request.
      * \param[in] atomic Sync/Async.
      * \return True on success, false on error.
      */
-    virtual bool search(const std::string &kind_name, pbnjson::JValue &selects,
-        const std::string &prop, const std::string &val, bool precise = true, void *obj = nullptr, bool atomic = false);
+    virtual bool search(const std::string &kind_name, pbnjson::JValue &selects, pbnjson::JValue &where,
+        pbnjson::JValue &filter, void *obj = nullptr, bool atomic = false);
 
     /**
-     * \brief Delete all objects with the given uri.
+     * \brief Delete all objects with the given uri by JSON object.
      *
-     * \param[in] uri The object uri.
-     * \param[in] precise Find precise matches or 'starts with'.
      * \param[in] kind_name kind id.
+     * \param[in] where JSON object with the properties to delete.
      * \return True on success, false on error.
      */
-    virtual bool del(const std::string &uri, bool precise = true, const std::string &kind_name = "");
+    virtual bool del(const std::string &kind_name, pbnjson::JValue &where);
 
     /**
      * \brief Give read only access to other services.

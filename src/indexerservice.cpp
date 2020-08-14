@@ -387,28 +387,13 @@ bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue respArray = pbnjson::Array();
-        
-        if (uri.empty()) {
-            for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
-                _plg->lock();
-                for (auto const &[_uri, _dev] : _plg->devices()) {
-                    if (_dev->available()) {
-                        pbnjson::JValue list = pbnjson::Object();
-                        rv &= mdb->getAudioList(_uri, list);
-                        list.put("uri", _uri.c_str());
-                        list.put("count", list["results"].arraySize());
-                        respArray.append(list);
-                    }
-                }
-                _plg->unlock();
-            }
-        } else {
-            pbnjson::JValue list = pbnjson::Object();
-            rv &= mdb->getAudioList(uri, list);
-            list.put("uri", uri.c_str());
-            list.put("count", list["results"].arraySize());
-            respArray.append(list);
-        }
+        pbnjson::JValue list = pbnjson::Object();
+
+        rv &= mdb->getAudioList(uri, list);
+        list.put("uri", uri.c_str());
+        list.put("count", list["results"].arraySize());
+        respArray.append(list);
+
         resp.put("audioList", respArray);
         mdb->putRespObject(rv, resp);
         mdb->sendResponse(lsHandle, msg, resp.stringify());
@@ -512,28 +497,13 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue respArray = pbnjson::Array();
-        
-        if (uri.empty()) {
-            for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
-                _plg->lock();
-                for (auto const &[_uri, _dev] : _plg->devices()) {
-                    if (_dev->available()) {
-                        pbnjson::JValue list = pbnjson::Object();
-                        rv &= mdb->getVideoList(_uri, list);
-                        list.put("uri", _uri.c_str());
-                        list.put("count", list["results"].arraySize());
-                        respArray.append(list);
-                    }
-                }
-                _plg->unlock();
-            }
-        } else {
-            pbnjson::JValue list = pbnjson::Object();
-            rv &= mdb->getVideoList(uri, list);
-            list.put("uri", uri.c_str());
-            list.put("count", list["results"].arraySize());
-            respArray.append(list);
-        }
+        pbnjson::JValue list = pbnjson::Object();
+
+        rv &= mdb->getVideoList(uri, list);
+        list.put("uri", uri.c_str());
+        list.put("count", list["results"].arraySize());
+        respArray.append(list);
+
         resp.put("videoList", respArray);
         mdb->putRespObject(rv, resp);
         mdb->sendResponse(lsHandle, msg, resp.stringify());
@@ -635,28 +605,13 @@ bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (mdb) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue respArray = pbnjson::Array();
-        
-        if (uri.empty()) {
-            for (auto const &[_uri, _plg] : is->indexer_->plugins_) {
-                _plg->lock();
-                for (auto const &[_uri, _dev] : _plg->devices()) {
-                    if (_dev->available()) {
-                        pbnjson::JValue list = pbnjson::Object();
-                        rv &= mdb->getImageList(_uri, list); 
-                        list.put("uri", _uri.c_str());
-                        list.put("count", list["results"].arraySize());
-                        respArray.append(list);
-                    }
-                }
-                _plg->unlock();
-            }
-        } else {
-            pbnjson::JValue list = pbnjson::Object();
-            rv &= mdb->getImageList(uri, list);
-            list.put("uri", uri.c_str());
-            list.put("count", list["results"].arraySize());
-            respArray.append(list);
-        }
+        pbnjson::JValue list = pbnjson::Object();
+
+        rv &= mdb->getImageList(uri, list);
+        list.put("uri", uri.c_str());
+        list.put("count", list["results"].arraySize());
+        respArray.append(list);
+
         resp.put("imageList", respArray);
         mdb->putRespObject(rv, resp);
         mdb->sendResponse(lsHandle, msg, resp.stringify());

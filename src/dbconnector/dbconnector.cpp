@@ -205,9 +205,8 @@ bool DbConnector::find(const std::string &uri, bool precise,
     return true;
 }
 
-// TODO : Need refactoring
 bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
-    const std::string &prop, const std::string &val, bool precise, void *obj, bool atomic)
+    pbnjson::JValue &where, pbnjson::JValue &filter, void *obj, bool atomic)
 {
     LSMessageToken sessionToken;
     bool async = !atomic;
@@ -218,18 +217,12 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
     auto query = pbnjson::Object();
     query.put("select", selects);
     query.put("from", kind_name);
-    auto where = pbnjson::Array();
-    auto cond = pbnjson::Object();
-    cond.put("prop", prop);
-    cond.put("op", precise ? "=" : "%");
-    cond.put("val", val);
-    where << cond;
     query.put("where", where);
+    if(filter.isArray() && filter.arraySize() > 0)
+        query.put("filter", filter);
 
     auto request = pbnjson::Object();
     request.put("query", query);
-    
-    LOG_INFO(0, "Send search for '%s' : '%s'", prop.c_str(), val.c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
@@ -239,32 +232,20 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
 
     return true;
 }
-bool DbConnector::del(const std::string &uri, bool precise, const std::string &kind_name)
+
+bool DbConnector::del(const std::string &kind_name, pbnjson::JValue &where)
 {
     LSMessageToken sessionToken;
 
     std::string url = dbUrl_;
     url += "del";
 
-    // query for matching uri
     auto query = pbnjson::Object();
-    if (kind_name.empty())
-        query.put("from", kindId_);
-    else
-        query.put("from", kind_name);
-
-    auto where = pbnjson::Array();
-    auto cond = pbnjson::Object();
-    cond.put("prop", "uri");
-    cond.put("op", precise ? "=" : "%");
-    cond.put("val", uri);
-    where << cond;
+    query.put("from", kind_name);
     query.put("where", where);
 
     auto request = pbnjson::Object();
     request.put("query", query);
-
-    LOG_INFO(0, "Send delete for '%s'", uri.c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, true, &sessionToken)) {

@@ -156,4 +156,14 @@ private:
     static constexpr char TYPE[] = "type";
     static constexpr char MIME[] = "mime";
     static constexpr char FILE_PATH[] = "file_path";
+
+    pbnjson::JValue prepareWhere(const std::string &key,
+                                 const std::string &value,
+                                 bool precise,
+                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+
+    pbnjson::JValue prepareWhere(const std::string &key,
+                                 bool value,
+                                 bool precise,
+                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
 };

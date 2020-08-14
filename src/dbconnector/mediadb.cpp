@@ -319,7 +319,6 @@ void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic, pbnjso
         roAccess(dbClients_, kindList_, nullptr, atomic);
 }
 
-
 bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
 {
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
@@ -335,7 +334,16 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
-    return search(AUDIO_KIND, selectArray, URI, uri, false, &resp, true);
+    auto where = pbnjson::Object();
+    auto filter = pbnjson::Object();
+    if (uri.empty()) {
+        where = prepareWhere("dirty", false, true);
+    } else {
+        where = prepareWhere(URI, uri, false);
+        filter = prepareWhere("dirty", false, true);
+    }
+
+    return search(AUDIO_KIND, selectArray, where, filter,&resp, true);
 }
 
 bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
@@ -352,7 +360,16 @@ bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
-    return search(VIDEO_KIND, selectArray, URI, uri, false, &resp, true);
+    auto where = pbnjson::Object();
+    auto filter = pbnjson::Object();
+    if (uri.empty()) {
+        where = prepareWhere("dirty", false, true);
+    } else {
+        where = prepareWhere(URI, uri, false);
+        filter = prepareWhere("dirty", false, true);
+    }
+
+    return search(VIDEO_KIND, selectArray, where, filter, &resp, true);
 }
 
 bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
@@ -368,7 +385,42 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
 
-    return search(IMAGE_KIND, selectArray, URI, uri, false, &resp, true);
+    auto where = pbnjson::Object();
+    auto filter = pbnjson::Object();
+    if (uri.empty()) {
+        where = prepareWhere("dirty", false, true);
+    } else {
+        where = prepareWhere(URI, uri, false);
+        filter = prepareWhere("dirty", false, true);
+    }
+
+    return search(IMAGE_KIND, selectArray, where, filter, &resp, true);
+}
+
+pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
+                                                 const std::string &value,
+                                                 bool precise,
+                                                 pbnjson::JValue whereClause) const
+{
+    auto cond = pbnjson::Object();
+    cond.put("prop", key);
+    cond.put("op", precise ? "=" : "%");
+    cond.put("val", value);
+    whereClause << cond;
+    return whereClause;
+}
+
+pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
+                                                 bool value,
+                                                 bool precise,
+                                                 pbnjson::JValue whereClause) const
+{
+    auto cond = pbnjson::Object();
+    cond.put("prop", key);
+    cond.put("op", precise ? "=" : "%");
+    cond.put("val", value);
+    whereClause << cond;
+    return whereClause;
 }
 
 void MediaDb::makeUriIndex(){
