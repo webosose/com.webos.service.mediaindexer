@@ -114,20 +114,20 @@ PmLogContext getPmLogContext();
 
 /// Log critical message.
 #define LOG_CRITICAL(kvcount, fmt, ...)                       \
-    PmLogCritical(logContext, __msgId(), kvcount,  "[%d] %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogCritical(logContext, __msgId(), kvcount,  "<%d> %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log error message.
 #define LOG_ERROR(kvcount, fmt, ...)                          \
-    PmLogError(logContext, __msgId(), kvcount, COLOR_RED "[%d] %s:%s() " fmt , (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogError(logContext, __msgId(), kvcount, COLOR_RED "<%d> %s:%s() " fmt COLOR_NC, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log warning message.
 #define LOG_WARNING(kvcount, fmt, ...)                        \
-    PmLogWarning(logContext, __msgId(), kvcount, COLOR_YELLOW "[%d] %s:%s() " fmt , (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogWarning(logContext, __msgId(), kvcount, COLOR_YELLOW "<%d> %s:%s() " fmt COLOR_NC, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log info message.
 #define LOG_INFO(kvcount, fmt, ...)                           \
-    PmLogInfo(logContext, __msgId(), kvcount, COLOR_GREEN "[%d] %s:%s() " fmt , (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogInfo(logContext, __msgId(), kvcount, COLOR_GREEN "<%d> %s:%s() " fmt COLOR_NC, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Debug log.
 #define LOG_DEBUG(fmt, ...)                                             \
-    PmLogDebug(logContext, COLOR_BLUE "%s [%d] %s:%s() " fmt, __msgId(), (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogDebug(logContext, COLOR_BLUE "%s <%d> %s:%s() " fmt COLOR_NC, __msgId(), (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)

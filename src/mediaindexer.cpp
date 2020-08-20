@@ -249,7 +249,7 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
         if (mdb->needUpdate(mediaItem.get()))
             metaDataUpdateRequired(std::move(mediaItem));
         else
-            mdb->unflagDirty(mediaItem->uri());
+            mdb->unflagDirty(mediaItem->uri(), mediaItem->type());
 
         // the device media item count has changed - notify
         // subscribers

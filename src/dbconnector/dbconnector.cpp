@@ -43,6 +43,11 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
         [this](LSMessageToken & token, const std::string & method, void *obj) -> void {
             rememberSessionData(token, method, obj);
         });
+
+    connector_->registerTokenCancelCallback(
+        [this](LSMessageToken & token, void *obj) -> void {
+            sessionDataFromToken(token, static_cast<SessionData*>(obj));
+        });
 }
 
 DbConnector::DbConnector()
@@ -366,8 +371,12 @@ bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd)
     auto match = messageMap_.find(token);
     if (match == messageMap_.end())
         return false;
-
-    *sd = match->second;
+    if (sd)
+        *sd = match->second;
+    else {
+        LOG_ERROR(0, "Invalid SessionData");
+        return false;
+    }
     messageMap_.erase(match);
     return true;
 }
@@ -385,13 +394,10 @@ void DbConnector::rememberSessionData(LSMessageToken token,
     // remember token for response - we could do that after the
     // request has been issued because the response will happen
     // from the mainloop in the same thread context
-    LOG_DEBUG("Save method %s, token %ld pair", method.c_str(), (long)token);
     std::lock_guard<std::mutex> lock(lock_);
+    LOG_DEBUG("Save method %s, token %ld pair", method.c_str(), (long)token);
     SessionData sd;
     sd.method = method;
     sd.object = object;
-    auto p = std::make_pair(token, sd);
-
-
-    messageMap_.emplace(p);
+    messageMap_[token] = sd;
 }

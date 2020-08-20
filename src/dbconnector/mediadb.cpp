@@ -49,8 +49,11 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
     std::lock_guard<std::mutex> lk(handlerLock_);
-    if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
+    LSMessageToken token = LSMessageGetResponseToken(msg);
+    if (!sessionDataFromToken(token, &sd)) {
+        LOG_ERROR(0, "Failed to find session data from message token %d", (long)token);
         return false;
+    }
 
     auto method = sd.method;
     LOG_INFO(0, "Received response com.webos.mediadb for: '%s'", method.c_str());
@@ -58,8 +61,10 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     // handle the media data exists case
     if (method == std::string("find") ||
         method == std::string("putPermissions")) {
-        if (!sd.object)
+        if (!sd.object) {
+            LOG_ERROR(0, "Invalid object in session data");
             return false;
+        }
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
@@ -132,7 +137,9 @@ bool MediaDb::needUpdate(MediaItem *mediaItem)
     std::string kind = "";
     if (mediaItem->type() != MediaItem::Type::EOL)
         kind = kindMap_[mediaItem->type()];
-    find(mediaItem->uri(), true, &resp, kind, true);
+    do {
+        ret = find(mediaItem->uri(), true, &resp, kind, true);
+    } while(!ret);
 
     LOG_DEBUG("find result for %s : %s",mediaItem->uri().c_str(), resp.stringify().c_str());
 
@@ -206,14 +213,10 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 {
     LOG_DEBUG("%s Start for mediaItem uri : %s",__FUNCTION__, mediaItem->uri().c_str());
     // update or create the device in the database
-/*
-    auto props = pbnjson::Object();
-    props.put(URI, mediaItem->uri());
-    props.put(HASH, std::to_string(mediaItem->hash()));
-    props.put(DIRTY, false);
-    props.put(TYPE, mediaItem->mediaTypeToString(mediaItem->type()));
-    props.put(MIME, mediaItem->mime());
-*/
+    if (mediaItem->type() == MediaItem::Type::EOL) {
+        LOG_ERROR(0, "Invalid media type");
+        return;
+    }
     auto typeProps = pbnjson::Object();
     typeProps.put(URI, mediaItem->uri());
     typeProps.put(HASH, std::to_string(mediaItem->hash()));
@@ -223,20 +226,7 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
     auto filepath = getFilePath(mediaItem->uri());
     typeProps.put(FILE_PATH, filepath ? filepath.value() : "");
 
-    std::string kind_type;
-    switch (mediaItem->type()) {
-        case MediaItem::Type::Audio:
-            kind_type = AUDIO_KIND;
-            break;
-        case MediaItem::Type::Video:
-            kind_type = VIDEO_KIND;
-            break;
-        case MediaItem::Type::Image:
-            kind_type = IMAGE_KIND;
-            break;
-        default:
-            break;
-    }
+    std::string kind_type = kindMap_[mediaItem->type()];
 
     for (auto meta = MediaItem::Meta::Title; meta < MediaItem::Meta::EOL; ++meta) {
         auto metaStr = mediaItem->metaToString(meta);

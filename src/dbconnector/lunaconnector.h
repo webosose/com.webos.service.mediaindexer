@@ -32,6 +32,7 @@
 #define CONNECTOR_WAIT_TIMEOUT 5
 typedef bool (*LunaConnectorCallback) (LSHandle *hdl, LSMessage *msg, void *ctx);
 typedef std::function<void(LSMessageToken & token, const std::string & method, void *obj)> tokenCallback_t;
+typedef std::function<void(LSMessageToken & token, void *obj)> tokenCancelCallback_t;
 
 typedef struct LunaConnectorLunaErr : LSError {
     LunaConnectorLunaErr() { LSErrorInit(this); }
@@ -67,6 +68,7 @@ public:
     LunaConnector(const std::string& name, bool async = false);
     ~LunaConnector();
     void registerTokenCallback(tokenCallback_t cb) { tokenCallback_ = cb; }
+    void registerTokenCancelCallback(tokenCancelCallback_t cb) { tokenCancelCallback_ = cb; }
     bool run();
     bool stop();
     bool sendMessage(const std::string &uri,
@@ -91,6 +93,7 @@ private:
     LSHandle *handle_;
     LSMessageToken token_;
     tokenCallback_t tokenCallback_;
+    tokenCancelCallback_t tokenCancelCallback_;
     void * userData_;
     bool stopped_;
 

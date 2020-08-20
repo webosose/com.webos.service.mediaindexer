@@ -19,13 +19,22 @@
 #include "plugins/plugin.h"
 #include "metadataextractors/imetadataextractor.h"
 #include "dbconnector/mediadb.h"
+#include <thread>
+#include <chrono>
+#include <condition_variable>
+
 
 std::queue<std::unique_ptr<MediaParser>> MediaParser::tasks_;
 std::map<std::pair<MediaItem::Type, std::string>, std::unique_ptr<IMetaDataExtractor>> MediaParser::extractor_;
 int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
-std::map<MediaItem::Type, Task> taskMap_;
+std::unique_ptr<MediaParser> MediaParser::instance_;
+std::mutex MediaParser::ctorLock_;
 
+typedef struct MediaItemWrapper
+{
+    MediaItemPtr mediaItem_;
+} MediaItemWrapper_t;
 
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
@@ -38,72 +47,69 @@ void MediaParser::enqueueTask(MediaItemPtr mediaItem)
         extractor_[p] = std::move(IMetaDataExtractor::extractor(type, ext));
     }
 
-    tasks_.push(std::make_unique<MediaParser>(std::move(mediaItem)));
+    MediaParser* mParser = MediaParser::instance();
+    MediaItemWrapper_t *mp = new MediaItemWrapper_t;
+    mp->mediaItem_ = std::move(mediaItem);
+    GError *error = nullptr;
+    if (!g_thread_pool_push(mParser->pool, (void *)(mp), &error)) {
+        LOG_ERROR(0, "Fail occurred in g_thread_pool_push");
+        if (error) {
+            LOG_ERROR(0, "Error Message : %s", error->message);
+            g_error_free(error);
+        }
+    }
+}
 
-    // let's try to start the task and any other pending tasks
-    LOG_DEBUG("runTask start from enqueTask");
-    runTask();
+MediaParser *MediaParser::instance()
+{
+    std::lock_guard<std::mutex> lk(ctorLock_);
+    if (!instance_.get()) {
+        instance_.reset(new MediaParser());
+    }
+    return instance_.get();
 }
 
 MediaParser::~MediaParser()
 {
     // all threads are running in detached mode so no need to cleanup
     // anything here
-    mediaItem_.reset();
+    LOG_INFO(0, "MediaParser Dtor!!!");
+    g_thread_pool_free(pool, TRUE, TRUE);
+    //mediaItem_.reset();
 }
 
-MediaParser::MediaParser(MediaItemPtr mediaItem) :
-    mediaItem_(std::move(mediaItem)),
-    useDefaultExtractor_(false)
+MediaParser::MediaParser()
 {
-    auto path = mediaItem_->path();
-    if (*path.begin() == '/')
-        useDefaultExtractor_ = true;
-    else
-        LOG_DEBUG("Use plugin specific meta data extractor for '%s'",
-            mediaItem_->uri().c_str());
+    pool = g_thread_pool_new((GFunc) &MediaParser::extractMeta, this, PARALLEL_META_EXTRACTION, TRUE, NULL);
+    g_thread_pool_set_max_unused_threads(PARALLEL_META_EXTRACTION);
 }
 
-MediaParser::MediaParser(std::string &uri) :
-    useDefaultExtractor_(false)
+bool MediaParser::setMediaItem(std::string & uri)
 {
+    std::lock_guard<std::mutex> lock(mediaItemLock_);
+    if (mediaItem_.get() != nullptr)
+        mediaItem_.reset();
     mediaItem_ = std::unique_ptr<MediaItem>(new MediaItem(uri));
-    auto path = mediaItem_->path();
-    if (*path.begin() == '/')
-        useDefaultExtractor_ = true;
-    else
-        LOG_DEBUG("Use plugin specific meta data extractor for '%s'",
-            mediaItem_->uri().c_str());
     if (mediaItem_.get() == nullptr) {
         LOG_ERROR(0, "Failed to get mediaitem!");
+        return false;
     }
-}
-
-void MediaParser::runTask()
-{
-    // start as many tasks as possible
-    while (runningThreads_ < PARALLEL_META_EXTRACTION && !tasks_.empty()) {
-        auto task = std::move(tasks_.front());
-        tasks_.pop(); // remove task from queue
-
-        // run the meta data extraction
-        auto mp = task.release();
-        std::thread t(&MediaParser::extractMeta, mp);
-        t.detach(); // runnable
-
-        runningThreads_++;
-
-        LOG_DEBUG("Media parser threads %i", runningThreads_);
-    }
+    return true;
 }
 
 bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
 {
     try {
+        std::lock_guard<std::mutex> lock(mediaItemLock_);
         auto mi = mediaItem_.get();
+        if (mi == nullptr) {
+            LOG_ERROR(0, "Media Item is invalid");
+            return false;
+        }
         LOG_DEBUG("Media item to extract %p with parser %p", mi, this);
+        auto path = mediaItem_->path();
 
-        if (useDefaultExtractor_) {
+        if (*path.begin() == '/') {
             std::pair<MediaItem::Type, std::string> p(mediaItem_->type(), mi->ext());
 
             if (extractor_.find(p) != extractor_.end()) {
@@ -126,6 +132,7 @@ bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
             LOG_ERROR(0, "Failed to put meta to json");
             return false;
         }
+        mediaItem_.reset();
     } catch (const std::exception & e) {
         LOG_ERROR(0, "MediaParser::extractMeta failure: %s", e.what());
         return false;
@@ -136,53 +143,53 @@ bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
     return true;
 }
 
-
-void MediaParser::extractMeta() const
+void MediaParser::extractMeta(void *data, void *user_data)
 {
     // make sure we are deleted when this method terminates
     try {
-        std::unique_ptr<const MediaParser> me(this);
+        if (!data || !user_data) {
+            LOG_ERROR(0, "Invalid Input parameters");
+            return;
+        }
+        MediaParser *mp = static_cast<MediaParser *>(user_data);
+        MediaItemWrapper_t * pMip = static_cast<MediaItemWrapper_t *>(data);
+        if (!pMip) {
+            LOG_ERROR(0, "Failed to extractor media item, Invalid input data parameter");
+            return;
+        }
+        MediaItemPtr mip = std::move(pMip->mediaItem_);
+        LOG_INFO(0, "Media item to extract %p with parser %p", mip.get(), mp);
 
-        auto mi = mediaItem_.get();
-        LOG_DEBUG("Media item to extract %p with parser %p", mi, this);
-
-        if (useDefaultExtractor_) {
-            std::pair<MediaItem::Type, std::string> p(mediaItem_->type(), mi->ext());
+        auto path = mip->path();
+        if (*path.begin() == '/') {
+            std::pair<MediaItem::Type, std::string> p(mip->type(), mip->ext());
 
             if (extractor_.find(p) != extractor_.end()) {
-                extractor_[p]->extractMeta(*mi);
-                mi->setParsed(true);
+                extractor_[p]->extractMeta(*mip);
+                mip->setParsed(true);
             } else {
-                LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mediaItem_->type()).c_str(), mi->ext().c_str());
+                LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mip->type()).c_str(), mip->ext().c_str());
                 LOG_DEBUG("Create new extractor");
                 extractor_[p] = std::move(IMetaDataExtractor::extractor(p.first, p.second));
-                extractor_[p]->extractMeta(*mi);
-                mi->setParsed(true);
+                extractor_[p]->extractMeta(*mip);
+                mip->setParsed(true);
             }
         } else {
-            auto plg = PluginFactory().plugin(mediaItem_->uri());
-            plg->extractMeta(*mi);
-            mi->setParsed(true);
+            auto plg = PluginFactory().plugin(mip->uri());
+            plg->extractMeta(*mip);
+            mip->setParsed(true);
         }
-
         // if we succeeded push the media item back to observer
-        if (mediaItem_->parsed()) {
-            LOG_DEBUG("Pushing parsed mediaitem %p back to observer, newMediaItem start", mi);
-            //mediaItem_->observer()->newMediaItem(std::move(mediaItem_));
+        if (mip->parsed()) {
+            LOG_INFO(0, "Pushing parsed mediaitem %p back to observer, newMediaItem start", mip.get());
             auto mdb = MediaDb::instance();
-            mdb->updateMediaItem(std::move(mediaItem_));
+            mdb->updateMediaItem(std::move(mip));
+            LOG_INFO(0, "mdb->updateMediaItem Done");
         }
-
-        // update the object state and try to run pending tasks
-        std::lock_guard<std::mutex> lock(lock_);
-        runningThreads_--;
-        LOG_DEBUG("runTask start from extractMeta");
-        runTask(); // let's give it a try
+        delete pMip;
     } catch (const std::exception & e) {
         LOG_ERROR(0, "MediaParser::extractMeta failure: %s", e.what());
     } catch (...) {
         LOG_ERROR(0, "MediaParser::extractMeta failure by unexpected failure");
     }
-
-    LOG_DEBUG("Media parser threads %i", runningThreads_);
 }

@@ -148,6 +148,7 @@ bool LunaConnector::_syncCallback(LSHandle *hdl, LSMessage *msg, void *ctx)
     SyncCallbackWrapper *wrapper = static_cast<SyncCallbackWrapper *>(ctx);
     if (!wrapper) {
         LOG_ERROR(0, "Fatal Error : sync callback wrapper broken");
+        wrapper->wakeUp();
         return false;
     }
     LSMessageRef(msg);
@@ -161,7 +162,7 @@ bool LunaConnector::_syncCallback(LSHandle *hdl, LSMessage *msg, void *ctx)
     return ret;
 }
 
-bool LunaConnector::sendMessage(const std :: string & uri, const std :: string & payload, 
+bool LunaConnector::sendMessage(const std :: string & uri, const std :: string & payload,
     LunaConnectorCallback cb, void * ctx, bool async, LSMessageToken *token, void *obj)
 {
     lunaError_t lunaErr;
@@ -197,7 +198,6 @@ bool LunaConnector::sendMessage(const std :: string & uri, const std :: string &
                 LOG_ERROR(0, "Error Message : %s", lunaErr.message);
                 return false;
             }
-
             if (tokenCallback_)
                 tokenCallback_(*msgToken, method, obj);
         }
@@ -211,13 +211,13 @@ bool LunaConnector::sendMessage(const std :: string & uri, const std :: string &
                 LOG_ERROR(0, "Error Message : %s", lunaErr.message);
                 return false;
             }
-
             if (tokenCallback_)
                 tokenCallback_(*msgToken, method, obj);
-
             if (callbackWrapper.wait(lock_))
             {
                 LOG_ERROR(0, "Sync handler timeout!");
+                if (tokenCancelCallback_)
+                    tokenCancelCallback_(*msgToken, nullptr);
                 return false;
             }
 

@@ -425,6 +425,10 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *
     const char *tag) const
 {
     GValue val = G_VALUE_INIT;
+    if (!info || !tag) {
+        LOG_ERROR(0, "Invalid input parameter");
+        return;
+    }
     const GstTagList *metaInfo = gst_discoverer_info_get_tags(info);
 
     MediaItem::MetaData data;

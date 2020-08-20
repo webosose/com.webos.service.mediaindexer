@@ -29,6 +29,8 @@
 #include <pbnjson.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 #define RETURN_IF(exp,rv,format,args...) \
         { if(exp) { \
@@ -138,16 +140,17 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
     PdmListener::init(lsHandle_);
     DbConnector::init(lsHandle_);
     auto dbInitialized = [&] () -> void {
-        MediaDb::instance();
-        SettingsDb::instance();
-        DeviceDb::instance();   
-        if(indexer_) {
-            indexer_->addPlugin("msc");
-            indexer_->addPlugin("storage");
-            indexer_->setDetect(true);
-        }
+            MediaDb::instance();
+            SettingsDb::instance();
+            DeviceDb::instance();
+            MediaParser::instance();
+            if(indexer_) {
+                indexer_->addPlugin("msc");
+                indexer_->addPlugin("storage");
+                indexer_->setDetect(true);
+            }
     };
-    
+
     dbObserver_ = new DbObserver(lsHandle_, dbInitialized);
 }
 
@@ -438,14 +441,15 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
         uri.c_str());
     bool rv = false;
     auto mdb = MediaDb::instance();
-    auto mparser = std::make_unique<MediaParser>(uri);
+    auto mparser = MediaParser::instance();
     auto reply = pbnjson::Object();
     std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb) {
+    if (mdb && mparser) {
         pbnjson::JValue resp = pbnjson::Object();
-        pbnjson::JValue metadata = pbnjson::Object();
+        pbnjson::JValue metadata = pbnjson::Object(); 
         rv = mdb->getAudioList(uri, resp);
         metadata << resp["results"];
+        rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);
         mdb->putRespObject(rv, reply);
@@ -463,7 +467,6 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
             LOG_ERROR(0, "Message reply error");
         }
     }
-    mparser.reset();
     return rv;
 
 }
@@ -548,14 +551,15 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
         uri.c_str());
     bool rv = false;
     auto mdb = MediaDb::instance();
-    auto mparser = std::make_unique<MediaParser>(uri);
+    auto mparser = MediaParser::instance();
     auto reply = pbnjson::Object();
     std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb) {
+    if (mdb && mparser) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
         rv = mdb->getVideoList(uri, resp);
         metadata << resp["results"];
+        rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);
         mdb->putRespObject(rv, reply);
@@ -573,7 +577,6 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
             LOG_ERROR(0, "Message reply error");
         }
     }
-    mparser.reset();
     return rv;
 }
 
@@ -657,14 +660,15 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
         uri.c_str());
     bool rv = false;
     auto mdb = MediaDb::instance();
-    auto mparser = std::make_unique<MediaParser>(uri);
+    auto mparser = MediaParser::instance();
     auto reply = pbnjson::Object();
     std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb) {
+    if (mdb && mparser) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
         rv = mdb->getVideoList(uri, resp);
         metadata << resp["results"];
+        rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);
         mdb->putRespObject(rv, reply);
@@ -682,7 +686,6 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
             LOG_ERROR(0, "Message reply error");
         }
     }
-    mparser.reset();
     return rv;
 
 }

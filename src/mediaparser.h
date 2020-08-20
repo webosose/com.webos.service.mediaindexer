@@ -22,10 +22,12 @@
 #include <pbnjson.hpp>
 
 #include <thread>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <list>
 #include <atomic>
+#include <glib.h>
 
 /// Media parser class for meta data extraction.
 class MediaParser
@@ -34,11 +36,19 @@ class MediaParser
     /// Enqueue meta data extraction task.
     static void enqueueTask(MediaItemPtr mediaItem);
 
-    /// Get media parser instance for certain device.
-    MediaParser(MediaItemPtr mediaItem);
+    static void extractMeta(void *data, void *user_data);
 
-    /// Get media parser instance for direct metadata extraction
-    MediaParser(std::string &uri);
+    /**
+     * \brief Get media parser object.
+     *
+     * \return Singleton object.
+     */
+    static MediaParser *instance();
+
+    bool setMediaItem(std::string & uri);
+
+    /// Construction is only allowed with media item.
+    MediaParser();
 
     /// For the purpose of direct meta extraction from indexer service api
     bool extractMetaDirect(pbnjson::JValue &meta);
@@ -48,12 +58,11 @@ class MediaParser
     /// Get message id.
     LOG_MSGID;
 
-    /// Construction is only allowed with media item.
-    MediaParser() {};
-
     /// Start new task, must be called with lock locked.
     static void runTask();
 
+    static std::unique_ptr<MediaParser> instance_;
+    static std::mutex ctorLock_;
     /// Queue of meta data extraction tasks.
     static std::queue<std::unique_ptr<MediaParser>> tasks_;
     /// Number of currently running threads.
@@ -63,12 +72,8 @@ class MediaParser
     /// Meta data extrator.
     static std::map<std::pair<MediaItem::Type, std::string>,
            std::unique_ptr<IMetaDataExtractor>> extractor_;
-
-    static std::map<MediaItem::Type, Task> taskMap_;
-
-    /// Do the meta data extraction.
-    void extractMeta() const;
-
+    GThreadPool *pool = nullptr;
+    std::mutex mediaItemLock_;
     /// The media item this media parser works on - extractMeta will
     /// modify it internally though it is otherwise consideren to be
     /// const so better make this mutable
