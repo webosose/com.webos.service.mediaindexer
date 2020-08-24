@@ -309,7 +309,7 @@ bool IndexerService::onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 
 bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_DEBUG("call onGetAudioList");
+    LOG_DEBUG("call onMediaDbPermissionGet");
     IndexerService *is = static_cast<IndexerService *>(ctx);
     std::string uri;
     // parse incoming message
@@ -393,7 +393,8 @@ bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ct
         pbnjson::JValue list = pbnjson::Object();
 
         rv &= mdb->getAudioList(uri, list);
-        list.put("uri", uri.c_str());
+        if (!uri.empty())
+            list.put("uri", uri.c_str());
         list.put("count", list["results"].arraySize());
         respArray.append(list);
 
@@ -503,7 +504,8 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
         pbnjson::JValue list = pbnjson::Object();
 
         rv &= mdb->getVideoList(uri, list);
-        list.put("uri", uri.c_str());
+        if (!uri.empty())
+            list.put("uri", uri.c_str());
         list.put("count", list["results"].arraySize());
         respArray.append(list);
 
@@ -611,7 +613,8 @@ bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ct
         pbnjson::JValue list = pbnjson::Object();
 
         rv &= mdb->getImageList(uri, list);
-        list.put("uri", uri.c_str());
+        if (!uri.empty())
+            list.put("uri", uri.c_str());
         list.put("count", list["results"].arraySize());
         respArray.append(list);
 
