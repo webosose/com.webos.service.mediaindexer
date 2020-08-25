@@ -140,15 +140,15 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
     PdmListener::init(lsHandle_);
     DbConnector::init(lsHandle_);
     auto dbInitialized = [&] () -> void {
-            MediaDb::instance();
-            SettingsDb::instance();
-            DeviceDb::instance();
-            MediaParser::instance();
-            if(indexer_) {
-                indexer_->addPlugin("msc");
-                indexer_->addPlugin("storage");
-                indexer_->setDetect(true);
-            }
+        MediaDb::instance();
+        SettingsDb::instance();
+        DeviceDb::instance();
+        MediaParser::instance();
+        if(indexer_) {
+            indexer_->addPlugin("msc");
+            indexer_->addPlugin("storage");
+            indexer_->setDetect(true);
+        }
     };
 
     dbObserver_ = new DbObserver(lsHandle_, dbInitialized);
@@ -310,7 +310,6 @@ bool IndexerService::onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_DEBUG("call onMediaDbPermissionGet");
-    IndexerService *is = static_cast<IndexerService *>(ctx);
     std::string uri;
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
@@ -364,7 +363,6 @@ bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, 
 bool IndexerService::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_DEBUG("call onGetAudioList");
-    IndexerService *is = static_cast<IndexerService *>(ctx);
     std::string uri;
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
@@ -476,7 +474,6 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
 bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_DEBUG("call onGetVideoList");
-    IndexerService *is = static_cast<IndexerService *>(ctx);
     std::string uri;
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
@@ -585,7 +582,6 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
 bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_DEBUG("call onGetImageList");
-    IndexerService *is = static_cast<IndexerService *>(ctx);
     std::string uri;
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);

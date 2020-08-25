@@ -51,7 +51,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     std::lock_guard<std::mutex> lk(handlerLock_);
     LSMessageToken token = LSMessageGetResponseToken(msg);
     if (!sessionDataFromToken(token, &sd)) {
-        LOG_ERROR(0, "Failed to find session data from message token %d", (long)token);
+        LOG_ERROR(0, "Failed to find session data from message token %ld", (long)token);
         return false;
     }
 
@@ -173,7 +173,7 @@ bool MediaDb::needUpdate(MediaItem *mediaItem)
             mediaItem->uri().c_str());
         return true;
     } else if (!isEnoughInfo(mediaItem, match)) {
-        LOG_DEBUG("Media item '%s' has some missing information, need to be updated");
+        LOG_DEBUG("Media item '%s' has some missing information, need to be updated", mediaItem->uri().c_str());
         return true;
     } else {
         LOG_DEBUG("Media item '%s' unchanged", mediaItem->uri().c_str());

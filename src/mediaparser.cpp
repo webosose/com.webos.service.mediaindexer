@@ -30,6 +30,7 @@ int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
 std::unique_ptr<MediaParser> MediaParser::instance_;
 std::mutex MediaParser::ctorLock_;
+constexpr int retryCnt = 3;
 
 typedef struct MediaItemWrapper
 {
@@ -164,28 +165,34 @@ void MediaParser::extractMeta(void *data, void *user_data)
         if (*path.begin() == '/') {
             std::pair<MediaItem::Type, std::string> p(mip->type(), mip->ext());
 
-            if (extractor_.find(p) != extractor_.end()) {
-                extractor_[p]->extractMeta(*mip);
-                mip->setParsed(true);
-            } else {
+            if (extractor_.find(p) == extractor_.end()) {
                 LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mip->type()).c_str(), mip->ext().c_str());
                 LOG_DEBUG("Create new extractor");
                 extractor_[p] = std::move(IMetaDataExtractor::extractor(p.first, p.second));
-                extractor_[p]->extractMeta(*mip);
-                mip->setParsed(true);
+            }
+            uint32_t retry = 0;
+            /* FIXME : We should replace retry with another solution that is more safe and without 
+                       performance degradation. This is just workaround for prevent a media file extraction is failed
+                       because gstreamer discoverInfo or streamInfo object acquisition is failed
+            */
+            while(!extractor_[p]->extractMeta(*mip)) {
+                if (++retry >= retryCnt) {
+                    LOG_ERROR(0, "Failed to extract metadata for %s", mip->uri().c_str());
+                    break;
+                }
+                LOG_WARNING(0, "%s meta data extraction failed, retry with cnt = %d", retry);
             }
         } else {
             auto plg = PluginFactory().plugin(mip->uri());
             plg->extractMeta(*mip);
-            mip->setParsed(true);
         }
-        // if we succeeded push the media item back to observer
-        if (mip->parsed()) {
-            LOG_INFO(0, "Pushing parsed mediaitem %p back to observer, newMediaItem start", mip.get());
-            auto mdb = MediaDb::instance();
-            mdb->updateMediaItem(std::move(mip));
-            LOG_INFO(0, "mdb->updateMediaItem Done");
-        }
+
+        mip->setParsed(true);
+        LOG_INFO(0, "Pushing parsed mediaitem %p to mdb, updateMediaItem start", mip.get());
+        auto mdb = MediaDb::instance();
+        mdb->updateMediaItem(std::move(mip));
+        LOG_INFO(0, "mdb->updateMediaItem Done");
+
         delete pMip;
     } catch (const std::exception & e) {
         LOG_ERROR(0, "MediaParser::extractMeta failure: %s", e.what());

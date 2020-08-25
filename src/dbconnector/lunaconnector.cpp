@@ -17,7 +17,8 @@
 #include "lunaconnector.h"
 
 bool LunaConnector::isTaskStarted_ = false;
-
+std::mutex LunaConnector::syncCallbackLock_;
+std::mutex LunaConnector::CallbackLock_;
 
 LunaConnector::LunaConnector(const std::string& name, bool async)
     : serviceName_(name),
@@ -141,11 +142,12 @@ bool LunaConnector::stop()
 bool LunaConnector::_syncCallback(LSHandle *hdl, LSMessage *msg, void *ctx)
 {
     bool ret = true;
+    std::lock_guard<std::mutex> syncLock_(syncCallbackLock_);
     LOG_DEBUG("Get response from sender");
     LOG_DEBUG("Sender Service Name : %s", LSMessageGetSenderServiceName(msg));
     LOG_DEBUG("Message : %s", LSMessageGetPayload(msg));
 
-    SyncCallbackWrapper *wrapper = static_cast<SyncCallbackWrapper *>(ctx);
+    CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(ctx);
     if (!wrapper) {
         LOG_ERROR(0, "Fatal Error : sync callback wrapper broken");
         wrapper->wakeUp();
@@ -161,6 +163,27 @@ bool LunaConnector::_syncCallback(LSHandle *hdl, LSMessage *msg, void *ctx)
     wrapper->wakeUp();
     return ret;
 }
+
+bool LunaConnector::_Callback(LSHandle *hdl, LSMessage *msg, void *ctx)
+{
+    bool ret = true;
+    std::lock_guard<std::mutex> Lock_(CallbackLock_);
+    CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(ctx);
+
+    if (wrapper) {
+        LSMessageRef(msg);
+        if (!wrapper->callback(hdl, msg)) {
+            LOG_ERROR(0, "Fail occurred in callback function");
+            ret = false;
+        }
+        LSMessageUnref(msg);
+    } else {
+        LOG_ERROR(0, "Fatal Error : callback wrapper broken");
+        ret = false;
+    }
+    return ret;
+}
+
 
 bool LunaConnector::sendMessage(const std :: string & uri, const std :: string & payload,
     LunaConnectorCallback cb, void * ctx, bool async, LSMessageToken *token, void *obj)
@@ -190,9 +213,13 @@ bool LunaConnector::sendMessage(const std :: string & uri, const std :: string &
             cv_.wait(lk,[&]{return isTaskStarted_ == true;});
         }
 
+        std::unique_lock<std::mutex> lock_(callbackWrapper.getMutex());
+        callbackWrapper.setHandler(cb, ctx);
+
         if (async)
         {
-            if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), cb, ctx, msgToken, &lunaErr))
+            std::lock_guard<std::mutex> Lock_(CallbackLock_);
+            if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), _Callback, &callbackWrapper, msgToken, &lunaErr))
             {
                 LOG_ERROR(0, "Failed to send message %s", payload.c_str());
                 LOG_ERROR(0, "Error Message : %s", lunaErr.message);
@@ -203,16 +230,17 @@ bool LunaConnector::sendMessage(const std :: string & uri, const std :: string &
         }
         else
         {
-            std::unique_lock<std::mutex> lock_(callbackWrapper.getMutex());
-            callbackWrapper.setHandler(cb, ctx);
-            if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), _syncCallback, &callbackWrapper, msgToken, &lunaErr))
             {
-                LOG_ERROR(0, "Failed to send message %s", payload.c_str());
-                LOG_ERROR(0, "Error Message : %s", lunaErr.message);
-                return false;
+                std::lock_guard<std::mutex> syncLock_(syncCallbackLock_);
+                if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), _syncCallback, &callbackWrapper, msgToken, &lunaErr))
+                {
+                    LOG_ERROR(0, "Failed to send message %s", payload.c_str());
+                    LOG_ERROR(0, "Error Message : %s", lunaErr.message);
+                    return false;
+                }
+                if (tokenCallback_)
+                    tokenCallback_(*msgToken, method, obj);
             }
-            if (tokenCallback_)
-                tokenCallback_(*msgToken, method, obj);
             if (callbackWrapper.wait(lock_))
             {
                 LOG_ERROR(0, "Sync handler timeout!");

@@ -71,14 +71,17 @@ GStreamerExtractor::~GStreamerExtractor()
     // nothing to be done here
 }
 
-void GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
+bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
 {
+    bool ret = true;
     bool force_sw_decoders = false;
     GstDiscoverer *discoverer = gst_discoverer_new(GST_SECOND, NULL);
-    GError *error;
+    GError *error = nullptr;
 
-    if (!discoverer)
-        return;
+    if (!discoverer) {
+        LOG_ERROR(0, "ERROR : Failed to create GstDiscover object");
+        return false;
+    }
 
     std::string uri = "file://";
     uri.append(mediaItem.path());
@@ -123,15 +126,18 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
         if (error)
             g_error_free(error);
         g_object_unref(discoverer);
-        return;
+        return false;
     }
 
     // get stream info from discover info.
     GstDiscovererStreamInfo *streamInfo =
         gst_discoverer_info_get_stream_info(discoverInfo);
 
-    if (!streamInfo)
+    if (!streamInfo) {
+        LOG_ERROR(0, "Failed to create streamInfo object");
+        ret = false;
         goto out;
+    }
 
     switch (mediaItem.type()) {
     case MediaItem::Type::Audio: {
@@ -187,6 +193,7 @@ void GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
     if (streamInfo)
         gst_discoverer_stream_info_unref(streamInfo);
     g_object_unref(discoverer);
+    return ret;
 }
 
 bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t height,
@@ -278,7 +285,6 @@ bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t he
         GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data (static_cast<uint8_t *>(data),
             GDK_COLORSPACE_RGB, TRUE, 8, width, height,
             GST_ROUND_UP_4 (width * 4), NULL, NULL);
-        GSList *sformats;
         GError *error = nullptr;
 
         if (!gdk_pixbuf_save (pixbuf, filename.c_str(), ext.c_str(), &error, NULL)) {
@@ -405,7 +411,7 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
 
     auto end = std::chrono::high_resolution_clock::now();;
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-    LOG_DEBUG("Thumbnail Image creation done, elapsed time = %d [ms]", elapsedTime);
+    LOG_DEBUG("Thumbnail Image creation done, elapsed time = %d [ms]", (int)(elapsedTime.count()));
     return true;
 }
 
@@ -413,7 +419,6 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
 MediaItem::Meta GStreamerExtractor::metaFromTag(const char *gstTag) const
 {
     auto iter = metaMap_.find(gstTag);
-    
     if (iter != metaMap_.end())
         return iter->second;
 

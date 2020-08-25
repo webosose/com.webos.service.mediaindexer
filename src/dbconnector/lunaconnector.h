@@ -40,10 +40,10 @@ typedef struct LunaConnectorLunaErr : LSError {
     LunaConnectorLunaErr * operator &() { LSErrorFree(this); return this; }
 } lunaError_t;
 
-class SyncCallbackWrapper {
+class CallbackWrapper {
 public:
-    SyncCallbackWrapper() : handler_(nullptr), timeout_(CONNECTOR_WAIT_TIMEOUT)         {}
-    ~SyncCallbackWrapper() {}
+    CallbackWrapper() : handler_(nullptr), timeout_(CONNECTOR_WAIT_TIMEOUT)         {}
+    ~CallbackWrapper() {}
     void setHandler(LunaConnectorCallback cb, void *ctx) { handler_ = cb; ctx_ = ctx; }
     bool callback(LSHandle *hdl, LSMessage *msg) {
         if (handler_)
@@ -82,6 +82,7 @@ public:
     void loopAsync();
 
     static bool _syncCallback(LSHandle *hdl, LSMessage *msg, void *ctx);
+    static bool _Callback(LSHandle *hdl, LSMessage *msg, void *ctx);
 
 private:
     /// Get message id.
@@ -100,8 +101,10 @@ private:
     std::thread task_;
     static bool isTaskStarted_;
     std::mutex mutex_;
+    static std::mutex syncCallbackLock_;
+    static std::mutex CallbackLock_;
     std::condition_variable cv_;
     bool async_;
 
-    SyncCallbackWrapper callbackWrapper;
+    CallbackWrapper callbackWrapper;
 };

@@ -97,13 +97,13 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
 }
 
 
-void TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
+bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
 {
     std::string uri(mediaItem.path());
 
     if (mediaItem.type() != MediaItem::Type::Audio) {
         LOG_ERROR(0, "mediaitem type is not audio");
-        return;
+        return false;
     }
 
     LOG_DEBUG("Extract meta data from '%s' (%s) with TagLib",
@@ -115,8 +115,8 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
         ID3v2::Tag *tag = f.ID3v2Tag();
         if (!tag || tag->isEmpty())
         {
-            LOG_ERROR(0, "tag for %s is empty", uri.c_str());
-            return;
+            LOG_DEBUG("tag for %s is empty", uri.c_str());
+            return true;
         }
         LOG_DEBUG("Setting Meta data for Mp3");
         setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Title);
@@ -141,8 +141,8 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
         TagLib::Vorbis::File oggf(uri.c_str());
         Ogg::XiphComment *tag = oggf.tag();
         if (!tag || tag->isEmpty()) {
-            LOG_ERROR(0, "tag for %s is empty", uri.c_str());
-            return;
+            LOG_DEBUG("tag for %s is empty", uri.c_str());
+            return true;
         }
         LOG_DEBUG("Setting Meta data for Ogg");
         setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Title);
@@ -164,10 +164,11 @@ void TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
     else
     {
         LOG_ERROR(0, "invalid file, file extension is not .mp3");
-        return;
+        return false;
     }
 
     setMetaCommon(mediaItem);
+    return true;
 }
 
 void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag,
