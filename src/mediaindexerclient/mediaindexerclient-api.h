@@ -78,6 +78,11 @@ extern "C" {
      */
     std::string GetImageMetaData(MediaIndexerHandle handle, const std::string& uri);
 
+    /**
+     * Request to delete data given uri
+     */
+    std::string RequestDelete(MediaIndexerHandle handle, const std::string& uri);
+
 #ifdef __cplusplus
 }
 #endif

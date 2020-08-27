@@ -27,6 +27,7 @@ public:
 
     std::string sendMessage(std::string& url, std::string&& request) override;
     std::string sendSearchMessage(std::string&& request);
+    std::string sendDelMessage(std::string&& request);
     std::string getDBUrl() const;
 private:
     // Luna response callback and handler.

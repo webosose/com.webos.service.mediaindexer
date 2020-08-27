@@ -72,6 +72,30 @@ std::string MediaDBConnector::sendSearchMessage(std::string&& request)
     return response_;
 }
 
+std::string MediaDBConnector::sendDelMessage(std::string&& request)
+{
+    std::cout << "I'm MediaDBConnector::sendDelMessage" << std::endl;
+    std::cout << "request param : " << request << std::endl;
+    LSMessageToken sessionToken;
+    bool async = false;
+
+    std::string url = dbUrl_ + std::string("del");
+    std::cout << "Url : " << url << std::endl;
+
+    if (!connector_->sendMessage(url.c_str(), request.c_str(),
+                                 MediaDBConnector::onLunaResponse, this,
+                                 async, &sessionToken)) {
+        std::cout << "sendMessage ERROR!" << std::endl;
+        return std::string();
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::cout << "Return value : " << response_ << std::endl;
+    std::cout << "I'm MediaDBConnector::sendDelMessage END!!!!!!!" << std::endl;
+    return response_;
+}
+
+
 std::string MediaDBConnector::getDBUrl() const
 {
     return dbUrl_;

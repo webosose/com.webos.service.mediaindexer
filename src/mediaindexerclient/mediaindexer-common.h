@@ -41,6 +41,7 @@ enum class MediaIndexerClientAPI : int {
     GetAudioMetaDataAPI,
     GetVideoMetaDataAPI,
     GetImageMetaDataAPI,
+    RequestDelete,
     EOL
 };
 

@@ -24,6 +24,13 @@ if (PMLOG_FOUND AND NOT STANDALONE)
   add_definitions(-DHAS_PMLOG)
 endif ()
 
+# gio
+pkg_check_modules(GIO2 REQUIRED gio-2.0)
+include_directories(${GIO2_INCLUDE_DIRS})
+link_directories(${GIO2_LIBRARY_DIRS})
+webos_add_compiler_flags(ALL ${GIO2_CFLAGS})
+link_libraries(${GIO2_LIBRARIES})
+
 include_directories(./)
 include_directories(../)
 include_directories(

@@ -133,3 +133,13 @@ std::string GetImageMetaData(MediaIndexerHandle handle, const std::string& uri)
     return indexerWrapper->client_->getImageMetaData(uri);
 }
 
+std::string RequestDelete(MediaIndexerHandle handle, const std::string& uri)
+{
+    std::cout << std::string("RequestDelete") << std::endl;
+    if (!handle) {
+        std::cout << std::string("MediaIndexerHandle is NULL!") << std::endl;
+        return std::string();
+    }
+    IndexerClientWrapper* indexerWrapper = static_cast<IndexerClientWrapper*>(handle);
+    return indexerWrapper->client_->requestDelete(uri);
+}

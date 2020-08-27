@@ -322,6 +322,7 @@ bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::stri
             auto perm = pbnjson::Object();
             auto oper = pbnjson::Object();
             oper.put("read", "allow");
+            oper.put("delete", "allow");
             perm.put("operations", oper);
             perm.put("object", k);
             perm.put("type", "db.kind");

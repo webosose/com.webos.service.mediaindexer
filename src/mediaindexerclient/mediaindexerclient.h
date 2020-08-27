@@ -41,9 +41,12 @@ public:
     std::string getAudioMetaData(const std::string& uri) const;
     std::string getVideoMetaData(const std::string& uri) const;
     std::string getImageMetaData(const std::string& uri) const;
+    std::string requestDelete(const std::string& uri) const;
 
 private:
     LOG_MSGID
+    std::string guessKind(const std::string &uri) const;
+    std::string typeFromMime(const std::string &mime) const;
 
     pbnjson::JValue generateLunaPayload(MediaIndexerClientAPI api,
                                         const std::string& uri) const;
@@ -57,6 +60,9 @@ private:
                                  bool value,
                                  bool precise,
                                  pbnjson::JValue whereClause = pbnjson::Array()) const;
+
+    pbnjson::JValue prepareQuery(const std::string& kindId,
+                                 pbnjson::JValue where) const;
 
     pbnjson::JValue prepareQuery(pbnjson::JValue selectArray,
                                  const std::string& kindId,

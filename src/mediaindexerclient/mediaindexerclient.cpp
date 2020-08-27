@@ -19,6 +19,7 @@
 #include <list>
 #include <functional>
 
+#include <gio/gio.h>
 
 MediaIndexerClient::MediaIndexerClient(MediaIndexerCallback cb, void* userData)
     : callback_(cb),
@@ -154,6 +155,25 @@ std::string MediaIndexerClient::getImageMetaData(const std::string& uri) const
     std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
     std::cout << "Return value_ in getImageMetaData : " << ret << std::endl;
     std::cout << "I'm getImageMetaData END!!!!!!!!!!!!" << std::endl;
+    return ret;
+}
+
+std::string MediaIndexerClient::requestDelete(const std::string& uri) const
+{
+    if (!mediaDBConnector_) {
+        std::cout << "mediaDBConnector is NULL!" << std::endl;
+        return std::string();
+    }
+
+    if (uri.empty()) {
+        std::cout << "Uri is NULL!. Input uri" << std::endl;
+        return std::string();
+    }
+
+    pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::RequestDelete, uri);
+    std::string ret = mediaDBConnector_->sendDelMessage(request.stringify());
+    std::cout << "Return value_ in requestDelete : " << ret << std::endl;
+    std::cout << "I'm requestDelete END!!!!!!!!!!!!" << std::endl;
     return ret;
 }
 
@@ -307,11 +327,52 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             request.put("query", query);
             break;
         }
+        case MediaIndexerClientAPI::RequestDelete: {
+            auto where = prepareWhere("uri", uri, false);
+            std::string kindId = guessKind(uri);
+            auto query = prepareQuery(kindId, where);
+            request.put("query", query);
+            break;
+        }
         default:
             break;
     }
 
     return request;
+}
+
+std::string MediaIndexerClient::guessKind(const std::string &uri) const
+{
+    gchar *contentType = NULL;
+    gboolean uncertain;
+    std::string type = "audio";
+    std::string kindId = "";
+
+    LOG_DEBUG("guessKind '%s'", uri.c_str());
+    contentType = g_content_type_guess(uri.c_str(), NULL, 0, &uncertain);
+    if (contentType) {
+        type = typeFromMime(contentType);
+    }
+    g_free(contentType);
+
+    if(type=="audio"){
+        kindId = audioKind_;
+    } else if(type=="video"){
+        kindId = videoKind_;
+    } else if(type=="image"){
+        kindId = imageKind_;
+    }
+    return kindId;
+}
+
+std::string MediaIndexerClient::typeFromMime(const std::string &mime) const
+{
+    std::list<std::string> typelist = {"audio", "video", "image"};
+    for (auto type : typelist) {
+        if (!mime.compare(0, type.size(), type))
+            return type;
+    }
+    return "";
 }
 
 pbnjson::JValue MediaIndexerClient::prepareWhere(const std::string &key,
@@ -338,6 +399,15 @@ pbnjson::JValue MediaIndexerClient::prepareWhere(const std::string &key,
     cond.put("val", value);
     whereClause << cond;
     return whereClause;
+}
+
+pbnjson::JValue MediaIndexerClient::prepareQuery(   const std::string& kindId,
+                                                 pbnjson::JValue where) const
+{
+    auto query = pbnjson::Object();
+    query.put("from", kindId);
+    query.put("where", where);
+    return query;
 }
 
 pbnjson::JValue MediaIndexerClient::prepareQuery(pbnjson::JValue selectArray,

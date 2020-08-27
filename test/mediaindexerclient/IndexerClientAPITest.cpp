@@ -33,7 +33,8 @@ enum class MediaIndexerAPI : int {
     GET_IMAGE_LIST,
     GET_AUDIO_META_DATA,
     GET_VIDEO_META_DATA,
-    GET_IMAGE_META_DATA
+    GET_IMAGE_META_DATA,
+    REQUEST_DELETE
 };
 
 std::map<MediaIndexerAPI, std::string> indexerMenu = {
@@ -43,7 +44,8 @@ std::map<MediaIndexerAPI, std::string> indexerMenu = {
     { MediaIndexerAPI::GET_IMAGE_LIST,      std::string("getImageList")  },
     { MediaIndexerAPI::GET_AUDIO_META_DATA, std::string("getAudioMetaData") },
     { MediaIndexerAPI::GET_VIDEO_META_DATA, std::string("getVideoMetaData") },
-    { MediaIndexerAPI::GET_IMAGE_META_DATA, std::string("getImageMetaData") }
+    { MediaIndexerAPI::GET_IMAGE_META_DATA, std::string("getImageMetaData") },
+    { MediaIndexerAPI::REQUEST_DELETE,      std::string("requestDelete") }
 };
 
 static void printMenu(void)
@@ -121,6 +123,15 @@ static bool processCommand(const std::string& cmd, MediaIndexerHandle handle)
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = GetImageMetaData(handle, uri);
+            std::cout << ret << std::endl;
+            break;
+        }
+        case MediaIndexerAPI::REQUEST_DELETE: {
+            // call MediaIndexerClient API
+            std::cout << "uri >> ";
+            std::string uri;
+            std::getline(std::cin, uri);
+            std::string ret = RequestDelete(handle, uri);
             std::cout << ret << std::endl;
             break;
         }
