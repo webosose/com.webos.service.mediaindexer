@@ -18,6 +18,7 @@
 
 #include "logging.h"
 #include "dbobserver.h"
+#include "localeobserver.h"
 #include <pbnjson.hpp>
 #include <luna-service2/lunaservice.h>
 #include <string.h>
@@ -300,6 +301,7 @@ private:
     LSHandle *lsHandle_;
     /// Media indexer.
     DbObserver *dbObserver_;
+    LocaleObserver *localeObserver_;
     MediaIndexer *indexer_;
     static std::mutex mutex_;
 };

@@ -10,9 +10,11 @@
     "permissions": [
         {
             "service": "com.webos.service.mediaindexer",
-            "outbound": [ "com.webos.service.pdm",
-                          "com.webos.mediadb",
-                          "com.webos.service.mediaindexer.client*"
+            "outbound": [ 
+                "com.webos.service.pdm",
+                "com.webos.mediadb",
+                "com.webos.settingsservice",
+                "com.webos.service.mediaindexer.client*"
             ]
         },
         {

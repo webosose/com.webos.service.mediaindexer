@@ -112,6 +112,7 @@ add_executable(com.webos.service.mediaindexer
   mediaitem.cpp
   mediaparser.cpp
   dbobserver.cpp
+  localeobserver.cpp
   task.cpp
   mediaindexer.cpp)
 

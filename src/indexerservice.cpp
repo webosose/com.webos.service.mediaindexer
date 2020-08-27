@@ -152,6 +152,7 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
     };
 
     dbObserver_ = new DbObserver(lsHandle_, dbInitialized);
+    //localeObserver_ = new LocaleObserver(lsHandle_, nullptr);
 }
 
 IndexerService::~IndexerService()
@@ -167,6 +168,8 @@ IndexerService::~IndexerService()
 
     if (dbObserver_)
         delete dbObserver_;
+    //if (localeObserver_)
+    //  delete localeObserver_;
 }
 
 bool IndexerService::pushDeviceList(LSMessage *msg)
