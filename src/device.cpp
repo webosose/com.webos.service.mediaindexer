@@ -43,6 +43,20 @@ std::string Device::metaTypeToString(Device::Meta meta)
     return "";
 }
 
+std::string Device::stateToString(Device::State state)
+{
+    switch (state) {
+    case Device::State::Idle:
+        return std::string("idle");
+    case Device::State::Scanning:
+        return std::string("scanning");
+    case Device::State::Inactive:
+        return std::string("inactive");
+    }
+
+    return "";
+}
+
 std::shared_ptr<Device> Device::device(const std::string &uri)
 {
     PluginFactory factory;
@@ -61,6 +75,7 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
     mountpoint_(""),
     uuid_(uuid),
     lastSeen_(),
+    state_(Device::State::Inactive),
     available_(avail),
     alive_(alive),
     maxAlive_(alive)
@@ -97,6 +112,7 @@ bool Device::available(bool check)
     if (!available_) {
         meta_[Device::Meta::Icon] = "";
         resetMediaItemCount();
+        setState(State::Inactive, true);
     }
 
     return available_;
@@ -120,11 +136,14 @@ bool Device::setAvailable(bool avail)
     if (!available_) {
         meta_[Device::Meta::Icon] = "";
         resetMediaItemCount();
+        setState(State::Inactive, true);
     }
 
     auto changed = (before != avail);
-    if (avail && changed)
+    if (avail && changed) {
         lastSeen_ = std::chrono::system_clock::now();
+        setState(State::Idle, true);
+    }
 
     return changed;
 }
@@ -173,6 +192,18 @@ bool Device::setMeta(Device::Meta type, const std::string value)
     return true;
 }
 
+Device::State Device::state() const
+{
+    std::shared_lock lock(lock_);
+    return state_;
+}
+
+void Device::setState(Device::State state)
+{
+    std::unique_lock lock(lock_);
+    setState(state, false);
+}
+
 const std::chrono::system_clock::time_point &Device::lastSeen() const
 {
     std::shared_lock lock(lock_);
@@ -199,7 +230,9 @@ void Device::scanLoop()
             LOG_ERROR(0, "plugin for %s is not invalid",uri.c_str());
             break;
         }
+        setState(Device::State::Scanning);
         plg->scan(uri);
+        setState(Device::State::Idle);
         queue_.pop_front();
     }
 }
@@ -263,6 +296,20 @@ void Device::incrementMediaItemCount(MediaItem::Type type)
 void Device::resetMediaItemCount()
 {
     mediaItemCount_.clear();
+}
+
+void Device::setState(Device::State state, bool force)
+{
+    if (state == state_)
+        return;
+
+    // switching from Inactive to anything else can only happen
+    // from within the device
+    if (state_ == Device::State::Inactive && !force)
+        return;
+    LOG_DEBUG("Device state change: %s -> %s",
+        stateToString(state_).c_str(), stateToString(state).c_str());
+    state_ = state;
 }
 
 int Device::mediaItemCount(MediaItem::Type type)

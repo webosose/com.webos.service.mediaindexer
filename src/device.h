@@ -42,6 +42,13 @@ public:
         EOL ///< End of list marker.
     };
 
+    /// Device indexing status.
+    enum class State {
+        Idle, ///< Scan has been completed, not monitoring.
+        Scanning, ///< Device is in initial scan mode.
+        Inactive ///< Device is not available.
+    };
+
     /**
      * \brief Convert meta type to string.
      *
@@ -49,6 +56,14 @@ public:
      * \return The related string.
      */
     static std::string metaTypeToString(Device::Meta meta);
+
+    /**
+     * \brief Convert state to string.
+     *
+     * \param[in] state The state identifier.
+     * \return The related string.
+     */
+    static std::string stateToString(Device::State state);    
 
     /**
     * \brief System wide search for a device by uri.
@@ -126,6 +141,20 @@ public:
      * \return True if meta data has been changed, else false.
      */
     virtual bool setMeta(Device::Meta type, const std::string value);
+
+    /**
+     * \brief Get the state.
+     *
+     * \return The current state.
+     */
+    virtual Device::State state() const;
+
+    /**
+     * \brief Set state.
+     *
+     * \param[in] state New state.
+     */
+    virtual void setState(Device::State state);    
 
     /**
      * \brief Tell the timestamp when the device was available last
@@ -207,6 +236,9 @@ private:
     /// Reset media item count for all media types.
     void resetMediaItemCount();
 
+    /// Handler for internal state changes.
+    void setState(Device::State state, bool force);    
+
     /// Make class meta data usage thread safe.
     mutable std::shared_mutex lock_;
 
@@ -221,6 +253,8 @@ private:
     /// The meta data map. The member is mutable as element are
     /// default constructed if not yet set.
     mutable std::map<Device::Meta, std::string> meta_;
+    /// The current device state.
+    Device::State state_;
     /// Device available state.
     bool available_;
     /// Alive refcount for device poll-mode.

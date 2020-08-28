@@ -180,7 +180,7 @@ void MediaParser::extractMeta(void *data, void *user_data)
                     LOG_ERROR(0, "Failed to extract metadata for %s", mip->uri().c_str());
                     break;
                 }
-                LOG_WARNING(0, "%s meta data extraction failed, retry with cnt = %d", retry);
+                LOG_WARNING(0, "%s meta data extraction failed, retry with cnt = %d", mip->uri().c_str(), retry);
             }
         } else {
             auto plg = PluginFactory().plugin(mip->uri());
