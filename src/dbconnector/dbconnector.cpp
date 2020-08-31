@@ -238,10 +238,11 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
     return true;
 }
 
-bool DbConnector::del(const std::string &kind_name, pbnjson::JValue &where)
+bool DbConnector::del(const std::string &kind_name, pbnjson::JValue &where,
+    void *obj, bool atomic)
 {
     LSMessageToken sessionToken;
-
+    bool async = !atomic;
     std::string url = dbUrl_;
     url += "del";
 
@@ -253,7 +254,7 @@ bool DbConnector::del(const std::string &kind_name, pbnjson::JValue &where)
     request.put("query", query);
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, true, &sessionToken)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service delete error");
         return false;
     }

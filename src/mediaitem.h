@@ -129,6 +129,14 @@ public:
     static bool mimeTypeSupported(const std::string &mime);
 
     /**
+     * \brief Get media type from mime type.
+     *
+     * \param[in] mime MIME type string.
+     * \return MediaItem::Type audio, video or image.
+     */
+    static MediaItem::Type typeFromMime(const std::string &mime);
+
+    /**
      * \brief Convert media type to string.
      *
      * \param[in] type Media type.

@@ -58,6 +58,7 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getVideoMetadata", IndexerService::onGetVideoMetadata, LUNA_METHOD_FLAGS_NONE },
     { "getImageList", IndexerService::onGetImageList, LUNA_METHOD_FLAGS_NONE },
     { "getImageMetadata", IndexerService::onGetImageMetadata, LUNA_METHOD_FLAGS_NONE },
+    { "requestDelete", IndexerService::onRequestDelete, LUNA_METHOD_FLAGS_NONE },
     {NULL, NULL}
 };
 
@@ -690,6 +691,52 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
     }
     return rv;
 
+}
+bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_INFO(0, "start onRequestDelete");
+
+    IndexerService *is = static_cast<IndexerService *>(ctx);
+    std::string uri;
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+
+    if (domTree.hasKey("uri"))
+        uri = domTree["uri"].asString();
+
+    bool rv = true;
+    auto mdb = MediaDb::instance();
+    auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (mdb) {
+        rv = mdb->requestDelete(uri, reply);
+        mdb->putRespObject(rv, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
+    } else {
+        LOG_ERROR(0, "Failed to get instance of Media Db");
+        rv = false;
+        reply.put("returnValue", rv);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid MediaDb Object");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+        }
+    }
+    return rv;
 }
 
 bool IndexerService::pluginPutGet(LSMessage *msg, bool get)

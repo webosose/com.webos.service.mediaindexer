@@ -121,9 +121,12 @@ protected:
      *
      * \param[in] kind_name kind id.
      * \param[in] where JSON object with the properties to delete.
+     * \param[in] obj Some object to send with the luna request.
+     * \param[in] atomic Sync/Async.
      * \return True on success, false on error.
      */
-    virtual bool del(const std::string &kind_name, pbnjson::JValue &where);
+    virtual bool del(const std::string &kind_name, pbnjson::JValue &where,
+        void *obj = nullptr, bool atomic = false);
 
     /**
      * \brief Give read only access to other services.
@@ -141,7 +144,8 @@ protected:
      * \param[in] obj user data.
      * \return True on success, false on error.
      */
-    virtual bool roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj = nullptr, bool atomic = false);
+    virtual bool roAccess(std::list<std::string> &services, std::list<std::string> &kinds,
+        void *obj = nullptr, bool atomic = false);
 
     /// Get message id.
     LOG_MSGID;

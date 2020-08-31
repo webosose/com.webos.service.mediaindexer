@@ -128,6 +128,20 @@ public:
 
     void makeUriIndex();
 
+    /**
+     * \brief request to delete in Media DB.
+     *
+     * \param[in] uri Uri of the media item.
+     * \param[in] resp return response.
+     */
+    bool requestDelete(const std::string &uri, pbnjson::JValue &resp);
+
+    /**
+     * \brief guess media type with uri.
+     *
+     * \param[in] uri Uri of the media item.
+     */
+    MediaItem::Type guessType(const std::string &uri);
 
 protected:
     /// Get message id.

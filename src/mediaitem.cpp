@@ -82,6 +82,19 @@ bool MediaItem::mimeTypeSupported(const std::string &mime)
     return false;
 }
 
+MediaItem::Type MediaItem::typeFromMime(const std::string &mime)
+{
+    for (auto type = MediaItem::Type::Audio;
+         type < MediaItem::Type::EOL; ++type) {
+        auto typeString = MediaItem::mediaTypeToString(type);
+        if (!mime.compare(0, typeString.size(), typeString))
+            return type;
+    }
+
+    LOG_DEBUG("MIME type '%s' not supported", mime.c_str());
+    return MediaItem::Type::EOL;
+}
+
 std::string MediaItem::mediaTypeToString(MediaItem::Type type)
 {
     switch (type) {

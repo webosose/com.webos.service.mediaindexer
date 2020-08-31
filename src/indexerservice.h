@@ -266,6 +266,14 @@ private:
      */     
     static bool onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
+   /**
+     * \brief Callback for onRequestDelete() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx);
     /**
      * \brief Combines functionality for onPluginGet and onPluginPut.
      *

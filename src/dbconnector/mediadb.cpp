@@ -22,6 +22,7 @@
 #include "plugins/plugin.h"
 
 #include <cstdio>
+#include <gio/gio.h>
 #include <cstdint>
 #include <cstring>
 #include <unistd.h>
@@ -131,6 +132,25 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
             }
             free(miw);
         }
+    } else if (method == std::string("del")) {
+        if (!sd.object) {
+            LOG_ERROR(0, "Search should include SessionData");
+            return false;
+        }
+
+        pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
+        const char *payload = LSMessageGetPayload(msg);
+
+        if (!parser.parse(payload)) {
+            LOG_ERROR(0, "Invalid JSON message: %s", payload);
+            return false;
+        }
+        LOG_DEBUG("del response payload : %s",payload);
+
+        pbnjson::JValue domTree(parser.getDom());
+        // response message
+        auto reply = static_cast<pbnjson::JValue *>(sd.object);
+        *reply = domTree;
     }
     return true;
 }
@@ -392,10 +412,10 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
     auto where = pbnjson::Object();
     auto filter = pbnjson::Object();
     if (uri.empty()) {
-        where = prepareWhere("dirty", false, true);
+        where = prepareWhere(DIRTY, false, true);
     } else {
         where = prepareWhere(URI, uri, false);
-        filter = prepareWhere("dirty", false, true);
+        filter = prepareWhere(DIRTY, false, true);
     }
 
     return search(AUDIO_KIND, selectArray, where, filter,&resp, true);
@@ -419,10 +439,10 @@ bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
     auto where = pbnjson::Object();
     auto filter = pbnjson::Object();
     if (uri.empty()) {
-        where = prepareWhere("dirty", false, true);
+        where = prepareWhere(DIRTY, false, true);
     } else {
         where = prepareWhere(URI, uri, false);
-        filter = prepareWhere("dirty", false, true);
+        filter = prepareWhere(DIRTY, false, true);
     }
 
     return search(VIDEO_KIND, selectArray, where, filter, &resp, true);
@@ -445,13 +465,36 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
     auto where = pbnjson::Object();
     auto filter = pbnjson::Object();
     if (uri.empty()) {
-        where = prepareWhere("dirty", false, true);
+        where = prepareWhere(DIRTY, false, true);
     } else {
         where = prepareWhere(URI, uri, false);
-        filter = prepareWhere("dirty", false, true);
+        filter = prepareWhere(DIRTY, false, true);
     }
 
     return search(IMAGE_KIND, selectArray, where, filter, &resp, true);
+}
+
+bool MediaDb::requestDelete(const std::string &uri, pbnjson::JValue &resp)
+{
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
+    auto where = prepareWhere(URI, uri, true);
+    MediaItem::Type type =guessType(uri);
+    return del(kindMap_[type], where, &resp, true);
+}
+
+MediaItem::Type MediaDb::guessType(const std::string &uri)
+{
+    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
+    gchar *contentType = NULL;
+    gboolean uncertain;
+
+    contentType = g_content_type_guess(uri.c_str(), NULL, 0, &uncertain);
+    if (contentType) {
+        MediaItem::Type type = MediaItem::typeFromMime(contentType);
+        return type;
+    }
+    g_free(contentType);
+    return MediaItem::Type::EOL;
 }
 
 pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
