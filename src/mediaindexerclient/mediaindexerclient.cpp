@@ -329,7 +329,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
         }
         case MediaIndexerClientAPI::RequestDelete: {
             auto where = prepareWhere("uri", uri, false);
-            std::string kindId = guessKind(uri);
+            std::string kindId = getKindID(uri);
             auto query = prepareQuery(kindId, where);
             request.put("query", query);
             break;
@@ -341,27 +341,38 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
     return request;
 }
 
-std::string MediaIndexerClient::guessKind(const std::string &uri) const
+std::string MediaIndexerClient::getKindID(const std::string &uri) const
 {
-    gchar *contentType = NULL;
+    std::string kindId;
     gboolean uncertain;
-    std::string type = "audio";
-    std::string kindId = "";
+    bool mimeTypeSupported = false;
+    gchar *contentType = g_content_type_guess(uri.c_str(), nullptr, 0, &uncertain);
 
-    LOG_DEBUG("guessKind '%s'", uri.c_str());
-    contentType = g_content_type_guess(uri.c_str(), NULL, 0, &uncertain);
-    if (contentType) {
-        type = typeFromMime(contentType);
+    if (!contentType) {
+        std::cout << "contentType is NULL for '" << uri << "'" << std::endl;
+
+        /* get the file extension for ts or ps */
+        std::string mimeType;
+        std::string ext = uri.substr(uri.find_last_of('.') + 1);
+        if (!ext.compare("ts")) {
+            std::cout << "Found ts extension!" << std::endl;
+            mimeType = std::string("video/MP2T");
+        }
+        else if (!ext.compare("ps")) {
+            std::cout << "Found ps extension!" << std::endl;
+            mimeType = std::string("video/MP2P");
+        }
+        else {
+            std::cout << "Not supported type" << std::endl;
+            return std::string();
+        }
+        kindId = typeFromMime(mimeType);
+        return kindId;
     }
+
+    kindId = typeFromMime(contentType);
     g_free(contentType);
 
-    if(type=="audio"){
-        kindId = audioKind_;
-    } else if(type=="video"){
-        kindId = videoKind_;
-    } else if(type=="image"){
-        kindId = imageKind_;
-    }
     return kindId;
 }
 

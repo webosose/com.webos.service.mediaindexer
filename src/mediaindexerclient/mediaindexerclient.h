@@ -45,7 +45,7 @@ public:
 
 private:
     LOG_MSGID
-    std::string guessKind(const std::string &uri) const;
+    std::string getKindID(const std::string &uri) const;
     std::string typeFromMime(const std::string &mime) const;
 
     pbnjson::JValue generateLunaPayload(MediaIndexerClientAPI api,
