@@ -111,16 +111,19 @@ protected:
     /// Activate plugins and detection
     static gboolean _activate(gpointer data);    
     /// DeviceObserver interface.
-    void deviceStateChanged(std::shared_ptr<Device> device);
+    void deviceStateChanged(DevicePtr device);
 
     /// DeviceObserver interface.
-    void deviceModified(std::shared_ptr<Device> device);
+    void deviceModified(DevicePtr device);
 
     /// MediaItemObserver interface.
     void newMediaItem(MediaItemPtr mediaItem);
 
     /// MediaItemObserver interface.
     void metaDataUpdateRequired(MediaItemPtr mediaItem);
+
+    /// MediaItemObserver interface.
+    void cleanupDevice(DevicePtr device);
 
 private:
     /// Get message id.

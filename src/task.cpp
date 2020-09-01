@@ -50,6 +50,7 @@ bool Task::sendMessage(void *ctx, void *data)
     std::lock_guard<std::mutex> lk(mutex_);
     taskData tdata = {ctx, data};
     queue_.push_back((void *)&tdata);
+    cv_.notify_one();
     return true;
 }
 

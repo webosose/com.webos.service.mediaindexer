@@ -73,7 +73,7 @@ public:
     bool stop();
     bool sendMessage(const std::string &uri,
         const std::string &payload,
-        LunaConnectorCallback cb, void *ctx, bool async = true, LSMessageToken *token = nullptr, void *obj = nullptr);
+        LunaConnectorCallback cb, void *ctx, bool async = true, LSMessageToken *token = nullptr, void *obj = nullptr, std::string forcemethod = std::string());
     bool sendResponse(LSHandle *sender, LSMessage* message,
         const std::string &object);
 

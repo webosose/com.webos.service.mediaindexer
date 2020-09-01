@@ -249,7 +249,7 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
         if (mdb->needUpdate(mediaItem.get()))
             metaDataUpdateRequired(std::move(mediaItem));
         else
-            mdb->unflagDirty(mediaItem->uri(), mediaItem->type());
+            mdb->unflagDirty(std::move(mediaItem));
 
         // the device media item count has changed - notify
         // subscribers
@@ -282,4 +282,10 @@ bool MediaIndexer::hasPlugin(const std::string &uri) const
 
     auto plg = plugins_.find(uri);
     return (plg != plugins_.end());
+}
+
+void MediaIndexer::cleanupDevice(DevicePtr device)
+{
+    auto mdb = MediaDb::instance();
+    mdb->removeDirty(device);    
 }

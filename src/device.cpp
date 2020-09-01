@@ -84,6 +84,16 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
     LOG_DEBUG("Device Ctor, URI : %s UUID : %s, object : %p", uri_.c_str(), uuid_.c_str(), this);
     task_ = std::thread(&Device::scanLoop, this);
     task_.detach();
+
+    cleanUpTask_.create([] (void *ctx, void *data) -> void {
+        DevicePtr dev(static_cast<Device *>(ctx));
+        if (dev) {
+            auto obs = dev->observer();
+            if (obs)
+                obs->cleanupDevice(dev);
+        }
+
+    });
 }
 
 Device::~Device()
@@ -284,6 +294,9 @@ std::shared_ptr<Plugin> Device::plugin() const
 
 void Device::incrementMediaItemCount(MediaItem::Type type)
 {
+    if (type == MediaItem::Type::EOL)
+        return;
+
     std::unique_lock lock(lock_);
 
     auto cntIter = mediaItemCount_.find(type);
@@ -291,6 +304,30 @@ void Device::incrementMediaItemCount(MediaItem::Type type)
         mediaItemCount_[type] = 1;
     else
         mediaItemCount_[type]++;
+}
+
+void Device::incrementProcessedItemCount(MediaItem::Type type)
+{
+    if (type == MediaItem::Type::EOL)
+        return;
+
+    std::unique_lock lock(lock_);
+
+    auto cntIter = processedCount_.find(type);
+    if (cntIter == processedCount_.end())
+        processedCount_[type] = 1;
+    else
+        processedCount_[type]++;
+}
+
+bool Device::processingDone()
+{    
+    return (mediaItemCount_.size() == processedCount_.size());
+}
+
+void Device::activateCleanUpTask()
+{
+    cleanUpTask_.sendMessage(this, nullptr);
 }
 
 void Device::resetMediaItemCount()

@@ -186,11 +186,11 @@ bool LunaConnector::_Callback(LSHandle *hdl, LSMessage *msg, void *ctx)
 
 
 bool LunaConnector::sendMessage(const std :: string & uri, const std :: string & payload,
-    LunaConnectorCallback cb, void * ctx, bool async, LSMessageToken *token, void *obj)
+    LunaConnectorCallback cb, void * ctx, bool async, LSMessageToken *token, void *obj, std::string forcemethod)
 {
     lunaError_t lunaErr;
     LSMessageToken *msgToken = (token == nullptr) ? &token_ : token;
-    std::string method = uri.substr(uri.find_last_of('/') + 1);
+    std::string method = forcemethod.empty() ? uri.substr(uri.find_last_of('/') + 1) : forcemethod;
     LOG_DEBUG("uri : %s, payload : %s, async : %d", uri.c_str(), payload.c_str(), async);
     if (!async_)
     {

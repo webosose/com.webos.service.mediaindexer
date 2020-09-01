@@ -22,6 +22,7 @@
 #include "plugins/plugin.h"
 
 #include <cstdint>
+#include <cstring>
 
 std::unique_ptr<MediaDb> MediaDb::instance_;
 std::mutex MediaDb::ctorLock_;
@@ -108,6 +109,20 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
             reply->put("results", array);
 
         LOG_DEBUG("search response payload : %s",payload);
+    } else if (method == std::string("unflagDirty") ||
+                                              method == std::string("mergePut")) {
+        if (sd.object) {
+            MediaItemPtr mi(static_cast<MediaItem *>(sd.object));
+            if (!mi)
+                return true;
+            DevicePtr device = mi->device();
+            if (device) {
+                device->incrementProcessedItemCount(mi->type());
+                if (device->processingDone()) {
+                    device->activateCleanUpTask();
+                }
+            }
+        }
     }
     return true;
 }
@@ -243,8 +258,8 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
         }
     }
     //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
-    mergePut(mediaItem->uri(), true, typeProps, nullptr, kind_type);
-    //mediaItem.release();
+    auto mi = mediaItem.release();
+    mergePut(mediaItem->uri(), true, typeProps, mi, kind_type);
 }
 
 std::optional<std::string> MediaDb::getFilePath(
@@ -273,19 +288,37 @@ void MediaDb::markDirty(std::shared_ptr<Device> device, MediaItem::Type type)
         merge(kindMap_[type], props, URI, device->uri(), false);
 }
 
-void MediaDb::unflagDirty(const std::string &uri, MediaItem::Type type)
+void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 {
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put(DIRTY, false);
+    std::string uri = mediaItem->uri();
+    MediaItem::Type type = mediaItem->type();
 
     //mergePut(uri, true, props);
-    if (type == MediaItem::Type::EOL) {
-        merge(AUDIO_KIND, props, URI, uri, true);
-        merge(VIDEO_KIND, props, URI, uri, true);
-        merge(IMAGE_KIND, props, URI, uri, true);
+    if (type != MediaItem::Type::EOL) {
+        auto mi = mediaItem.release();
+        merge(kindMap_[type], props, URI, uri, true, mi, false, "unflagDirty");
     } else {
-        merge(kindMap_[type], props, URI, uri, true);
+        LOG_ERROR(0, "ERROR : Media Item type for uri %s should not be EOL", uri.c_str());
+    }
+}
+
+void MediaDb::removeDirty(DevicePtr device)
+{
+    auto list = pbnjson::Object();
+    std::string uri = device->uri();
+
+    auto selectArray = pbnjson::Array();
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
+    selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
+
+    auto where = prepareWhere(URI, uri, false);
+    auto filter = prepareWhere("dirty", false, true);
+    
+    for (auto const &[type, kind] : kindMap_) {
+        search(kind, selectArray, where, filter, &list, true);        
     }
 }
 

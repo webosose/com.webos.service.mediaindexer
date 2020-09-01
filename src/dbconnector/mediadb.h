@@ -102,7 +102,14 @@ public:
      *
      * \param[in] uri Uri of the media item to unflag.
      */
-    void unflagDirty(const std::string &uri, MediaItem::Type type = MediaItem::Type::EOL);
+    void unflagDirty(MediaItemPtr mediaItem);
+
+    /**
+     * \brief Remove all dirty flagged items for this device.
+     *
+     * \param[in] device The device to remove dirties.
+     */
+    void removeDirty(DevicePtr device);
 
     /**
      * \brief Add service to db access list.

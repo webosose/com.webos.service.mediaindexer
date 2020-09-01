@@ -18,6 +18,7 @@
 
 #include "logging.h"
 #include "mediaitem.h"
+#include "task.h"
 
 #include <string>
 #include <chrono>
@@ -208,6 +209,26 @@ public:
     void incrementMediaItemCount(MediaItem::Type type);
 
     /**
+     * \brief Increase processed media item count by one for given media type.
+     *
+     * \param[in] type Media item type.
+     */
+    void incrementProcessedItemCount(MediaItem::Type type);
+
+    /**
+     * \brief check if processing of media items inside device is done.
+     *
+     */
+    bool processingDone();
+
+    /**
+     * \brief If done, activate cleanup task to delete db not matched to
+     *        media files.
+     *
+     */
+    void activateCleanUpTask();
+
+    /**
      * \brief Return the media item count for given type.
      *
      * \param[in] type Media item type.
@@ -273,7 +294,14 @@ private:
 
     /// Media item count per media type.
     std::map<MediaItem::Type, int> mediaItemCount_;
+    /// Processed media item count per media type.
+    std::map<MediaItem::Type, int> processedCount_;
+
+    Task cleanUpTask_;
 };
 
 /// Useful when iterating over enum.
 Device::Meta &operator++(Device::Meta &meta);
+
+/// This is handled with shared_ptr so give it an alias.
+typedef std::shared_ptr<Device> DevicePtr;

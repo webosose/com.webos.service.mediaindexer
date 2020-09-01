@@ -136,7 +136,7 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
 }
 
 bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
-    const std::string &whereProp, const std::string &whereVal, bool precise, void *obj, bool atomic)
+    const std::string &whereProp, const std::string &whereVal, bool precise, void *obj, bool atomic, std::string method)
 {
     LSMessageToken sessionToken;
     bool async = !atomic;
@@ -165,7 +165,7 @@ bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
     LOG_INFO(0, "Send merges for '%s', request : '%s'", whereVal.c_str(), request.stringify().c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj, method)) {
         LOG_ERROR(0, "Db service mergePut error");
         return false;
     }
