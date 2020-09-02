@@ -56,7 +56,7 @@ public:
      *
      * \param[in] dev The device.
      */
-    virtual void cleanupDevice(DevicePtr dev) = 0;
+    virtual void cleanupDevice(Device* dev) = 0;
 
 protected:
     IMediaItemObserver() {};

@@ -32,6 +32,16 @@
 
 class Device;
 
+/// This is handled with unique_ptr so give it an alias.
+typedef std::unique_ptr<MediaItem> MediaItemPtr;
+
+
+typedef struct MediaItemWrapper
+{
+    MediaItemPtr mediaItem_;
+} MediaItemWrapper_t;
+
+
 /// Base class for devices like MTP or UPnP servers.
 class MediaItem
 {
@@ -357,6 +367,3 @@ MediaItem::VideoMeta &operator++(MediaItem::VideoMeta &meta);
 
 /// Useful when iterating over enum.
 MediaItem::ImageMeta &operator++(MediaItem::ImageMeta &meta);
-
-/// This is handled with unique_ptr so give it an alias.
-typedef std::unique_ptr<MediaItem> MediaItemPtr;

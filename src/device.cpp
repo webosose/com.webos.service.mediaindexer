@@ -86,13 +86,14 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
     task_.detach();
 
     cleanUpTask_.create([] (void *ctx, void *data) -> void {
-        DevicePtr dev(static_cast<Device *>(ctx));
+        Device* dev = static_cast<Device *>(ctx);
+        
         if (dev) {
+            LOG_DEBUG("Clean Up Task start for device ");
             auto obs = dev->observer();
             if (obs)
                 obs->cleanupDevice(dev);
-        }
-
+        }        
     });
 }
 
@@ -107,6 +108,7 @@ Device::~Device()
     cv_.notify_one();
     if (task_.joinable())
         task_.join();
+    cleanUpTask_.destroy();
 }
 
 bool Device::available(bool check)
@@ -243,6 +245,8 @@ void Device::scanLoop()
         setState(Device::State::Scanning);
         plg->scan(uri);
         setState(Device::State::Idle);
+        if (processingDone())
+            activateCleanUpTask();
         queue_.pop_front();
     }
 }
@@ -304,6 +308,7 @@ void Device::incrementMediaItemCount(MediaItem::Type type)
         mediaItemCount_[type] = 1;
     else
         mediaItemCount_[type]++;
+    totalItemCount_++;
 }
 
 void Device::incrementProcessedItemCount(MediaItem::Type type)
@@ -318,11 +323,16 @@ void Device::incrementProcessedItemCount(MediaItem::Type type)
         processedCount_[type] = 1;
     else
         processedCount_[type]++;
+    totalProcessedCount_++;
 }
 
 bool Device::processingDone()
-{    
-    return (mediaItemCount_.size() == processedCount_.size());
+{
+    if (state_ == Device::State::Idle) {
+        LOG_INFO(0, "Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
+        return (totalItemCount_ == totalProcessedCount_);
+    }
+    return false;
 }
 
 void Device::activateCleanUpTask()
@@ -338,11 +348,6 @@ void Device::resetMediaItemCount()
 void Device::setState(Device::State state, bool force)
 {
     if (state == state_)
-        return;
-
-    // switching from Inactive to anything else can only happen
-    // from within the device
-    if (state_ == Device::State::Inactive && !force)
         return;
     LOG_DEBUG("Device state change: %s -> %s",
         stateToString(state_).c_str(), stateToString(state).c_str());

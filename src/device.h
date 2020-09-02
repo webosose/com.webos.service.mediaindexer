@@ -294,8 +294,10 @@ private:
 
     /// Media item count per media type.
     std::map<MediaItem::Type, int> mediaItemCount_;
+    int totalItemCount_ = 0;
     /// Processed media item count per media type.
     std::map<MediaItem::Type, int> processedCount_;
+    int totalProcessedCount_ = 0;
 
     Task cleanUpTask_;
 };

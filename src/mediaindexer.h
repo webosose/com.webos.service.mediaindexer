@@ -123,7 +123,7 @@ protected:
     void metaDataUpdateRequired(MediaItemPtr mediaItem);
 
     /// MediaItemObserver interface.
-    void cleanupDevice(DevicePtr device);
+    void cleanupDevice(Device* device);
 
 private:
     /// Get message id.

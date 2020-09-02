@@ -284,7 +284,7 @@ bool MediaIndexer::hasPlugin(const std::string &uri) const
     return (plg != plugins_.end());
 }
 
-void MediaIndexer::cleanupDevice(DevicePtr device)
+void MediaIndexer::cleanupDevice(Device* device)
 {
     auto mdb = MediaDb::instance();
     mdb->removeDirty(device);    

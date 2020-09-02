@@ -32,11 +32,6 @@ std::unique_ptr<MediaParser> MediaParser::instance_;
 std::mutex MediaParser::ctorLock_;
 constexpr int retryCnt = 3;
 
-typedef struct MediaItemWrapper
-{
-    MediaItemPtr mediaItem_;
-} MediaItemWrapper_t;
-
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
     std::lock_guard<std::mutex> lock(lock_);

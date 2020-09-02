@@ -48,8 +48,10 @@ bool Task::destroy()
 bool Task::sendMessage(void *ctx, void *data)
 {
     std::lock_guard<std::mutex> lk(mutex_);
-    taskData tdata = {ctx, data};
-    queue_.push_back((void *)&tdata);
+    taskData *tdata = new taskData;
+    tdata->ctx = ctx;
+    tdata->data = data;
+    queue_.push_back((void *)tdata);
     cv_.notify_one();
     return true;
 }
@@ -66,8 +68,12 @@ void Task::loop()
             LOG_ERROR(0, "Deque data is invalid!");
             continue;
         }
-        if (taskFunc)
+        if (taskFunc) {
+            LOG_INFO(0, "Task Function Start");
             taskFunc(data->ctx, data->data);
+        }
+        if (data)
+            free(data);
         queue_.pop_front();
     }
 }

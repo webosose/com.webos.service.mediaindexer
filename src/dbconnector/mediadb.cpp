@@ -21,9 +21,10 @@
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
 
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
-
+#include <unistd.h>
 std::unique_ptr<MediaDb> MediaDb::instance_;
 std::mutex MediaDb::ctorLock_;
 std::mutex MediaDb::handlerLock_;
@@ -51,6 +52,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     struct SessionData sd;
     std::lock_guard<std::mutex> lk(handlerLock_);
     LSMessageToken token = LSMessageGetResponseToken(msg);
+    
     if (!sessionDataFromToken(token, &sd)) {
         LOG_ERROR(0, "Failed to find session data from message token %ld", (long)token);
         return false;
@@ -111,17 +113,23 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         LOG_DEBUG("search response payload : %s",payload);
     } else if (method == std::string("unflagDirty") ||
                                               method == std::string("mergePut")) {
+        LOG_DEBUG("method : %s", method.c_str());
         if (sd.object) {
-            MediaItemPtr mi(static_cast<MediaItem *>(sd.object));
-            if (!mi)
+            MediaItemWrapper_t *miw = static_cast<MediaItemWrapper_t *>(sd.object);
+            if (!miw || !miw->mediaItem_) {
+                LOG_DEBUG("No MediaItemPtr Found");
                 return true;
+            }
+            MediaItemPtr mi = std::move(miw->mediaItem_);
             DevicePtr device = mi->device();
             if (device) {
                 device->incrementProcessedItemCount(mi->type());
                 if (device->processingDone()) {
+                    LOG_DEBUG("Activate cleanup task");
                     device->activateCleanUpTask();
-                }
+                }                
             }
+            free(miw);
         }
     }
     return true;
@@ -195,7 +203,7 @@ bool MediaDb::needUpdate(MediaItem *mediaItem)
     }
 
     LOG_DEBUG("Media item '%s' doesn't need to be changed", mediaItem->uri().c_str());
-    return ret;
+    return false;
 }
 
 bool MediaDb::isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val)
@@ -258,8 +266,10 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
         }
     }
     //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
-    auto mi = mediaItem.release();
-    mergePut(mediaItem->uri(), true, typeProps, mi, kind_type);
+    auto uri = mediaItem->uri();
+    MediaItemWrapper_t *mi = new MediaItemWrapper_t;
+    mi->mediaItem_ = std::move(mediaItem);
+    mergePut(uri, true, typeProps, mi, kind_type);
 }
 
 std::optional<std::string> MediaDb::getFilePath(
@@ -298,16 +308,17 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 
     //mergePut(uri, true, props);
     if (type != MediaItem::Type::EOL) {
-        auto mi = mediaItem.release();
+        MediaItemWrapper_t *mi = new MediaItemWrapper_t;
+        mi->mediaItem_ = std::move(mediaItem);
         merge(kindMap_[type], props, URI, uri, true, mi, false, "unflagDirty");
     } else {
         LOG_ERROR(0, "ERROR : Media Item type for uri %s should not be EOL", uri.c_str());
     }
 }
 
-void MediaDb::removeDirty(DevicePtr device)
+void MediaDb::removeDirty(Device* device)
 {
-    auto list = pbnjson::Object();
+    std::map<MediaItem::Type, pbnjson::JValue> listMap;
     std::string uri = device->uri();
 
     auto selectArray = pbnjson::Array();
@@ -315,11 +326,31 @@ void MediaDb::removeDirty(DevicePtr device)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
     auto where = prepareWhere(URI, uri, false);
-    auto filter = prepareWhere("dirty", false, true);
+    auto filter = prepareWhere(DIRTY, true, true);
     
     for (auto const &[type, kind] : kindMap_) {
-        search(kind, selectArray, where, filter, &list, true);        
+        listMap[type] = pbnjson::Object();
+        search(kind, selectArray, where, filter, &listMap[type], true);
+        LOG_DEBUG("listMap result for %s : %s",MediaItem::mediaTypeToString(type).c_str(), listMap[type].stringify().c_str());
+        if (listMap[type].hasKey("results")) {
+            auto rmlist = listMap[type]["results"];
+            if (rmlist.isArray() && rmlist.isValid() && !rmlist.isNull()) {
+                for (auto element : rmlist.items()) {
+                    auto uri_ = element["uri"].asString();
+                    auto thumbnail_ = element["thumbnail"].asString();
+                    if (!uri_.empty()) {
+                        auto where = prepareWhere(URI, element["uri"].asString(), true);
+                        del(kind, where);
+                    }
+                    if (!thumbnail_.empty()) {
+                        std::remove(thumbnail_.c_str());
+                        sync();
+                    }
+                }
+            }
+        }
     }
+    
 }
 
 void MediaDb::grantAccess(const std::string &serviceName)
@@ -348,6 +379,7 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
     auto selectArray = pbnjson::Array();
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::FILEPATH));
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::DIRTY));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Genre));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Album));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Artist));
@@ -375,6 +407,7 @@ bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
     auto selectArray = pbnjson::Array();
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::FILEPATH));
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::DIRTY));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
@@ -401,6 +434,7 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
     selectArray.append(TYPE);
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::DIRTY));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
     selectArray.append(FILE_PATH);

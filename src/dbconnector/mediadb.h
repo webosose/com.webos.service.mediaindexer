@@ -109,7 +109,7 @@ public:
      *
      * \param[in] device The device to remove dirties.
      */
-    void removeDirty(DevicePtr device);
+    void removeDirty(Device* device);
 
     /**
      * \brief Add service to db access list.

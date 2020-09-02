@@ -191,7 +191,7 @@ bool LunaConnector::sendMessage(const std :: string & uri, const std :: string &
     lunaError_t lunaErr;
     LSMessageToken *msgToken = (token == nullptr) ? &token_ : token;
     std::string method = forcemethod.empty() ? uri.substr(uri.find_last_of('/') + 1) : forcemethod;
-    LOG_DEBUG("uri : %s, payload : %s, async : %d", uri.c_str(), payload.c_str(), async);
+    LOG_DEBUG("uri : %s, payload : %s, async : %d, method : %s", uri.c_str(), payload.c_str(), async, method.c_str());
     if (!async_)
     {
         if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), cb, ctx, msgToken, &lunaErr))
