@@ -274,6 +274,17 @@ private:
      * \param[in] ctx Pointer to IndexerService class instance.
      */
     static bool onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for onRequestMediaScan() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    bool requestMediaScan(LSMessage *msg);
+
     /**
      * \brief Combines functionality for onPluginGet and onPluginPut.
      *

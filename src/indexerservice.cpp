@@ -59,6 +59,7 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getImageList", IndexerService::onGetImageList, LUNA_METHOD_FLAGS_NONE },
     { "getImageMetadata", IndexerService::onGetImageMetadata, LUNA_METHOD_FLAGS_NONE },
     { "requestDelete", IndexerService::onRequestDelete, LUNA_METHOD_FLAGS_NONE },
+    { "requestMediaScan", IndexerService::onRequestMediaScan, LUNA_METHOD_FLAGS_NONE },
     {NULL, NULL}
 };
 
@@ -692,12 +693,13 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
     return rv;
 
 }
+
 bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_INFO(0, "start onRequestDelete");
 
     IndexerService *is = static_cast<IndexerService *>(ctx);
-    std::string uri;
+
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     std::string method = LSMessageGetMethod(msg);
@@ -710,10 +712,10 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
     }
 
     auto domTree(parser.getDom());
+    RETURN_IF(!domTree.hasKey("uri"), false, "client must specify uri");
 
-    if (domTree.hasKey("uri"))
-        uri = domTree["uri"].asString();
-
+    // get the playback uri for the given media item uri
+    auto uri = domTree["uri"].asString();
     bool rv = true;
     auto mdb = MediaDb::instance();
     auto reply = pbnjson::Object();
@@ -737,6 +739,52 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
         }
     }
     return rv;
+}
+
+bool IndexerService::onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_INFO(0, "start onRequestMediaScan");
+
+    IndexerService *is = static_cast<IndexerService *>(ctx);
+    return is->requestMediaScan(msg);
+}
+
+bool IndexerService::requestMediaScan(LSMessage *msg)
+{
+    LOG_INFO(0, "start onRequestMediaScan");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+    RETURN_IF(!domTree.hasKey("path"), false, "client must specify path");
+
+    // get the playback uri for the given media item uri
+    auto path = domTree["path"].asString();
+
+	LOG_INFO(0, "call IndexerService onRequestMediaScan");
+    bool rv = indexer_->requestMediaScan(path);
+
+	// generate response
+    auto reply = pbnjson::Object();
+    reply.put("returnValue", true);
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!LSMessageReply(lsHandle_, msg, reply.stringify().c_str(), &lsError)) {
+        LOG_ERROR(0, "Message reply error");
+        return false;
+    }
+    return true;
 }
 
 bool IndexerService::pluginPutGet(LSMessage *msg, bool get)

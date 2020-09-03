@@ -106,6 +106,8 @@ public:
       * This internally calls get and setDetect.
       */
      bool activate();
+
+     bool requestMediaScan(const std::string &path);
      
 protected:
     /// Activate plugins and detection

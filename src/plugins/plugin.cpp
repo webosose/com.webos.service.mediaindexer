@@ -328,6 +328,37 @@ void Plugin::scan(const std::string &uri)
         dev->uri().c_str());
 }
 
+void Plugin::singleScan(const std::string &path)
+{
+    LOG_DEBUG("start singleScan : %s", path.c_str());
+
+    std::string mppath = "";
+    if (path.find("/tmp") == 0)
+        mppath = path.substr(0, 17);
+
+/// need to refactoring shared_ptr<Device>
+    std::string deviceUri = "";
+    for (auto &dev : devices_) {
+        if (matchUri(dev.second->mountpoint(), mppath))
+            deviceUri = dev.first;
+    }
+
+    auto dev = device(deviceUri);
+    if (!dev){
+        LOG_INFO(0, "fail create device");
+        return;
+    }
+
+    uri_ = dev->uri();
+    if (uri_.back() != '/' && path.front() != '/')
+        uri_.append("/");
+    uri_.append(path);
+    MediaItemPtr mi(new MediaItem(uri_));
+
+    auto obs = dev->observer();
+    obs->newMediaItem(std::move(mi));
+}
+
 void Plugin::extractMeta(MediaItem &mediaItem, bool expand)
 {
     LOG_ERROR(0, "No meta data extraction for '%s'", mediaItem.uri().c_str());

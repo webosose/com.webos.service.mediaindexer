@@ -191,6 +191,13 @@ public:
     virtual void scan(const std::string &uri);
 
     /**
+     * \brief Scan device for media.
+     *
+     * \param[in] path file path.
+     */
+    virtual void singleScan(const std::string &path);
+
+    /**
      * \brief Does the meta data extraction.
      *
      * \param[in] mediaItem The media item.
