@@ -42,6 +42,7 @@ public:
     std::string getVideoMetaData(const std::string& uri) const;
     std::string getImageMetaData(const std::string& uri) const;
     std::string requestDelete(const std::string& uri) const;
+    std::string requestMediaScan(const std::string& path) const;
 
 private:
     LOG_MSGID

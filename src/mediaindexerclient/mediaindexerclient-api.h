@@ -83,6 +83,11 @@ extern "C" {
      */
     std::string RequestDelete(MediaIndexerHandle handle, const std::string& uri);
 
+    /**
+     * Request to media scan given path
+     */
+    std::string RequestMediaScan(MediaIndexerHandle handle, const std::string& path);
+
 #ifdef __cplusplus
 }
 #endif

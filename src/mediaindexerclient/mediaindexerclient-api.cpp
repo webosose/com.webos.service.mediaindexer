@@ -143,3 +143,14 @@ std::string RequestDelete(MediaIndexerHandle handle, const std::string& uri)
     IndexerClientWrapper* indexerWrapper = static_cast<IndexerClientWrapper*>(handle);
     return indexerWrapper->client_->requestDelete(uri);
 }
+
+std::string RequestMediaScan(MediaIndexerHandle handle, const std::string& path)
+{
+    std::cout << std::string("RequestMediaScan") << std::endl;
+    if (!handle) {
+        std::cout << std::string("MediaIndexerHandle is NULL!") << std::endl;
+        return std::string();
+    }
+    IndexerClientWrapper* indexerWrapper = static_cast<IndexerClientWrapper*>(handle);
+    return indexerWrapper->client_->requestMediaScan(path);
+}

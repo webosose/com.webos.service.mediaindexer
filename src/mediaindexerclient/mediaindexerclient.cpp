@@ -177,6 +177,28 @@ std::string MediaIndexerClient::requestDelete(const std::string& uri) const
     return ret;
 }
 
+std::string MediaIndexerClient::requestMediaScan(const std::string& path) const
+{
+    if (!mediaDBConnector_ || !indexerConnector_)
+        return std::string();;
+
+    if (path.empty()) {
+        std::cout << "path is NULL!. Input path" << std::endl;
+        return std::string();
+    }
+
+    std::string url = indexerConnector_->getIndexerUrl();
+    url.append(std::string("requestMediaScan"));
+    auto request = pbnjson::Object();
+    request.put("path", path);
+    std::cout << "url : " << url << " request : " << request.stringify() << std::endl;
+
+    std::string ret = indexerConnector_->sendMessage(url, request.stringify());
+    std::cout << "Return value_ in requestMediaScan : " << ret << std::endl;
+    std::cout << "I'm MediaIndexerClient::requestMediaScan END!!!!!!!!!!!!" << std::endl;
+    return ret;
+}
+
 // TODO: remove duplicated append for each requested function.
 pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI api,
                                                         const std::string& uri) const
