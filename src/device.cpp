@@ -261,12 +261,14 @@ bool Device::scan(IMediaItemObserver *observer)
         }
     }
 
+    if (observer)
     {
         std::unique_lock lock(lock_);
         observer_ = observer;
     }
 
     LOG_INFO(0, "Plugin will scan '%s' for us", uri_.c_str());
+    resetMediaItemCount();
     queue_.push_back(uri_);
     cv_.notify_one();
     return true;
@@ -330,7 +332,12 @@ bool Device::processingDone()
 {
     if (state_ == Device::State::Idle) {
         LOG_INFO(0, "Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
-        return (totalItemCount_ == totalProcessedCount_);
+        if (totalItemCount_ == totalProcessedCount_) {
+            auto obs = observer();
+            if (obs)
+                obs->notifyDeviceScanned(this);
+            return true;
+        }
     }
     return false;
 }
@@ -343,6 +350,8 @@ void Device::activateCleanUpTask()
 void Device::resetMediaItemCount()
 {
     mediaItemCount_.clear();
+    processedCount_.clear();
+    totalItemCount_ = totalProcessedCount_ = 0;
 }
 
 void Device::setState(Device::State state, bool force)

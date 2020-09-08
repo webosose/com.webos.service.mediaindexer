@@ -106,8 +106,6 @@ public:
       * This internally calls get and setDetect.
       */
      bool activate();
-
-     bool requestMediaScan(const std::string &path);
      
 protected:
     /// Activate plugins and detection
@@ -126,6 +124,9 @@ protected:
 
     /// MediaItemObserver interface.
     void cleanupDevice(Device* device);
+
+    /// MediaItemObserver interface.
+    void notifyDeviceScanned(Device* device);
 
 private:
     /// Get message id.

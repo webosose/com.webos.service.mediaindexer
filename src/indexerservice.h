@@ -23,6 +23,7 @@
 #include <luna-service2/lunaservice.h>
 #include <string.h>
 #include <mutex>
+#include <condition_variable>
 
 class MediaIndexer;
 
@@ -128,6 +129,8 @@ public:
      * \param[in] msg The Luna message.
      */
     bool pushDeviceList(LSMessage *msg = nullptr);
+
+    bool notifyScanDone();
 
     LSHandle* getServiceHandle() { return lsHandle_; };
 
@@ -283,7 +286,10 @@ private:
      * \param[in] ctx Pointer to IndexerService class instance.
      */
     static bool onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    
     bool requestMediaScan(LSMessage *msg);
+
+    bool waitForScan();
 
     /**
      * \brief Combines functionality for onPluginGet and onPluginPut.
@@ -323,4 +329,7 @@ private:
     LocaleObserver *localeObserver_;
     MediaIndexer *indexer_;
     static std::mutex mutex_;
+    static std::mutex scanMutex_;
+    std::condition_variable scanCv_;
+    
 };

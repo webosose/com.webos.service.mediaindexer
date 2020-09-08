@@ -284,38 +284,13 @@ bool MediaIndexer::hasPlugin(const std::string &uri) const
     return (plg != plugins_.end());
 }
 
-
 void MediaIndexer::cleanupDevice(Device* device)
 {
     auto mdb = MediaDb::instance();
     mdb->removeDirty(device);    
 }
 
-bool MediaIndexer::requestMediaScan(const std::string &path)
+void MediaIndexer::notifyDeviceScanned(Device* device)
 {
-    LOG_DEBUG("start  requestMediaScan path: %s", path.c_str());
-
-    std::string uri = "";
-    if (path.find("/tmp/usb/") == 0) {
-        uri = "msc";
-    } else if (path.find("/tmp/upnp/") == 0) {
-        uri = "upnp";
-    } else if (path.find("/tmp/mtp/") == 0) {
-        uri = "mtp";
-    } else if (path.find("/storage/media/") == 0) {
-        uri = "storage";
-    } else {
-        return false;
-    }
-
-    if (!hasPlugin(uri)) {
-        LOG_DEBUG("hasPlugin not plugin uri : %s ",uri.c_str());
-        return false;
-    }
-
-    const auto & [plgUri, plg] = *plugins_.find(uri);
-    std::shared_lock lock(lock_);
-    plg->singleScan(path);
-
-    return true;
+    indexerService_->notifyScanDone();
 }

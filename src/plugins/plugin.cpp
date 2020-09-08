@@ -264,6 +264,11 @@ void Plugin::scan(const std::string &uri)
 
     auto obs = dev->observer();
 
+    if (!obs) {
+        LOG_ERROR(0, "device %s has no observer, observer is manadatory", dev->uri().c_str());
+        return;
+    }
+
     // get the device mountpoint
     auto mp = dev->mountpoint();
     if (mp.empty()) {
@@ -326,37 +331,6 @@ void Plugin::scan(const std::string &uri)
     }
     LOG_INFO(0, "File-tree-walk on device '%s' has been completed",
         dev->uri().c_str());
-}
-
-void Plugin::singleScan(const std::string &path)
-{
-    LOG_DEBUG("start singleScan : %s", path.c_str());
-
-    std::string mppath = "";
-    if (path.find("/tmp") == 0)
-        mppath = path.substr(0, 17);
-
-/// need to refactoring shared_ptr<Device>
-    std::string deviceUri = "";
-    for (auto &dev : devices_) {
-        if (matchUri(dev.second->mountpoint(), mppath))
-            deviceUri = dev.first;
-    }
-
-    auto dev = device(deviceUri);
-    if (!dev){
-        LOG_INFO(0, "fail create device");
-        return;
-    }
-
-    uri_ = dev->uri();
-    if (uri_.back() != '/' && path.front() != '/')
-        uri_.append("/");
-    uri_.append(path);
-    MediaItemPtr mi(new MediaItem(uri_));
-
-    auto obs = dev->observer();
-    obs->newMediaItem(std::move(mi));
 }
 
 void Plugin::extractMeta(MediaItem &mediaItem, bool expand)

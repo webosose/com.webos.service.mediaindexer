@@ -43,6 +43,8 @@
 /// From main.cpp.
 extern const char *lunaServiceId;
 std::mutex IndexerService::mutex_;
+std::mutex IndexerService::scanMutex_;
+constexpr int SCAN_TIMEOUT = 10;
 
 LSMethod IndexerService::serviceMethods_[] = {
     { "runDetect", IndexerService::onRun, LUNA_METHOD_FLAGS_NONE },
@@ -751,8 +753,6 @@ bool IndexerService::onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void
 
 bool IndexerService::requestMediaScan(LSMessage *msg)
 {
-    LOG_INFO(0, "start onRequestMediaScan");
-
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     std::string method = LSMessageGetMethod(msg);
@@ -770,12 +770,34 @@ bool IndexerService::requestMediaScan(LSMessage *msg)
     // get the playback uri for the given media item uri
     auto path = domTree["path"].asString();
 
-	LOG_INFO(0, "call IndexerService onRequestMediaScan");
-    bool rv = indexer_->requestMediaScan(path);
-
-	// generate response
+    LOG_INFO(0, "call IndexerService onRequestMediaScan");
+    Device *device = nullptr;
+    bool scanned = false;
+    int errorCode = 0;
+    // generate response
     auto reply = pbnjson::Object();
-    reply.put("returnValue", true);
+    for (auto const &[uri, plg] : indexer_->plugins_) {
+        plg->lock();
+        for (auto const &[uri, dev] : plg->devices()) {
+            if (plg->matchUri(dev->mountpoint(), path)) {
+                LOG_INFO(0, "Media Scan start for device %s", dev->uri().c_str());
+                dev->scan();
+                scanned = true;
+                break;
+            }
+        }
+        plg->unlock();
+    }
+
+    if (scanned && waitForScan()) {
+        reply.put("returnValue", true);
+        reply.put("errorCode", 0);
+        reply.put("errorText", "No Error");
+    } else {
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Scan Failed");
+    }
 
     LSError lsError;
     LSErrorInit(&lsError);
@@ -784,6 +806,18 @@ bool IndexerService::requestMediaScan(LSMessage *msg)
         LOG_ERROR(0, "Message reply error");
         return false;
     }
+    return true;
+}
+
+bool IndexerService::waitForScan()
+{
+    std::unique_lock<std::mutex> lk(scanMutex_);
+    return !(scanCv_.wait_for(lk, std::chrono::seconds(SCAN_TIMEOUT)) == std::cv_status::timeout);
+}
+
+bool IndexerService::notifyScanDone()
+{
+    scanCv_.notify_one();
     return true;
 }
 

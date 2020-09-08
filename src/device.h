@@ -171,7 +171,7 @@ public:
      * \param[in] observer Observer class for this device class.
      * \return True if device cares of media items, else false.
      */
-    virtual bool scan(IMediaItemObserver *observer);
+    virtual bool scan(IMediaItemObserver *observer = nullptr);
 
     /**
      *\brief Gives us the current media item observer.

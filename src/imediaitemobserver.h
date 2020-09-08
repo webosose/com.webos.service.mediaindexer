@@ -58,6 +58,14 @@ public:
      */
     virtual void cleanupDevice(Device* dev) = 0;
 
+     /**
+     * \brief notify after specified device has been scanned.
+     *
+     *
+     * \param[in] dev The device.
+     */
+    virtual void notifyDeviceScanned(Device* dev) = 0;
+
 protected:
     IMediaItemObserver() {};
 };
