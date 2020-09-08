@@ -55,6 +55,7 @@ webos_add_linker_options(ALL --no-undefined)
 # get the sources
 add_subdirectory(src)
 add_subdirectory(test/mediaindexerclient)
+add_subdirectory(test/luna_async)
 
 # install configulation file
 add_subdirectory(files/conf)

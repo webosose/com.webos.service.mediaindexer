@@ -1,0 +1,14 @@
+{
+    "exeName":"@WEBOS_INSTALL_SBINDIR@/com.webos.service.mediaindexerMock",
+    "type": "regular",
+    "allowedNames": [
+        "com.webos.service.mediaindexerMock"
+    ],
+    "permissions": [
+        {
+            "service":"com.webos.service.mediaindexerMock",
+            "inbound": ["*"],
+            "outbound": ["com.webos.service.mediaindexerMockClient*"]
+        }
+    ]
+}
