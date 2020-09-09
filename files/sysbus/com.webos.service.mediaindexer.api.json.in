@@ -1,5 +1,5 @@
 {
-    "mediaindexer.control": [
+    "mediaindexer.operation": [
         "com.webos.service.mediaindexer/getPlugin",
         "com.webos.service.mediaindexer/putPlugin",
         "com.webos.service.mediaindexer/getPluginList",
@@ -13,6 +13,7 @@
         "com.webos.service.mediaindexer/getImageList",
         "com.webos.service.mediaindexer/getImageMetadata",
         "com.webos.service.mediaindexer/getMediaDbPermission",
-        "com.webos.service.mediaindexer/getNotifyChange"
+        "com.webos.service.mediaindexer/requestDelete",
+        "com.webos.service.mediaindexer/requestMediaScan"
     ]
 }
