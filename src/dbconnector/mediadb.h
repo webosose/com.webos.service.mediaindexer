@@ -120,7 +120,8 @@ public:
 
     void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp);
 
-    bool getAudioList(const std::string &uri, pbnjson::JValue &resp);
+    // TODO: add define guard
+    bool getAudioList(const std::string &uri, int count = 500);
 
     bool getVideoList(const std::string &uri, pbnjson::JValue &resp);
 

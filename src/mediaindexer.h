@@ -106,6 +106,8 @@ public:
       * This internally calls get and setDetect.
       */
      bool activate();
+
+     bool sendMediaListNotification(const std::string &method, pbnjson::JValue &meta);
      
 protected:
     /// Activate plugins and detection

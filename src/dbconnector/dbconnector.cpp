@@ -25,12 +25,14 @@ std::string DbConnector::suffix_ = ":1";
 
 void DbConnector::init(LSHandle * lsHandle)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::init()");
     lsHandle_ = lsHandle;
 }
 
 DbConnector::DbConnector(const char *serviceName, bool async) :
     serviceName_(serviceName)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::DbConnector() serviceName '%s'", serviceName_.c_str());
     kindId_ = serviceName_ + suffix_;
 
     // nothing to be done here
@@ -41,11 +43,13 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
 
     connector_->registerTokenCallback(
         [this](LSMessageToken & token, const std::string & method, void *obj) -> void {
+            LOG_INFO(0, "[OYJ_DBG] registerTokenCallback() method->'%s'", method.c_str());
             rememberSessionData(token, method, obj);
         });
 
     connector_->registerTokenCancelCallback(
         [this](LSMessageToken & token, void *obj) -> void {
+            LOG_INFO(0, "[OYJ_DBG] registerTokenCancelCallback()");
             sessionDataFromToken(token, static_cast<SessionData*>(obj));
         });
 }
@@ -53,16 +57,19 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
 DbConnector::DbConnector()
 {
     // nothing to be done here
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::DbConnector()");
 }
 
 DbConnector::~DbConnector()
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::~DbConnector()");
     // nothing to be done here
     connector_.reset();
 }
 
 void DbConnector::ensureKind(const std::string &kind_name)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::ensureKind() kind '%s'", kind_name.c_str());
     LSMessageToken sessionToken;
 
     // ensure that kind exists
@@ -94,6 +101,7 @@ void DbConnector::ensureKind(const std::string &kind_name)
 bool DbConnector::mergePut(const std::string &uri, bool precise,
     pbnjson::JValue &props, void *obj, const std::string &kind_name, bool atomic)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::mergePut() kind '%s'", kind_name.c_str());
     LSMessageToken sessionToken;
     bool async = !atomic;
     std::string url = dbUrl_;
@@ -138,6 +146,7 @@ bool DbConnector::mergePut(const std::string &uri, bool precise,
 bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
     const std::string &whereProp, const std::string &whereVal, bool precise, void *obj, bool atomic, std::string method)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::merge() kind '%s'", kind_name.c_str());
     LSMessageToken sessionToken;
     bool async = !atomic;
     std::string url = dbUrl_;
@@ -176,6 +185,7 @@ bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
 bool DbConnector::find(const std::string &uri, bool precise,
     void *obj, const std::string &kind_name, bool atomic)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::find() kind '%s'", kind_name.c_str());
     LSMessageToken sessionToken;
     bool async = !atomic;
     std::string url = dbUrl_;
@@ -213,6 +223,7 @@ bool DbConnector::find(const std::string &uri, bool precise,
 bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
     pbnjson::JValue &where, pbnjson::JValue &filter, void *obj, bool atomic)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::search() kind '%s'", kind_name.c_str());
     LSMessageToken sessionToken;
     bool async = !atomic;
     std::string url = dbUrl_;
@@ -229,11 +240,22 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
     auto request = pbnjson::Object();
     request.put("query", query);
 
+    //OYJ
+    LSError lsError;
+    LSErrorInit(&lsError);
+    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
+                DbConnector::onLunaResponse2, this, &sessionToken, &lsError)) {
+
+        LOG_ERROR(0, "Db service search error");
+    }
+
+    /*
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service search error");
         return false;
     }
+    */
 
     return true;
 }
@@ -241,6 +263,7 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
 bool DbConnector::del(const std::string &kind_name, pbnjson::JValue &where,
     void *obj, bool atomic)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::del() kind '%s'", kind_name.c_str());
     LSMessageToken sessionToken;
     bool async = !atomic;
     std::string url = dbUrl_;
@@ -263,6 +286,7 @@ bool DbConnector::del(const std::string &kind_name, pbnjson::JValue &where,
 
 bool DbConnector::roAccess(std::list<std::string> &services)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::roAccess()");
     if (!lsHandle_) {
         LOG_CRITICAL(0, "Luna bus handle not set");
         return false;
@@ -305,6 +329,7 @@ bool DbConnector::roAccess(std::list<std::string> &services)
 
 bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj, bool atomic)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::roAccess(services, kinds, obj, atomic param)");
     if (!lsHandle_) {
         LOG_CRITICAL(0, "Luna bus handle not set");
         return false;
@@ -353,6 +378,7 @@ void DbConnector::putRespObject(bool returnValue, pbnjson::JValue & obj,
                 const int& errorCode,
                 const std::string& errorText)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::putRespObject()");
     obj.put("returnValue", returnValue);
     obj.put("errorCode", errorCode);
     obj.put("errorText", errorText);
@@ -360,6 +386,7 @@ void DbConnector::putRespObject(bool returnValue, pbnjson::JValue & obj,
 
 bool DbConnector::sendResponse(LSHandle *sender, LSMessage* message, const std::string &object)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::sendResponse()");
     if (!connector_)
         return false;
 
@@ -368,6 +395,7 @@ bool DbConnector::sendResponse(LSHandle *sender, LSMessage* message, const std::
 
 bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::sessionDataFromToken()");
     std::lock_guard<std::mutex> lock(lock_);
 
     auto match = messageMap_.find(token);
@@ -385,14 +413,41 @@ bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd)
 
 bool DbConnector::onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::onLunaResponse()");
     DbConnector *connector = static_cast<DbConnector *>(ctx);
     LOG_DEBUG("onLunaResponse");
     return connector->handleLunaResponse(msg);
 }
 
+bool DbConnector::onLunaResponse2(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::onLunaResponse2()");
+    DbConnector *connector = static_cast<DbConnector *>(ctx);
+    pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
+    const char *payload = LSMessageGetPayload(msg);
+
+    if (!parser.parse(payload)) {
+        LOG_ERROR(0, "Invalid JSON message: %s", payload);
+        return false;
+    }
+    auto domTree(parser.getDom());
+    auto reply = pbnjson::Object();
+    reply.put("audioList", domTree["results"]);
+
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (!LSSubscriptionReply(connector->lsHandle_, "getAudioList", reply.stringify().c_str(), &lsError)) {
+        LOG_INFO(0, "[OYJ_DBG] subscription reply error!");
+        return false;
+    }
+    return true;
+}
+
 void DbConnector::rememberSessionData(LSMessageToken token,
     const std::string &method, void *object)
 {
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::rememberSessionData()");
     // remember token for response - we could do that after the
     // request has been issued because the response will happen
     // from the mainloop in the same thread context

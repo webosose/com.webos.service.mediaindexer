@@ -131,6 +131,7 @@ public:
     bool pushDeviceList(LSMessage *msg = nullptr);
 
     bool notifyScanDone();
+    bool notifyMediaList(const std::string& method, pbnjson::JValue &list);
 
     LSHandle* getServiceHandle() { return lsHandle_; };
 
@@ -151,6 +152,8 @@ private:
     static pbnjson::JSchema detectRunStopSchema_;
     /// Schema for getXXXXXMetadata.
     static pbnjson::JSchema metadataGetSchema_;
+    /// Schema for getXXXXXList.
+    static pbnjson::JSchema listGetSchema_;
 
     /**
      * \brief Callback for getPlugin() Luna method.
@@ -222,7 +225,7 @@ private:
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
      */
-    static bool onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Callback for getAudioMetadata() Luna method.
@@ -286,7 +289,12 @@ private:
      * \param[in] ctx Pointer to IndexerService class instance.
      */
     static bool onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+   
     
+    bool getAudioList(const std::string &uri, int count);
+    bool getVideoList(const std::string &uri, int count);
+    bool getImageList(const std::string &uri, int count);
+
     bool requestMediaScan(LSMessage *msg);
 
     bool waitForScan();
@@ -318,6 +326,9 @@ private:
      */
     void checkForDeviceListSubscriber(LSMessage *msg,
         pbnjson::JDomParser &parser);
+
+    bool notifySubscriber(const std::string& method, pbnjson::JValue& response);
+
 
     /// Service method definitions.
     static LSMethod serviceMethods_[];

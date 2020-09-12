@@ -57,6 +57,8 @@ protected:
     struct SessionData {
         /// A method name to identify the action.
         std::string method;
+        /// A requested method name from media indexer
+        std::string indexerMethod;
         /// Some arbitrary object.
         void *object;
     };
@@ -194,6 +196,7 @@ private:
 
     /// Callback for luna responses.
     static bool onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onLunaResponse2(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /// Needed for the session data map.
     mutable std::mutex lock_;

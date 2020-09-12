@@ -32,6 +32,7 @@ std::mutex MediaDb::handlerLock_;
 
 MediaDb *MediaDb::instance()
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::instance()");
     std::lock_guard<std::mutex> lk(ctorLock_);
     if (!instance_.get()) {
         instance_.reset(new MediaDb);
@@ -45,11 +46,14 @@ MediaDb *MediaDb::instance()
 
 MediaDb::~MediaDb()
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::~MediaDb()");
+    std::lock_guard<std::mutex> lk(ctorLock_);
     mediaItemMap_.clear();
 }
 
 bool MediaDb::handleLunaResponse(LSMessage *msg)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::handleLunaResponse");
     struct SessionData sd;
     std::lock_guard<std::mutex> lk(handlerLock_);
     LSMessageToken token = LSMessageGetResponseToken(msg);
@@ -60,7 +64,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     }
 
     auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.mediadb for: '%s'", method.c_str());
+    LOG_INFO(0, "[OYJ_DBG] Received response com.webos.mediadb for: '%s'", method.c_str());
 
     // handle the media data exists case
     if (method == std::string("find") ||
@@ -157,6 +161,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 
 void MediaDb::checkForChange(MediaItemPtr mediaItem)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::checkForChange");
     auto mi = mediaItem.get();
     auto uri = mediaItem->uri();
     auto hash = mediaItem->hash();
@@ -171,6 +176,7 @@ void MediaDb::checkForChange(MediaItemPtr mediaItem)
 
 bool MediaDb::needUpdate(MediaItem *mediaItem)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::needUpdate");
     bool ret = false;
     if (!mediaItem) {
         LOG_ERROR(0, "Invalid input");
@@ -228,6 +234,7 @@ bool MediaDb::needUpdate(MediaItem *mediaItem)
 
 bool MediaDb::isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::isEnoughInfo");
     bool enough = false;
     if (!mediaItem) {
         LOG_ERROR(0, "Invalid input");
@@ -254,6 +261,7 @@ bool MediaDb::isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val)
 
 void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::updateMediaItem");
     LOG_DEBUG("%s Start for mediaItem uri : %s",__FUNCTION__, mediaItem->uri().c_str());
     // update or create the device in the database
     if (mediaItem->type() == MediaItem::Type::EOL) {
@@ -295,6 +303,7 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 std::optional<std::string> MediaDb::getFilePath(
     const std::string &uri) const
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::getFilePath");
     // check if the plugin is available and get it
     auto plg = PluginFactory().plugin(uri);
     if (!plg)
@@ -305,6 +314,7 @@ std::optional<std::string> MediaDb::getFilePath(
 
 void MediaDb::markDirty(std::shared_ptr<Device> device, MediaItem::Type type)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::markDirty");
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put(DIRTY, true);
@@ -320,6 +330,7 @@ void MediaDb::markDirty(std::shared_ptr<Device> device, MediaItem::Type type)
 
 void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::unflagDirty");
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put(DIRTY, false);
@@ -338,6 +349,7 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 
 void MediaDb::removeDirty(Device* device)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::removeDirty");
     std::map<MediaItem::Type, pbnjson::JValue> listMap;
     std::string uri = device->uri();
 
@@ -375,6 +387,7 @@ void MediaDb::removeDirty(Device* device)
 
 void MediaDb::grantAccess(const std::string &serviceName)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::grantAccess");
     LOG_INFO(0, "Add read-only access to media db for '%s'",
         serviceName.c_str());
     dbClients_.push_back(serviceName);
@@ -383,6 +396,7 @@ void MediaDb::grantAccess(const std::string &serviceName)
 
 void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::grantAccessAll");
     LOG_INFO(0, "Add read-only access to media db for '%s'",
         serviceName.c_str());
     dbClients_.push_back(serviceName);
@@ -393,8 +407,9 @@ void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic, pbnjso
         roAccess(dbClients_, kindList_, nullptr, atomic);
 }
 
-bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
+bool MediaDb::getAudioList(const std::string &uri, int count)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::getAudioList");
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
@@ -418,11 +433,14 @@ bool MediaDb::getAudioList(const std::string &uri, pbnjson::JValue &resp)
         filter = prepareWhere(DIRTY, false, true);
     }
 
+    pbnjson::JValue resp = pbnjson::Object();
+
     return search(AUDIO_KIND, selectArray, where, filter,&resp, true);
 }
 
 bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::getVideoList");
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
@@ -450,6 +468,7 @@ bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
 
 bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::getImageList");
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(URI);
@@ -476,6 +495,7 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
 
 bool MediaDb::requestDelete(const std::string &uri, pbnjson::JValue &resp)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::requestDelete");
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     auto where = prepareWhere(URI, uri, true);
     MediaItem::Type type =guessType(uri);
@@ -484,6 +504,7 @@ bool MediaDb::requestDelete(const std::string &uri, pbnjson::JValue &resp)
 
 MediaItem::Type MediaDb::guessType(const std::string &uri)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::guessType");
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     gchar *contentType = NULL;
     gboolean uncertain;
@@ -502,6 +523,7 @@ pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
                                                  bool precise,
                                                  pbnjson::JValue whereClause) const
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::prepareWhere(key, string, precise, whereClause");
     auto cond = pbnjson::Object();
     cond.put("prop", key);
     cond.put("op", precise ? "=" : "%");
@@ -515,6 +537,7 @@ pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
                                                  bool precise,
                                                  pbnjson::JValue whereClause) const
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::prepareWhere(key, value, precise, whereClause");
     auto cond = pbnjson::Object();
     cond.put("prop", key);
     cond.put("op", precise ? "=" : "%");
@@ -524,6 +547,7 @@ pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
 }
 
 void MediaDb::makeUriIndex(){
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::makeUriIndex");
     std::list<std::string> indexes = {URI, DIRTY};
     for (auto idx : indexes) {
         auto index = pbnjson::Object();
@@ -543,6 +567,7 @@ void MediaDb::makeUriIndex(){
 MediaDb::MediaDb() :
     DbConnector("com.webos.service.mediaindexer.media", true)
 {
+    LOG_INFO(0, "[OYJ_DBG] MediaDb::MediaDb()");
     std::list<std::string> indexes = {URI, TYPE};
     for (auto idx : indexes) {
         auto index = pbnjson::Object();
