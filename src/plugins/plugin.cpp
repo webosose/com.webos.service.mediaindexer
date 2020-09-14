@@ -290,10 +290,14 @@ void Plugin::scan(const std::string &uri)
             contentType = g_content_type_guess(file.path().c_str(), NULL, 0,
                 &uncertain);
 
-
             if (!contentType) {
                 LOG_INFO(0, "MIME type detection is failed for '%s'",
                     file.path().c_str());
+                continue;
+            }
+
+            mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
+            if (!mimTypeSupported) {
                 // get the file extension for the ts or ps.
                 std::string path = file.path();
                 std::string ext = path.substr(path.find_last_of('.') + 1);
@@ -306,8 +310,8 @@ void Plugin::scan(const std::string &uri)
                     LOG_INFO(0, "it's NOT ts/ps. need to check for '%s'", file.path().c_str());
                     continue;
                 }
+                mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
             }
-            mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
 
             if (uncertain && !mimTypeSupported) {
                 LOG_INFO(0, "Invalid MIME type for '%s'", file.path().c_str());

@@ -372,7 +372,11 @@ std::string MediaIndexerClient::getKindID(const std::string &uri) const
 
     if (!contentType) {
         std::cout << "contentType is NULL for '" << uri << "'" << std::endl;
+        return std::string();
+    }
 
+    kindId = typeFromMime(contentType);
+    if (!kindId.length() > 0) {
         /* get the file extension for ts or ps */
         std::string mimeType;
         std::string ext = uri.substr(uri.find_last_of('.') + 1);
@@ -391,10 +395,7 @@ std::string MediaIndexerClient::getKindID(const std::string &uri) const
         kindId = typeFromMime(mimeType);
         return kindId;
     }
-
-    kindId = typeFromMime(contentType);
     g_free(contentType);
-
     return kindId;
 }
 

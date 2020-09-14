@@ -688,8 +688,30 @@ MediaItem::Type MediaDb::guessType(const std::string &uri)
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     gchar *contentType = NULL;
     gboolean uncertain;
+    bool mimTypeSupported = false;
 
     contentType = g_content_type_guess(uri.c_str(), NULL, 0, &uncertain);
+    if (!contentType) {
+        LOG_INFO(0, "MIME type detection is failed for '%s'", uri.c_str());
+        return MediaItem::Type::EOL;
+    }
+
+    mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
+    if (!mimTypeSupported) {
+        // get the file extension for the ts or ps.
+        std::string ext = uri.substr(uri.find_last_of('.') + 1);
+
+        if (!ext.compare("ts"))
+            contentType = "video/MP2T";
+        else if (!ext.compare("ps"))
+            contentType = "video/MP2P";
+        else {
+            LOG_INFO(0, "it's NOT ts/ps. need to check for '%s'", uri.c_str());
+            return MediaItem::Type::EOL;
+        }
+        mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
+    }
+
     if (contentType) {
         MediaItem::Type type = MediaItem::typeFromMime(contentType);
         return type;
