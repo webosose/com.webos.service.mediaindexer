@@ -19,11 +19,12 @@
 #include "logging.h"
 #include "dbobserver.h"
 #include "localeobserver.h"
+#include "indexerserviceclientsmgr.h"
 #include <pbnjson.hpp>
-#include <luna-service2/lunaservice.h>
 #include <string.h>
 #include <mutex>
 #include <condition_variable>
+#include <memory>
 
 class MediaIndexer;
 
@@ -289,7 +290,11 @@ private:
      * \param[in] ctx Pointer to IndexerService class instance.
      */
     static bool onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx);
-   
+
+    static bool callbackSubscriptionCancel(LSHandle *lshandle, 
+                                           LSMessage *msg,
+                                           void *ctx);
+
     
     bool getAudioList(const std::string &uri, int count);
     bool getVideoList(const std::string &uri, int count);
@@ -329,6 +334,17 @@ private:
 
     bool notifySubscriber(const std::string& method, pbnjson::JValue& response);
 
+    bool addClient(const std::string &sender,
+                   const std::string &method,
+                   const LSMessageToken& token);
+
+    bool removeClient(const std::string &sender,
+                      const std::string &method,
+                      const LSMessageToken& token);
+
+    bool isClientExist(const std::string &sender,
+                       const std::string &method,
+                       const LSMessageToken& token);
 
     /// Service method definitions.
     static LSMethod serviceMethods_[];
@@ -342,5 +358,7 @@ private:
     static std::mutex mutex_;
     static std::mutex scanMutex_;
     std::condition_variable scanCv_;
+
+    std::unique_ptr<IndexerServiceClientsMgr> clientMgr_;
     
 };

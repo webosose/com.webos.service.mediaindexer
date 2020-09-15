@@ -24,14 +24,13 @@
 #include "dbconnector/settingsdb.h"
 #include "dbconnector/devicedb.h"
 #include "dbconnector/mediadb.h"
+#include "indexerserviceclientsmgrimpl.h"
 
 #include <glib.h>
-#include <pbnjson.hpp>
 
 #include <algorithm>
 #include <chrono>
 #include <thread>
-#include <utility>
 
 #define RETURN_IF(exp,rv,format,args...) \
         { if(exp) { \
@@ -161,6 +160,13 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
         return;
     }
 
+    if (!LSSubscriptionSetCancelFunction(lsHandle_, 
+                                         &IndexerService::callbackSubscriptionCancel,
+                                         this, &lsError)) {
+        LOG_CRITICAL(0, "Unable to set subscription cancel");
+        return;
+    }
+
     /// @todo Implement bus disconnect handler.
 
     PdmListener::init(lsHandle_);
@@ -179,6 +185,8 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
 
     dbObserver_ = new DbObserver(lsHandle_, dbInitialized);
     //localeObserver_ = new LocaleObserver(lsHandle_, nullptr);
+    
+    clientMgr_ = std::make_unique<IndexerServiceClientsMgrImpl>();
 }
 
 IndexerService::~IndexerService()
@@ -196,8 +204,11 @@ IndexerService::~IndexerService()
 
     if (dbObserver_)
         delete dbObserver_;
+
     //if (localeObserver_)
     //  delete localeObserver_;
+    
+    clientMgr_.reset();
 }
 
 bool IndexerService::pushDeviceList(LSMessage *msg)
@@ -421,35 +432,39 @@ bool IndexerService::notifyMediaList(const std::string &method, pbnjson::JValue 
 
 }
 
-/*
-bool IndexerService:callbackSubscriptionCancel(LSHandle *lshandle, LSMessage *msg, void *user_data)
-{
-    IndexerService* s = static_cast<IndexerService *>(user_data);
 
-    if (s == NULL) {
-        LOG_ERROR(0, "Subscription cancel callback context is invalid %p", user_data);
+bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle, 
+                                               LSMessage *msg,
+                                               void *ctx)
+{
+    LOG_INFO(0, "[OYJ_DBG] IndexerService::callbackSubscriptionCancel!");
+    IndexerService* is = static_cast<IndexerService *>(ctx);
+
+    if (is == NULL) {
+        LOG_ERROR(0, "Subscription cancel callback context is invalid %p", ctx);
         return false;
     }
 
+    LSMessageToken token = LSMessageGetToken(msg);
     std::string method = LSMessageGetMethod(msg);
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::callbackSubscriptionCancel!");
-    return true;
+    std::string sender = LSMessageGetSender(msg);
+    bool ret = is->removeClient(sender, method, token);
+    return ret;
 }
-*/
+
 
 bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_INFO(0, "[OYJ_DBG] IndexerService::onAudioListGet()");
     // parse incoming message
     std::string senderName = LSMessageGetSenderServiceName(msg);
-    std::string method = LSMessageGetMethod(msg);
     const char *payload = LSMessageGetPayload(msg);
 
     pbnjson::JDomParser parser;
     // TODO: apply listSchema
     if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
-        LOG_ERROR(0, "Invalid %s request: %s from sender: %s",
-                method.c_str(), payload, senderName.c_str());
+        LOG_ERROR(0, "Invalid request: payload[%s] sender[%s]",
+                payload, senderName.c_str());
         return false;
     }
 
@@ -472,6 +487,11 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         LOG_INFO(0, "[OYJ_DBG] Adding getAudioList subscriber '%s'",
                 senderName.c_str());
 
+        IndexerService *is = static_cast<IndexerService *>(ctx);
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
         if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
             LOG_ERROR(0, "Add subscription error");
             LSErrorPrint(&lsError, stderr);
@@ -480,6 +500,7 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         }
 //        LSSubscriptionSetCancelFunction(lshandle, &IndexerService::callbackSubscriptionCancel, (void*)this, &lserror);
 
+        is->addClient(sender, method, token);
 
         // parse uri and count from application payload
         std::string uri;
@@ -492,7 +513,6 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         if (domTree.hasKey("count"))
             count = domTree["count"].asNumber<int32_t>();
 
-        IndexerService *is = static_cast<IndexerService *>(ctx);
         return is->getAudioList(uri, count);
     }
 
@@ -1038,4 +1058,25 @@ void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
         sn.erase(pos);
     auto reply = pbnjson::Object();
     mdb->grantAccessAll(sn, false, reply);
+}
+
+bool IndexerService::addClient(const std::string &sender, 
+                               const std::string &method,
+                               const LSMessageToken& token)
+{
+    return clientMgr_->addClient(sender, method, token);
+}
+
+bool IndexerService::removeClient(const std::string &sender,
+                                  const std::string &method,
+                                  const LSMessageToken& token)
+{
+    return clientMgr_->removeClient(sender, method, token);
+}
+
+bool IndexerService::isClientExist(const std::string &sender,
+                                   const std::string &method,
+                                   const LSMessageToken& token)
+{
+    return clientMgr_->isClientExist(sender, method, token);
 }
