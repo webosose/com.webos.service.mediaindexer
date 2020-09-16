@@ -45,6 +45,9 @@ public:
      */
     virtual bool handleLunaResponse(LSMessage *msg);
 
+
+    virtual bool handleLunaResponse2(LSMessage *msg);
+
     /**
      * \brief Check media item hash fpr change.
      *

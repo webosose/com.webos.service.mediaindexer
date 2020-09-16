@@ -103,6 +103,11 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
     return true;
 }
 
+bool DeviceDb::handleLunaResponse2(LSMessage *msg)
+{
+    return true;
+}
+
 DeviceDb::DeviceDb() :
     DbConnector("com.webos.service.mediaindexer.devices")
 {

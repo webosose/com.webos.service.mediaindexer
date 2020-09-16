@@ -72,6 +72,9 @@ protected:
      */
     virtual bool handleLunaResponse(LSMessage *msg) = 0;
 
+    //OYJ_TEST
+    virtual bool handleLunaResponse2(LSMessage *msg) = 0;
+
     /**
      * \brief Send mergePut request with uri.
      *
@@ -116,7 +119,7 @@ protected:
      * \return True on success, false on error.
      */
     virtual bool search(const std::string &kind_name, pbnjson::JValue &selects, pbnjson::JValue &where,
-        pbnjson::JValue &filter, void *obj = nullptr, bool atomic = false);
+        pbnjson::JValue &filter, void *obj = nullptr, bool atomic = false, const std::string &method = std::string(), int count = 0, const std::string &page = std::string());
 
     /**
      * \brief Delete all objects with the given uri by JSON object.
@@ -180,12 +183,11 @@ private:
 
     /// Db service url.
     static const char *dbUrl_;
+    /// suffix to service name to make kind id
+    static std::string suffix_;
 
     /// Luna service handle.
     static LSHandle *lsHandle_;
-
-    /// suffix to service name to make kind id
-    static std::string suffix_;
 
     /// Luna connector handle.
     std::unique_ptr<LunaConnector> connector_;
@@ -202,7 +204,7 @@ private:
     mutable std::mutex lock_;
 
     /// Remember session data.
-    void rememberSessionData(LSMessageToken token, const std::string &method,
-        void *object);
+    void rememberSessionData(LSMessageToken token, const std::string &dbMethod,
+            const std::string &indexerMethod, void *object);
 
 };

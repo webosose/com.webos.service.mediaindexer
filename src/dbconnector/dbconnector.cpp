@@ -42,9 +42,9 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
         LOG_ERROR(0, "Failed to create lunaconnector object");
 
     connector_->registerTokenCallback(
-        [this](LSMessageToken & token, const std::string & method, void *obj) -> void {
-            LOG_INFO(0, "[OYJ_DBG] registerTokenCallback() method->'%s'", method.c_str());
-            rememberSessionData(token, method, obj);
+        [this](LSMessageToken & token, const std::string &dbMethod, const std::string &indexerMethod, void *obj) -> void {
+            LOG_INFO(0, "[OYJ_DBG] registerTokenCallback() dbMethod->'%s' indexerMethod->'%s'", dbMethod.c_str());
+            rememberSessionData(token, dbMethod, indexerMethod, obj);
         });
 
     connector_->registerTokenCancelCallback(
@@ -70,6 +70,8 @@ DbConnector::~DbConnector()
 void DbConnector::ensureKind(const std::string &kind_name)
 {
     LOG_INFO(0, "[OYJ_DBG] DbConnector::ensureKind() kind '%s'", kind_name.c_str());
+    LSError lsError;
+    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
 
     // ensure that kind exists
@@ -77,25 +79,29 @@ void DbConnector::ensureKind(const std::string &kind_name)
     url += "putKind";
 
     auto kind = pbnjson::Object();
-    if (kind_name.empty())
-    {
+    if (kind_name.empty()) {
         kind.put("id", kindId_);
         kind.put("indexes", kindIndexes_);
-    }
-    else
-    {
+    } else {
         kind.put("id", kind_name);
         kind.put("indexes", uriIndexes_);
     }
 
     kind.put("owner", serviceName_.c_str());
 
-    LOG_INFO(0, "Ensure kind '%s'", kind_name.c_str());
-
+    LOG_INFO(0, "Ensure kind '%s' or '%s'", kind_name.c_str(), kindId_.c_str());
+/*
+    if (!LSCall(lsHandle_, url.c_str(), kind.stringify().c_str(),
+                DbConnector::onLunaResponse2, this, &sessionToken, &lsError)) {
+        LOG_ERROR(0, "db service putKind error");
+    }
+*/
+    
     if (!connector_->sendMessage(url.c_str(), kind.stringify().c_str(),
             DbConnector::onLunaResponse, this, true, &sessionToken)) {
         LOG_ERROR(0, "Db service putKind error");
     }
+    
 }
 
 bool DbConnector::mergePut(const std::string &uri, bool precise,
@@ -221,9 +227,12 @@ bool DbConnector::find(const std::string &uri, bool precise,
 }
 
 bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
-    pbnjson::JValue &where, pbnjson::JValue &filter, void *obj, bool atomic)
+    pbnjson::JValue &where, pbnjson::JValue &filter, void *obj, bool atomic,
+    const std::string &method, int count, const std::string& page)
 {
     LOG_INFO(0, "[OYJ_DBG] DbConnector::search() kind '%s'", kind_name.c_str());
+    LSError lsError;
+    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
     bool async = !atomic;
     std::string url = dbUrl_;
@@ -237,17 +246,25 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
     if(filter.isArray() && filter.arraySize() > 0)
         query.put("filter", filter);
 
+    if (count != 0)
+        query.put("limit", count);
+
+    if (!page.empty())
+        query.put("page", page);
     auto request = pbnjson::Object();
     request.put("query", query);
 
     //OYJ
-    LSError lsError;
-    LSErrorInit(&lsError);
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::search() LScall Start!");
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
                 DbConnector::onLunaResponse2, this, &sessionToken, &lsError)) {
 
         LOG_ERROR(0, "Db service search error");
+        LSErrorPrint(&lsError, stderr);
+        LSErrorFree(&lsError);
     }
+    std::string dbMethod = __func__;
+    rememberSessionData(sessionToken, dbMethod, method, nullptr);
 
     /*
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
@@ -256,6 +273,8 @@ bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
         return false;
     }
     */
+
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::search() done!");
 
     return true;
 }
@@ -423,6 +442,7 @@ bool DbConnector::onLunaResponse2(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_INFO(0, "[OYJ_DBG] DbConnector::onLunaResponse2()");
     DbConnector *connector = static_cast<DbConnector *>(ctx);
+    /*
     pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
     const char *payload = LSMessageGetPayload(msg);
 
@@ -442,19 +462,22 @@ bool DbConnector::onLunaResponse2(LSHandle *lsHandle, LSMessage *msg, void *ctx)
         return false;
     }
     return true;
+    */
+    return connector->handleLunaResponse2(msg);
+
 }
 
 void DbConnector::rememberSessionData(LSMessageToken token,
-    const std::string &method, void *object)
+    const std::string &dbMethod, const std::string &indexerMethod, void *object)
 {
     LOG_INFO(0, "[OYJ_DBG] DbConnector::rememberSessionData()");
     // remember token for response - we could do that after the
     // request has been issued because the response will happen
     // from the mainloop in the same thread context
+    LOG_DEBUG("Save dbMethod %s, indexerMethod %s, token %ld pair", dbMethod.c_str(), indexerMethod.c_str(), (long)token);
+    //OYJ_TEST
+    SessionData sd = {dbMethod, indexerMethod, object};
+    auto p = std::make_pair(token, sd);
     std::lock_guard<std::mutex> lock(lock_);
-    LOG_DEBUG("Save method %s, token %ld pair", method.c_str(), (long)token);
-    SessionData sd;
-    sd.method = method;
-    sd.object = object;
-    messageMap_[token] = sd;
+    messageMap_.emplace(p);
 }

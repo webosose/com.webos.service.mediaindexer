@@ -132,7 +132,8 @@ public:
     bool pushDeviceList(LSMessage *msg = nullptr);
 
     bool notifyScanDone();
-    bool notifyMediaList(const std::string& method, pbnjson::JValue &list);
+
+    bool notifyMediaMetaData(const std::string& method, const std::string& metaData);
 
     LSHandle* getServiceHandle() { return lsHandle_; };
 

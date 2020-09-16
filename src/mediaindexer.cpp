@@ -312,8 +312,9 @@ void MediaIndexer::notifyDeviceScanned(Device* device)
     indexerService_->notifyScanDone();
 }
 
-bool MediaIndexer::sendMediaListNotification(const std::string &method, pbnjson::JValue &meta)
+bool MediaIndexer::sendMediaMetaDataNotification(const std::string &method,
+                                                 const std::string &metaData)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaIndexer::sendMediaListNotification");
-    return indexerService_->notifyMediaList(method, meta);
+    return indexerService_->notifyMediaMetaData(method, metaData);
 }

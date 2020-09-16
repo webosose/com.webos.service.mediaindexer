@@ -31,18 +31,14 @@ LunaConnector::LunaConnector(const std::string& name, bool async)
 {
     lunaError_t lunaErr;
     LOG_DEBUG("[LunaConnector] Ctor for service name : %s", name.c_str());
-    if (serviceName_.empty())
-    {
+    if (serviceName_.empty()) {
         LOG_ERROR(0, "[ERROR] Ctor of LunaConnector : Invalid service name");
         return;
     }
 
-    if (!async)
-    {
+    if (!async) {
         mainContext_ = g_main_context_ref_thread_default();
-    }
-    else
-    {
+    } else {
         mainContext_ = g_main_context_new();
         mainLoop_ = g_main_loop_new(mainContext_, FALSE);
         g_main_context_ref(mainContext_);
@@ -65,9 +61,7 @@ LunaConnector::LunaConnector(const std::string& name, bool async)
 
         if (!LSGmainContextAttach(handle_, mainContext_, &lunaErr))
             handleFailure("Failed occurred LSGmainContextAttach");
-    }
-    else
-    {
+    } else {
         handleFailure("Fail occurred in LSRegister");
         return;
     }
@@ -86,16 +80,14 @@ LunaConnector::~LunaConnector()
     if (task_.joinable())
         task_.join();
     isTaskStarted_ = false;
-    if (!handle_)
-    {
+    if (!handle_) {
         LOG_ERROR(0, "[ERROR] Dtor of LunaConnector : LSHandle is invalid");
         return;
     }
     g_main_loop_quit(mainLoop_);
     g_main_context_unref(mainContext_);
 
-    if (!LSUnregister(handle_, &lunaErr))
-    {
+    if (!LSUnregister(handle_, &lunaErr)) {
         LOG_ERROR(0, "[ERROR] Dtor of LunaConnector : Fail occurred in LSUnregister");
         return;
     }
@@ -124,8 +116,7 @@ bool LunaConnector::stop()
 
     stopped_ = true;
 
-    if (mainLoop_)
-    {
+    if (mainLoop_) {
         GSource * gSrc = g_timeout_source_new(0);
         g_source_set_callback(
             gSrc ,
@@ -154,8 +145,7 @@ bool LunaConnector::_syncCallback(LSHandle *hdl, LSMessage *msg, void *ctx)
         return false;
     }
     LSMessageRef(msg);
-    if (!wrapper->callback(hdl, msg))
-    {
+    if (!wrapper->callback(hdl, msg)) {
         LOG_ERROR(0, "Fail occurred in sync callback function");
         ret = false;
     }
@@ -185,30 +175,29 @@ bool LunaConnector::_Callback(LSHandle *hdl, LSMessage *msg, void *ctx)
 }
 
 
-bool LunaConnector::sendMessage(const std :: string & uri, const std :: string & payload,
-    LunaConnectorCallback cb, void * ctx, bool async, LSMessageToken *token, void *obj, std::string forcemethod)
+bool LunaConnector::sendMessage(const std::string &uri, const std::string &payload,
+                                LunaConnectorCallback cb, void * ctx,
+                                bool async, LSMessageToken *token, void *obj,
+                                std::string forcemethod, std::string indexerMethod)
 {
     lunaError_t lunaErr;
     LSMessageToken *msgToken = (token == nullptr) ? &token_ : token;
     std::string method = forcemethod.empty() ? uri.substr(uri.find_last_of('/') + 1) : forcemethod;
-    LOG_DEBUG("uri : %s, payload : %s, async : %d, method : %s", uri.c_str(), payload.c_str(), async, method.c_str());
-    if (!async_)
-    {
-        if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), cb, ctx, msgToken, &lunaErr))
-        {
+    LOG_DEBUG("uri : %s, payload : %s, async : %d, method : %s", 
+            uri.c_str(), payload.c_str(), async, method.c_str());
+    if (!async_) {
+        if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(),
+                            cb, ctx, msgToken, &lunaErr)) {
             LOG_ERROR(0, "Failed to send message %s", payload.c_str());
             LOG_ERROR(0, "Error Message : %s", lunaErr.message);
             return false;
         }
 
         if (tokenCallback_)
-            tokenCallback_(*msgToken, method, obj);
+            tokenCallback_(*msgToken, method, indexerMethod, obj);
         return true;
-    }
-    else
-    {
-        if (!isTaskStarted_)
-        {
+    } else {
+        if (!isTaskStarted_) {
             std::unique_lock<std::mutex> lk(mutex_);
             cv_.wait(lk,[&]{return isTaskStarted_ == true;});
         }
@@ -216,33 +205,31 @@ bool LunaConnector::sendMessage(const std :: string & uri, const std :: string &
         std::unique_lock<std::mutex> lock_(callbackWrapper.getMutex());
         callbackWrapper.setHandler(cb, ctx);
 
-        if (async)
-        {
+        if (async) {
             std::lock_guard<std::mutex> Lock_(CallbackLock_);
-            if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), _Callback, &callbackWrapper, msgToken, &lunaErr))
-            {
+            if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(),
+                                _Callback, &callbackWrapper,
+                                msgToken, &lunaErr)) {
                 LOG_ERROR(0, "Failed to send message %s", payload.c_str());
                 LOG_ERROR(0, "Error Message : %s", lunaErr.message);
                 return false;
             }
             if (tokenCallback_)
-                tokenCallback_(*msgToken, method, obj);
-        }
-        else
-        {
+                tokenCallback_(*msgToken, method, indexerMethod, obj);
+        } else {
             {
                 std::lock_guard<std::mutex> syncLock_(syncCallbackLock_);
-                if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(), _syncCallback, &callbackWrapper, msgToken, &lunaErr))
-                {
+                if (!LSCallOneReply(handle_, uri.c_str(), payload.c_str(),
+                                    _syncCallback, &callbackWrapper,
+                                    msgToken, &lunaErr)) {
                     LOG_ERROR(0, "Failed to send message %s", payload.c_str());
                     LOG_ERROR(0, "Error Message : %s", lunaErr.message);
                     return false;
                 }
                 if (tokenCallback_)
-                    tokenCallback_(*msgToken, method, obj);
+                    tokenCallback_(*msgToken, method, indexerMethod, obj);
             }
-            if (callbackWrapper.wait(lock_))
-            {
+            if (callbackWrapper.wait(lock_)) {
                 LOG_ERROR(0, "Sync handler timeout!");
                 if (tokenCancelCallback_)
                     tokenCancelCallback_(*msgToken, nullptr);

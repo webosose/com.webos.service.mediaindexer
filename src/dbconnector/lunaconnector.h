@@ -31,7 +31,8 @@
 #include <condition_variable>
 #define CONNECTOR_WAIT_TIMEOUT 5
 typedef bool (*LunaConnectorCallback) (LSHandle *hdl, LSMessage *msg, void *ctx);
-typedef std::function<void(LSMessageToken & token, const std::string & method, void *obj)> tokenCallback_t;
+typedef std::function<void(LSMessageToken &token, const std::string &dbMethod,
+                           const std::string &indexerMethod, void *obj)> tokenCallback_t;
 typedef std::function<void(LSMessageToken & token, void *obj)> tokenCancelCallback_t;
 
 typedef struct LunaConnectorLunaErr : LSError {
@@ -71,9 +72,15 @@ public:
     void registerTokenCancelCallback(tokenCancelCallback_t cb) { tokenCancelCallback_ = cb; }
     bool run();
     bool stop();
+    //OYJ TEST
+    bool sendMessage(const std::string &uri,
+        const std::string &payload,
+        LunaConnectorCallback cb, void *ctx, bool async = true, LSMessageToken *token = nullptr, void *obj = nullptr, std::string forcemethod = std::string(), std::string indexerMethod = std::string());
+    /*
     bool sendMessage(const std::string &uri,
         const std::string &payload,
         LunaConnectorCallback cb, void *ctx, bool async = true, LSMessageToken *token = nullptr, void *obj = nullptr, std::string forcemethod = std::string());
+    */
     bool sendResponse(LSHandle *sender, LSMessage* message,
         const std::string &object);
 

@@ -31,13 +31,14 @@ bool IndexerServiceClientsMgrImpl::addClient(const std::string &sender,
                                              const LSMessageToken &token)
 {
     if (!isClientExist(sender, method, token)) {
-        LOG_ERROR(0, "client already added  sender[%s] method[%s] token[%ld]",
+        LOG_ERROR(0, "client already added: sender[%s] method[%s] token[%ld]",
                 sender.c_str(), method.c_str(), token);
         return false;
     }
     LOG_DEBUG("Client added: sender[%s] method[%s] token[%ld]",
             sender.c_str(), method.c_str(), token);
-    clients_.insert(std::make_pair(token, std::make_pair(sender, method)));
+    auto client = std::make_pair(sender, method); 
+    clients_.emplace(token, client);
     return true;
 }
 

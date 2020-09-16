@@ -416,20 +416,21 @@ bool IndexerService::notifySubscriber(const std::string& method, pbnjson::JValue
     return true;
 }
 
-
-bool IndexerService::notifyMediaList(const std::string &method, pbnjson::JValue &list)
+bool IndexerService::notifyMediaMetaData(const std::string &method,
+                                         const std::string &metaData)
 {
+    LOG_INFO(0, "[OYJ_DBG] IndexerService::notifyMediaMetaData()");
     LSError lsError;
     LSErrorInit(&lsError);
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::notifyMediaList()");
-    if (!LSSubscriptionReply(lsHandle_, method.c_str(), list.stringify().c_str(), &lsError)) {
+
+    if (!LSSubscriptionReply(lsHandle_, method.c_str(), metaData.c_str(), &lsError)) {
         LOG_ERROR(0, "subscription reply error!");
         LSErrorPrint(&lsError, stderr);
         LSErrorFree(&lsError);
         return false;
     }
-    return true;
 
+    return true;
 }
 
 
@@ -513,7 +514,11 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         if (domTree.hasKey("count"))
             count = domTree["count"].asNumber<int32_t>();
 
-        return is->getAudioList(uri, count);
+
+        LOG_INFO(0, "[OYJ_DBG] getAudioList start()");
+        bool ret = is->getAudioList(uri, count);
+        LOG_INFO(0, "[OYJ_DBG] getAudioList end()");
+        return ret;
     }
 
     return true;
@@ -637,6 +642,129 @@ bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ct
 
     return rv;
 }
+
+/*
+ Response should be displayed like below:
+{code}
+{
+    "errorCode": 0,
+    "returnValue": true,
+    "errorText": "No Error",
+    "audioList": [
+        {
+            "results": [
+                {
+                    "last_modified_date": "Wed Jul 12 21:07:26 2017 GMT",
+                    "duration": 226,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/scan2/Miss_A.mp3",
+                    "album": "A Class",
+                    "genre": "Dance/Pop",
+                    "artist": "Miss A",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/scan2/Miss_A.mp3",
+                    "title": "Good Bye Baby",
+                    "file_size": 5453302,
+                    "thumbnail": "/media/.thumbnail/4013-0934/1737769378748857.jpg"
+                },
+                {
+                    "last_modified_date": "Sat Aug 20 22:49:30 2011 GMT",
+                    "duration": 205,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/scan3/MP3_None_MPEG[44.1KHz@2ch].mp3",
+                    "album": "무한도전 서해안 고속도로 가요제",
+                    "genre": "",
+                    "artist": "GG",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/scan3/MP3_None_MPEG[44.1KHz@2ch].mp3",
+                    "title": "바람났어 (Feat. 박봄)",
+                    "file_size": 8296654,
+                    "thumbnail": "/media/.thumbnail/4013-0934/1261326074966182.jpg"
+                },
+                {
+                    "last_modified_date": "Tue Jul 28 02:07:20 2020 GMT",
+                    "duration": 195,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/Rababa.mp3",
+                    "album": "미스트롯 FINAL STAGE",
+                    "genre": "성인가요",
+                    "artist": "정미애",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/Rababa.mp3",
+                    "title": "라밤바",
+                    "file_size": 8017226,
+                    "thumbnail": "/media/.thumbnail/4013-0934/1164044871931923.jpg"
+                },
+                {
+                    "last_modified_date": "Tue Nov 25 06:10:08 2014 GMT",
+                    "duration": 260,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/scan1/[iSongs.info] 01 - Jalsa.mp3",
+                    "album": "Jalsa - (2008)",
+                    "genre": "Telugu",
+                    "artist": "Baba Sehgal, Rita",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/scan1/[iSongs.info] 01 - Jalsa.mp3",
+                    "title": "[iSongs.info] 01 - Jalsa",
+                    "file_size": 4243260,
+                    "thumbnail": "/media/.thumbnail/4013-0934/1109780776648399.jpg"
+                },
+                {
+                    "last_modified_date": "Wed Mar  4 00:25:00 2020 GMT",
+                    "duration": 132,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/delete_insert/file_example_MP3_5MG.mp3",
+                    "album": "YouTube Audio Library",
+                    "genre": "Cinematic",
+                    "artist": "Kevin MacLeod",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/delete_insert/file_example_MP3_5MG.mp3",
+                    "title": "Impact Moderato",
+                    "file_size": 5289384,
+                    "thumbnail": 0
+                },
+                {
+                    "last_modified_date": "Fri Sep 11 05:06:36 2020 GMT",
+                    "duration": 200,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/changeTitle/TitleChangeSample.mp3",
+                    "album": "Camper",
+                    "genre": "|\t8\\Ht > |\t8\\Ht, |\t8\\Ht > X0$ (House), |\t8\\Ht > t}/\u0004$ (Club/Dance)",
+                    "artist": "Albert Kick",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/changeTitle/TitleChangeSample.mp3",
+                    "title": "Audio Sample2",
+                    "file_size": 8036342,
+                    "thumbnail": "/media/.thumbnail/4013-0934/3374671203630697.jpg"
+                },
+                {
+                    "last_modified_date": "Fri Sep 11 04:57:14 2020 GMT",
+                    "duration": 200,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/parsorTest/AlbertKick_Camper_feat _Jason_Rene.mp3",
+                    "album": "Camper",
+                    "genre": "|\t8\\Ht > |\t8\\Ht, |\t8\\Ht > X0$ (House), |\t8\\Ht > t}/\u0004$ (Club/Dance)",
+                    "artist": "Albert Kick",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/parsorTest/AlbertKick_Camper_feat _Jason_Rene.mp3",
+                    "title": "Audio Sample2",
+                    "file_size": 8036342,
+                    "thumbnail": "/media/.thumbnail/4013-0934/9368499306337553.jpg"
+                },
+                {
+                    "last_modified_date": "Tue Nov 25 06:10:08 2014 GMT",
+                    "duration": 260,
+                    "dirty": false,
+                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/MetaThumbnail/01_Jalsa.mp3",
+                    "album": "Jalsa - (2008)",
+                    "genre": "Telugu",
+                    "artist": "Baba Sehgal, Rita",
+                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/MetaThumbnail/01_Jalsa.mp3",
+                    "title": "[iSongs.info] 01 - Jalsa",
+                    "file_size": 4243260,
+                    "thumbnail": "/media/.thumbnail/4013-0934/1413753745152321.jpg"
+                }
+            ],
+            "count": 8
+        }
+    ]
+}
+
+{code}
+ */
 
 bool IndexerService::getVideoList(const std::string &uri, int count)
 {

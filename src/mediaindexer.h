@@ -98,16 +98,17 @@ public:
      * This internally calls pushDeviceList of indexerservice object.
      * \param[in] msg The Luna message.
      */
-     bool sendDeviceNotification(LSMessage *msg = nullptr);
+    bool sendDeviceNotification(LSMessage *msg = nullptr);
 
-     /**
-      * \brief Activate plugins to detect
-      *
-      * This internally calls get and setDetect.
-      */
-     bool activate();
+    /**
+     * \brief Activate plugins to detect
+     *
+     * This internally calls get and setDetect.
+     */
+    bool activate();
 
-     bool sendMediaListNotification(const std::string &method, pbnjson::JValue &meta);
+    bool sendMediaMetaDataNotification(const std::string &method,
+                                       const std::string &metaData);
      
 protected:
     /// Activate plugins and detection

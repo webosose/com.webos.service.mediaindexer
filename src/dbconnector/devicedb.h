@@ -50,6 +50,8 @@ public:
      */
     virtual bool handleLunaResponse(LSMessage *msg);
 
+    virtual bool handleLunaResponse2(LSMessage *msg);
+
 protected:
     /// Get message id.
     LOG_MSGID;

@@ -94,6 +94,10 @@ bool SettingsDb::handleLunaResponse(LSMessage *msg)
     }
     return true;
 }
+bool SettingsDb::handleLunaResponse2(LSMessage *msg)
+{
+    return true;
+}
 
 SettingsDb::SettingsDb() :
     DbConnector("com.webos.service.mediaindexer.settings")
