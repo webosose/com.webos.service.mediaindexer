@@ -28,13 +28,10 @@
 #include <cstring>
 #include <unistd.h>
 std::unique_ptr<MediaDb> MediaDb::instance_;
-std::mutex MediaDb::ctorLock_;
-std::mutex MediaDb::handlerLock_;
 
 MediaDb *MediaDb::instance()
 {
     LOG_INFO(0, "[OYJ_DBG] MediaDb::instance()");
-    std::lock_guard<std::mutex> lk(ctorLock_);
     if (!instance_.get()) {
         instance_.reset(new MediaDb);
         //instance_->ensureKind();
@@ -48,7 +45,6 @@ MediaDb *MediaDb::instance()
 MediaDb::~MediaDb()
 {
     LOG_INFO(0, "[OYJ_DBG] MediaDb::~MediaDb()");
-    std::lock_guard<std::mutex> lk(ctorLock_);
     mediaItemMap_.clear();
 }
 
@@ -56,7 +52,6 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaDb::handleLunaResponse");
     struct SessionData sd;
-    std::lock_guard<std::mutex> lk(handlerLock_);
     LSMessageToken token = LSMessageGetResponseToken(msg);
     
     if (!sessionDataFromToken(token, &sd)) {
@@ -64,7 +59,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         return false;
     }
 
-    auto method = sd.method;
+    auto method = sd.dbServiceMethod;
     LOG_INFO(0, "[OYJ_DBG] Received response com.webos.mediadb for: '%s'", method.c_str());
 
     // handle the media data exists case
@@ -160,7 +155,8 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     return true;
 }
 
-bool MediaDb::handleLunaResponse2(LSMessage *msg)
+//TODO : handleLunaResponse should be merged including above handler.
+bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
 {
     struct SessionData sd;
     LSMessageToken token = LSMessageGetResponseToken(msg);
@@ -170,10 +166,14 @@ bool MediaDb::handleLunaResponse2(LSMessage *msg)
         return false;
     }
 
-    auto method = sd.method;
-    auto indexerMethod = sd.indexerMethod;
-    LOG_INFO(0, "[OYJ_DBG] Received response com.webos.mediadb for: '%s' -> '%s'", method.c_str(), indexerMethod.c_str());
-    if (method == std::string("search")) {
+    auto dbServiceMethod = sd.dbServiceMethod;
+    auto dbMethod = sd.dbMethod;
+    auto dbQuery = sd.query;
+    auto object = sd.object;
+    LOG_INFO(0, "[OYJ_DBG] Received response com.webos.mediadb for: method[%s], \
+            dbMethod[%s]", dbServiceMethod.c_str(), dbMethod.c_str());
+
+    if (dbServiceMethod == std::string("search")) {
         // we do not need to check, the service implementation should do that
         pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
         const char *payload = LSMessageGetPayload(msg);
@@ -186,68 +186,19 @@ bool MediaDb::handleLunaResponse2(LSMessage *msg)
         pbnjson::JValue domTree(parser.getDom());
         auto result = domTree["results"];
 
-
-
-
         MediaIndexer *indexer = MediaIndexer::instance();
-        indexer->sendMediaMetaDataNotification(indexerMethod, result.stringify());
+        indexer->sendMediaMetaDataNotification(dbMethod, result.stringify(),
+                static_cast<LSMessage*>(object));
 
-        // again send search command
-        if (domTree.hasKey("next")) {
+        // again send search command if payload has "next" key.
+        // object null means subscription
+        if (domTree.hasKey("next") && object == nullptr) {
             std::string page = domTree["next"].asString();
+            dbQuery.put("page", page);
 
-            auto selectArray = pbnjson::Array();
-            selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
-            selectArray.append(MediaItem::metaToString(MediaItem::CommonType::FILEPATH));
-            selectArray.append(MediaItem::metaToString(MediaItem::CommonType::DIRTY));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::Genre));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::Album));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::Artist));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::LastModifiedDate));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::FileSize));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::Title));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
-            selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
-
-            auto where = pbnjson::Object();
-            auto filter = pbnjson::Object();
-            std::string uri = std::string("msc://DFE4-19D2");
-//            if (uri.empty()) {
-//                where = prepareWhere(DIRTY, false, true);
-//            } else {
-                where = prepareWhere(URI, uri, false);
-                filter = prepareWhere(DIRTY, false, true);
-//            }
-
-            pbnjson::JValue resp = pbnjson::Object();
-            bool ret =  search(AUDIO_KIND, selectArray, where, filter, 
-                               &resp, true, indexerMethod, 5, page);
+            bool ret = search(dbQuery, dbMethod, object);
             return ret;
         }
-
-        // response message
-//        pbnjson::JValue array = pbnjson::Array();
-//        if (domTree.hasKey("results")){
-//            auto matches = domTree["results"];
-//            if (matches.isArray() && matches.isValid() && !matches.isNull())
-//                reply->put("results", matches);
-//            else
-//                reply->put("results", array);
-//        } else
-//            reply->put("results", array);
-        /*
-    virtual void putRespObject(bool returnValue,
-                              pbnjson::JValue & obj,
-                              const int& errorCode = 0,
-                              const std::string& errorText = "No Error"
-                              );
-*/
-        /*
-        obj.put("returnValue", returnValue);
-        obj.put("errorCode", errorCode);
-        obj.put("errorText", errorText);
-        */
-
     }
     return true;
 }
@@ -442,6 +393,7 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 
 void MediaDb::removeDirty(Device* device)
 {
+    /*
     LOG_INFO(0, "[OYJ_DBG] MediaDb::removeDirty");
     std::map<MediaItem::Type, pbnjson::JValue> listMap;
     std::string uri = device->uri();
@@ -476,7 +428,7 @@ void MediaDb::removeDirty(Device* device)
             }
         }
     }
-    
+    */
 }
 
 void MediaDb::grantAccess(const std::string &serviceName)
@@ -501,10 +453,10 @@ void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic, pbnjso
         roAccess(dbClients_, kindList_, nullptr, atomic);
 }
 
-bool MediaDb::getAudioList(const std::string &uri, int count)
+bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaDb::getAudioList");
-    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
+    LOG_DEBUG("%s Start for uri : %s", __func__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::FILEPATH));
@@ -527,20 +479,24 @@ bool MediaDb::getAudioList(const std::string &uri, int count)
         filter = prepareWhere(DIRTY, false, true);
     }
 
-    pbnjson::JValue resp = pbnjson::Object();
+    auto query = pbnjson::Object();
+    query.put("select", selectArray);
+    query.put("from", AUDIO_KIND);
+    query.put("where", where);
+    if(filter.isArray() && filter.arraySize() > 0)
+        query.put("filter", filter);
 
-    LOG_INFO(0, "[OYJ_DBG] MediaDb::getAudioList search start!");
-    std::string method = std::string("getAudioList");
-    bool ret =  search(AUDIO_KIND, selectArray, where, filter,&resp, true, method, count);
-    LOG_INFO(0, "[OYJ_DBG] MediaDb::getAudioList search end!");
-    return ret;
-//    return search(AUDIO_KIND, selectArray, where, filter,&resp, true);
+    if (count != 0)
+        query.put("limit", count);
+    
+    std::string dbMethod = std::string("getAudioList");
+    return search(query, dbMethod, msg);
 }
 
-bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
+bool MediaDb::getVideoList(const std::string &uri, int count, LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaDb::getVideoList");
-    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
+    LOG_DEBUG("%s Start for uri : %s", __func__, uri.c_str());
     auto selectArray = pbnjson::Array();
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::FILEPATH));
@@ -563,10 +519,12 @@ bool MediaDb::getVideoList(const std::string &uri, pbnjson::JValue &resp)
     }
 
     std::string method = std::string("getVideoList");
-    return search(VIDEO_KIND, selectArray, where, filter, &resp, true, method);
+//    return search(query, dbMethod, msg);
+//    return search(VIDEO_KIND, selectArray, where, filter, &resp, true, method);
+    return true;
 }
 
-bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
+bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaDb::getImageList");
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
@@ -591,7 +549,8 @@ bool MediaDb::getImageList(const std::string &uri, pbnjson::JValue &resp)
     }
 
     std::string method = std::string("getImageList");
-    return search(IMAGE_KIND, selectArray, where, filter, &resp, true, method);
+    return true;
+//    return search(IMAGE_KIND, selectArray, where, filter, &resp, true, method);
 }
 
 bool MediaDb::requestDelete(const std::string &uri, pbnjson::JValue &resp)

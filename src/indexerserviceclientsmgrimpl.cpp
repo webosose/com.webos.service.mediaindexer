@@ -47,12 +47,8 @@ bool IndexerServiceClientsMgrImpl::removeClient(const std::string &sender,
                                                 const LSMessageToken &token)
 {
     const auto &it = clients_.find(token);
-    if (it == clients_.end()) {
-        LOG_ERROR(0, "Not found token. sender[%s] method[%s] token[%ld]",
-                sender.c_str(), method.c_str(), token);
+    if (it == clients_.end())
         return false;
-    }
-
 
     const auto &client = it->second;
     auto targetClient = std::make_pair(sender, method);

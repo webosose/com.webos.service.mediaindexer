@@ -46,7 +46,12 @@ public:
     virtual bool handleLunaResponse(LSMessage *msg);
 
 
-    virtual bool handleLunaResponse2(LSMessage *msg);
+    /**
+     * \brief Db service response handler.
+     *
+     * \return Result of message processing.
+     */
+    virtual bool handleLunaResponseMetaData(LSMessage *msg);
 
     /**
      * \brief Check media item hash fpr change.
@@ -123,12 +128,11 @@ public:
 
     void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp);
 
-    // TODO: add define guard
-    bool getAudioList(const std::string &uri, int count = 500);
+    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr);
 
-    bool getVideoList(const std::string &uri, pbnjson::JValue &resp);
+    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
 
-    bool getImageList(const std::string &uri, pbnjson::JValue &resp);
+    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
 
     void makeUriIndex();
 
@@ -155,11 +159,18 @@ protected:
     MediaDb();
 
 private:
+    pbnjson::JValue prepareWhere(const std::string &key,
+                                 const std::string &value,
+                                 bool precise,
+                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+
+    pbnjson::JValue prepareWhere(const std::string &key,
+                                 bool value,
+                                 bool precise,
+                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
-    static std::mutex ctorLock_;
-    static std::mutex handlerLock_;
-    mutable std::mutex lock_;
     std::map<MediaItem::Type, std::string> kindMap_ = {
         {MediaItem::Type::Audio, AUDIO_KIND},
         {MediaItem::Type::Video, VIDEO_KIND},
@@ -182,13 +193,4 @@ private:
     static constexpr char MIME[] = "mime";
     static constexpr char FILE_PATH[] = "file_path";
 
-    pbnjson::JValue prepareWhere(const std::string &key,
-                                 const std::string &value,
-                                 bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
-
-    pbnjson::JValue prepareWhere(const std::string &key,
-                                 bool value,
-                                 bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
 };

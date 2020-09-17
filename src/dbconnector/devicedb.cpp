@@ -51,10 +51,10 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
     if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
         return false;
 
-    auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.mediadb for: '%s'", method.c_str());
+    auto dbServiceMethod = sd.dbServiceMethod;
+    LOG_INFO(0, "Received response com.webos.mediadb for: '%s'", dbServiceMethod.c_str());
 
-    if (method != std::string("find"))
+    if (dbServiceMethod != std::string("find"))
         return true;
 
     // we do not need to check, the service implementation should do that
@@ -103,8 +103,9 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
     return true;
 }
 
-bool DeviceDb::handleLunaResponse2(LSMessage *msg)
+bool DeviceDb::handleLunaResponseMetaData(LSMessage *msg)
 {
+    // nothing to de done here
     return true;
 }
 

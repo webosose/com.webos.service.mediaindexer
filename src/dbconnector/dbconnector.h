@@ -56,9 +56,11 @@ protected:
     /// Session data attached to each luna request
     struct SessionData {
         /// A method name to identify the action.
-        std::string method;
-        /// A requested method name from media indexer
-        std::string indexerMethod;
+        std::string dbServiceMethod;
+        /// A request mediaDB method name.
+        std::string dbMethod;
+        /// A request query
+        pbnjson::JValue query;
         /// Some arbitrary object.
         void *object;
     };
@@ -72,8 +74,12 @@ protected:
      */
     virtual bool handleLunaResponse(LSMessage *msg) = 0;
 
-    //OYJ_TEST
-    virtual bool handleLunaResponse2(LSMessage *msg) = 0;
+    /**
+     * \brief Db service response handler for meta data.
+     *
+     * \return Result of message processing.
+     */
+    virtual bool handleLunaResponseMetaData(LSMessage *msg) = 0;
 
     /**
      * \brief Send mergePut request with uri.
@@ -118,9 +124,13 @@ protected:
      * \param[in] atomic Sync/Async.
      * \return True on success, false on error.
      */
-    virtual bool search(const std::string &kind_name, pbnjson::JValue &selects, pbnjson::JValue &where,
-        pbnjson::JValue &filter, void *obj = nullptr, bool atomic = false, const std::string &method = std::string(), int count = 0, const std::string &page = std::string());
-
+//    virtual bool search(const std::string &kind_name, pbnjson::JValue &selects,
+//                        pbnjson::JValue &where, pbnjson::JValue &filter,
+//                        void *obj = nullptr, bool atomic = false, 
+//                        const std::string &method = std::string(), 
+//                        int count = 0, const std::string &page = std::string());
+      virtual bool search(pbnjson::JValue &query, const std::string &dbMethod,
+                          void *obj);
     /**
      * \brief Delete all objects with the given uri by JSON object.
      *
@@ -131,7 +141,7 @@ protected:
      * \return True on success, false on error.
      */
     virtual bool del(const std::string &kind_name, pbnjson::JValue &where,
-        void *obj = nullptr, bool atomic = false);
+                     void *obj = nullptr, bool atomic = false);
 
     /**
      * \brief Give read only access to other services.
@@ -149,8 +159,9 @@ protected:
      * \param[in] obj user data.
      * \return True on success, false on error.
      */
-    virtual bool roAccess(std::list<std::string> &services, std::list<std::string> &kinds,
-        void *obj = nullptr, bool atomic = false);
+    virtual bool roAccess(std::list<std::string> &services, 
+                          std::list<std::string> &kinds, void *obj = nullptr,
+                          bool atomic = false);
 
     /// Get message id.
     LOG_MSGID;
@@ -198,13 +209,20 @@ private:
 
     /// Callback for luna responses.
     static bool onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx);
-    static bool onLunaResponse2(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /// Callback for luna responses. 
+    // TODO this response will be merged above callback.
+    static bool onLunaResponseMetaData(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /// Needed for the session data map.
     mutable std::mutex lock_;
 
     /// Remember session data.
-    void rememberSessionData(LSMessageToken token, const std::string &dbMethod,
-            const std::string &indexerMethod, void *object);
+    void rememberSessionData(LSMessageToken token, 
+                             const std::string &dbServiceMethod,
+                             const std::string &dbMethod,
+                             pbnjson::JValue &query,
+                             void *object);
+
 
 };

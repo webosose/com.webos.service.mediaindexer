@@ -55,7 +55,12 @@ public:
      */
     virtual bool handleLunaResponse(LSMessage *msg);
 
-    virtual bool handleLunaResponse2(LSMessage *msg);
+    /**
+     * \brief Db service response handler.
+     *
+     * \return Result of message processing.
+     */
+    virtual bool handleLunaResponseMetaData(LSMessage *msg);
 
 protected:
     /// Get message id.

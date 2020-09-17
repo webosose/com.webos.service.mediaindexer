@@ -108,7 +108,8 @@ public:
     bool activate();
 
     bool sendMediaMetaDataNotification(const std::string &method,
-                                       const std::string &metaData);
+                                       const std::string &metaData,
+                                       LSMessage *msg);
      
 protected:
     /// Activate plugins and detection

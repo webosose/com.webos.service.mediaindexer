@@ -63,13 +63,13 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
     { "getAudioList", IndexerService::onAudioListGet, LUNA_METHOD_FLAGS_NONE },
     { "getAudioMetadata", IndexerService::onGetAudioMetadata, LUNA_METHOD_FLAGS_NONE },
-    { "getVideoList", IndexerService::onGetVideoList, LUNA_METHOD_FLAGS_NONE },
+    { "getVideoList", IndexerService::onVideoListGet, LUNA_METHOD_FLAGS_NONE },
     { "getVideoMetadata", IndexerService::onGetVideoMetadata, LUNA_METHOD_FLAGS_NONE },
-    { "getImageList", IndexerService::onGetImageList, LUNA_METHOD_FLAGS_NONE },
+    { "getImageList", IndexerService::onImageListGet, LUNA_METHOD_FLAGS_NONE },
     { "getImageMetadata", IndexerService::onGetImageMetadata, LUNA_METHOD_FLAGS_NONE },
     { "requestDelete", IndexerService::onRequestDelete, LUNA_METHOD_FLAGS_NONE },
     { "requestMediaScan", IndexerService::onRequestMediaScan, LUNA_METHOD_FLAGS_NONE },
-    {NULL, NULL}
+    { nullptr, nullptr}
 };
 
 pbnjson::JSchema IndexerService::pluginGetSchema_(pbnjson::JSchema::fromString(
@@ -128,8 +128,7 @@ pbnjson::JSchema IndexerService::listGetSchema_(
         "      \"type\": \"number\" },"
         "    \"subscribe\": {"
         "      \"type\": \"boolean\" }"
-        "  },"
-        "  \"required\": [ \"uri\", \"subscribe\" ]"
+        "  }"
         "}"));
 
 IndexerService::IndexerService(MediaIndexer *indexer) :
@@ -416,32 +415,45 @@ bool IndexerService::notifySubscriber(const std::string& method, pbnjson::JValue
     return true;
 }
 
-bool IndexerService::notifyMediaMetaData(const std::string &method,
-                                         const std::string &metaData)
+bool IndexerService::notifyMediaMetaData(const std::string &method, 
+                                         const std::string &metaData,
+                                         LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] IndexerService::notifyMediaMetaData()");
     LSError lsError;
     LSErrorInit(&lsError);
 
+    
+    if (msg != nullptr) {
+        if (!LSMessageRespond(msg, metaData.c_str(), &lsError)) {
+            LOG_ERROR(0, "Message respond error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            LSMessageUnref(msg);
+            return false;
+        }
+        LSMessageUnref(msg);
+        return true;
+    }
+
+    // reply for subscription
     if (!LSSubscriptionReply(lsHandle_, method.c_str(), metaData.c_str(), &lsError)) {
         LOG_ERROR(0, "subscription reply error!");
         LSErrorPrint(&lsError, stderr);
         LSErrorFree(&lsError);
         return false;
     }
-
     return true;
 }
-
 
 bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle, 
                                                LSMessage *msg,
                                                void *ctx)
 {
     LOG_INFO(0, "[OYJ_DBG] IndexerService::callbackSubscriptionCancel!");
-    IndexerService* is = static_cast<IndexerService *>(ctx);
+    IndexerService* indexerService = static_cast<IndexerService *>(ctx);
 
-    if (is == NULL) {
+    if (indexerService == NULL) {
         LOG_ERROR(0, "Subscription cancel callback context is invalid %p", ctx);
         return false;
     }
@@ -449,7 +461,7 @@ bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle,
     LSMessageToken token = LSMessageGetToken(msg);
     std::string method = LSMessageGetMethod(msg);
     std::string sender = LSMessageGetSender(msg);
-    bool ret = is->removeClient(sender, method, token);
+    bool ret = indexerService->removeClient(sender, method, token);
     return ret;
 }
 
@@ -457,6 +469,8 @@ bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle,
 bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_INFO(0, "[OYJ_DBG] IndexerService::onAudioListGet()");
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
+
     // parse incoming message
     std::string senderName = LSMessageGetSenderServiceName(msg);
     const char *payload = LSMessageGetPayload(msg);
@@ -469,26 +483,25 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         return false;
     }
 
-    // initial reply to prevent application blocking
-    auto reply = pbnjson::Object();
-    bool subscribe = LSMessageIsSubscription(msg);
-    reply.put("subscribed", subscribe);
-    reply.put("returnValue", true);
+    // parse uri and count from application payload
+    std::string uri;
+    int count = 0;
+    auto domTree(parser.getDom());
 
-    LSError lsError;
-    LSErrorInit(&lsError);
-    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
-        LOG_ERROR(0, "Message reply error");
-        LSErrorPrint(&lsError, stderr);
-        LSErrorFree(&lsError);
-        return false;
-    }
+    if (domTree.hasKey("uri"))
+        uri = domTree["uri"].asString();
+    if (domTree.hasKey("count"))
+        count = domTree["count"].asNumber<int32_t>();
+
+    bool subscribe = LSMessageIsSubscription(msg);
+    bool ret = false;
 
     if (subscribe) {
-        LOG_INFO(0, "[OYJ_DBG] Adding getAudioList subscriber '%s'",
+        LSError lsError;
+        LSErrorInit(&lsError);
+        LOG_INFO(0, "[OYJ_DBG] Adding getAudioList subscription for '%s'",
                 senderName.c_str());
 
-        IndexerService *is = static_cast<IndexerService *>(ctx);
         std::string sender = LSMessageGetSender(msg);
         std::string method = LSMessageGetMethod(msg);
         LSMessageToken token = LSMessageGetToken(msg);
@@ -499,36 +512,39 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
             LSErrorFree(&lsError);
             return false;
         }
-//        LSSubscriptionSetCancelFunction(lshandle, &IndexerService::callbackSubscriptionCancel, (void*)this, &lserror);
 
-        is->addClient(sender, method, token);
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+        }
 
-        // parse uri and count from application payload
-        std::string uri;
-        int count = 0;
-        auto domTree(parser.getDom());
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
 
-        if (domTree.hasKey("uri"))
-            uri = domTree["uri"].asString();
+        // initial reply to prevent application blocking
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
 
-        if (domTree.hasKey("count"))
-            count = domTree["count"].asNumber<int32_t>();
-
-
-        LOG_INFO(0, "[OYJ_DBG] getAudioList start()");
-        bool ret = is->getAudioList(uri, count);
-        LOG_INFO(0, "[OYJ_DBG] getAudioList end()");
-        return ret;
+        ret = indexerService->getAudioList(uri, count);
+    } else {
+        // increase reference count for message.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->getAudioList(uri, count, msg);
     }
 
-    return true;
+    return ret;
 }
 
-bool IndexerService::getAudioList(const std::string &uri, int count)
+bool IndexerService::getAudioList(const std::string &uri, int count, LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] IndexerService::getAudioList()");
     MediaDb *mdb = MediaDb::instance();
-    return mdb->getAudioList(uri, count);
+    return mdb->getAudioList(uri, count, msg);
 }
 
 bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
@@ -586,197 +602,86 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
 }
 
 
-bool IndexerService::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onGetVideoList");
-    LOG_DEBUG("call onGetVideoList");
-    std::string uri;
-    // parse incoming message
-    const char *payload = LSMessageGetPayload(msg);
-    std::string method = LSMessageGetMethod(msg);
-    pbnjson::JDomParser parser;
+    LOG_INFO(0, "[OYJ_DBG] IndexerService::onVideoListGet()");
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
 
+    // parse incoming message
+    std::string senderName = LSMessageGetSenderServiceName(msg);
+    const char *payload = LSMessageGetPayload(msg);
+
+    pbnjson::JDomParser parser;
+    // TODO: apply listSchema
     if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
-        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
-            payload);
+        LOG_ERROR(0, "Invalid request: payload[%s] sender[%s]",
+                payload, senderName.c_str());
         return false;
     }
 
+    // parse uri and count from application payload
+    std::string uri;
+    int count = 0;
     auto domTree(parser.getDom());
 
     if (domTree.hasKey("uri"))
         uri = domTree["uri"].asString();
+    if (domTree.hasKey("count"))
+        count = domTree["count"].asNumber<int32_t>();
 
-    bool rv = true;
-    auto mdb = MediaDb::instance();
-    auto reply = pbnjson::Object();
-    std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb) {
-        pbnjson::JValue resp = pbnjson::Object();
-        pbnjson::JValue respArray = pbnjson::Array();
-        pbnjson::JValue list = pbnjson::Object();
+    bool subscribe = LSMessageIsSubscription(msg);
+    bool ret = false;
 
-        rv &= mdb->getVideoList(uri, list);
-        if (!uri.empty())
-            list.put("uri", uri.c_str());
-        list.put("count", list["results"].arraySize());
-        respArray.append(list);
-
-        resp.put("videoList", respArray);
-        mdb->putRespObject(rv, resp);
-        mdb->sendResponse(lsHandle, msg, resp.stringify());
-    } else {
-        LOG_ERROR(0, "Failed to get instance of Media Db");
-        rv = false;
-        reply.put("returnValue", rv);
-        reply.put("errorCode", -1);
-        reply.put("errorText", "Invalid MediaDb Object");
-
+    if (subscribe) {
         LSError lsError;
         LSErrorInit(&lsError);
+        LOG_INFO(0, "[OYJ_DBG] Adding getVideoList subscription for '%s'",
+                senderName.c_str());
 
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
+        if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
+            LOG_ERROR(0, "Add subscription error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+        }
+
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
+
+        // initial reply to prevent application blocking
         if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
             LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
         }
+
+        ret = indexerService->getVideoList(uri, count);
+    } else {
+        // increase reference count for message.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->getVideoList(uri, count, msg);
     }
 
-    return rv;
+    return ret;
 }
 
-/*
- Response should be displayed like below:
-{code}
+bool IndexerService::getVideoList(const std::string &uri, int count, LSMessage *msg)
 {
-    "errorCode": 0,
-    "returnValue": true,
-    "errorText": "No Error",
-    "audioList": [
-        {
-            "results": [
-                {
-                    "last_modified_date": "Wed Jul 12 21:07:26 2017 GMT",
-                    "duration": 226,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/scan2/Miss_A.mp3",
-                    "album": "A Class",
-                    "genre": "Dance/Pop",
-                    "artist": "Miss A",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/scan2/Miss_A.mp3",
-                    "title": "Good Bye Baby",
-                    "file_size": 5453302,
-                    "thumbnail": "/media/.thumbnail/4013-0934/1737769378748857.jpg"
-                },
-                {
-                    "last_modified_date": "Sat Aug 20 22:49:30 2011 GMT",
-                    "duration": 205,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/scan3/MP3_None_MPEG[44.1KHz@2ch].mp3",
-                    "album": "무한도전 서해안 고속도로 가요제",
-                    "genre": "",
-                    "artist": "GG",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/scan3/MP3_None_MPEG[44.1KHz@2ch].mp3",
-                    "title": "바람났어 (Feat. 박봄)",
-                    "file_size": 8296654,
-                    "thumbnail": "/media/.thumbnail/4013-0934/1261326074966182.jpg"
-                },
-                {
-                    "last_modified_date": "Tue Jul 28 02:07:20 2020 GMT",
-                    "duration": 195,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/Rababa.mp3",
-                    "album": "미스트롯 FINAL STAGE",
-                    "genre": "성인가요",
-                    "artist": "정미애",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/Rababa.mp3",
-                    "title": "라밤바",
-                    "file_size": 8017226,
-                    "thumbnail": "/media/.thumbnail/4013-0934/1164044871931923.jpg"
-                },
-                {
-                    "last_modified_date": "Tue Nov 25 06:10:08 2014 GMT",
-                    "duration": 260,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/scan1/[iSongs.info] 01 - Jalsa.mp3",
-                    "album": "Jalsa - (2008)",
-                    "genre": "Telugu",
-                    "artist": "Baba Sehgal, Rita",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/scan1/[iSongs.info] 01 - Jalsa.mp3",
-                    "title": "[iSongs.info] 01 - Jalsa",
-                    "file_size": 4243260,
-                    "thumbnail": "/media/.thumbnail/4013-0934/1109780776648399.jpg"
-                },
-                {
-                    "last_modified_date": "Wed Mar  4 00:25:00 2020 GMT",
-                    "duration": 132,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/delete_insert/file_example_MP3_5MG.mp3",
-                    "album": "YouTube Audio Library",
-                    "genre": "Cinematic",
-                    "artist": "Kevin MacLeod",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/delete_insert/file_example_MP3_5MG.mp3",
-                    "title": "Impact Moderato",
-                    "file_size": 5289384,
-                    "thumbnail": 0
-                },
-                {
-                    "last_modified_date": "Fri Sep 11 05:06:36 2020 GMT",
-                    "duration": 200,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/changeTitle/TitleChangeSample.mp3",
-                    "album": "Camper",
-                    "genre": "|\t8\\Ht > |\t8\\Ht, |\t8\\Ht > X0$ (House), |\t8\\Ht > t}/\u0004$ (Club/Dance)",
-                    "artist": "Albert Kick",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/changeTitle/TitleChangeSample.mp3",
-                    "title": "Audio Sample2",
-                    "file_size": 8036342,
-                    "thumbnail": "/media/.thumbnail/4013-0934/3374671203630697.jpg"
-                },
-                {
-                    "last_modified_date": "Fri Sep 11 04:57:14 2020 GMT",
-                    "duration": 200,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/parsorTest/AlbertKick_Camper_feat _Jason_Rene.mp3",
-                    "album": "Camper",
-                    "genre": "|\t8\\Ht > |\t8\\Ht, |\t8\\Ht > X0$ (House), |\t8\\Ht > t}/\u0004$ (Club/Dance)",
-                    "artist": "Albert Kick",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/parsorTest/AlbertKick_Camper_feat _Jason_Rene.mp3",
-                    "title": "Audio Sample2",
-                    "file_size": 8036342,
-                    "thumbnail": "/media/.thumbnail/4013-0934/9368499306337553.jpg"
-                },
-                {
-                    "last_modified_date": "Tue Nov 25 06:10:08 2014 GMT",
-                    "duration": 260,
-                    "dirty": false,
-                    "file_path": "file:///tmp/usb/sdg/sdg1/mediaIndexerContents/MetaThumbnail/01_Jalsa.mp3",
-                    "album": "Jalsa - (2008)",
-                    "genre": "Telugu",
-                    "artist": "Baba Sehgal, Rita",
-                    "uri": "msc://4013-0934/tmp/usb/sdg/sdg1/mediaIndexerContents/MetaThumbnail/01_Jalsa.mp3",
-                    "title": "[iSongs.info] 01 - Jalsa",
-                    "file_size": 4243260,
-                    "thumbnail": "/media/.thumbnail/4013-0934/1413753745152321.jpg"
-                }
-            ],
-            "count": 8
-        }
-    ]
-}
+    LOG_INFO(0, "[OYJ_DBG] IndexerService::getVideoList()");
 
-{code}
- */
-
-bool IndexerService::getVideoList(const std::string &uri, int count)
-{
-    /*OYJ
     MediaDb *mdb = MediaDb::instance();
-    // TODO: add define guard
-    if (count == 0 || count > 500) // DB8 limit is 500
-        return mdb->getVideoList(uri);
-
-    return mdb->getVideoList(uri, count);
-    */
-    return true;
+    return mdb->getVideoList(uri, count, msg);
 }
 
 bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
@@ -809,8 +714,8 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
     if (mdb && mparser) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
-        rv = mdb->getVideoList(uri, resp);
-        metadata << resp["results"];
+//        rv = mdb->getVideoList(uri, resp);
+//        metadata << resp["results"];
         rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);
@@ -832,74 +737,86 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
     return rv;
 }
 
-bool IndexerService::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onGetImageList");
-    LOG_DEBUG("call onGetImageList");
-    std::string uri;
-    // parse incoming message
-    const char *payload = LSMessageGetPayload(msg);
-    std::string method = LSMessageGetMethod(msg);
-    pbnjson::JDomParser parser;
+    LOG_INFO(0, "[OYJ_DBG] IndexerService::onImageListGet()");
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
 
+    // parse incoming message
+    std::string senderName = LSMessageGetSenderServiceName(msg);
+    const char *payload = LSMessageGetPayload(msg);
+
+    pbnjson::JDomParser parser;
+    // TODO: apply listSchema
     if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
-        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
-            payload);
+        LOG_ERROR(0, "Invalid request: payload[%s] sender[%s]",
+                payload, senderName.c_str());
         return false;
     }
 
+    // parse uri and count from application payload
+    std::string uri;
+    int count = 0;
     auto domTree(parser.getDom());
 
     if (domTree.hasKey("uri"))
         uri = domTree["uri"].asString();
+    if (domTree.hasKey("count"))
+        count = domTree["count"].asNumber<int32_t>();
 
-    bool rv = true;
-    auto mdb = MediaDb::instance();
-    auto reply = pbnjson::Object();
-    std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb) {
-        pbnjson::JValue resp = pbnjson::Object();
-        pbnjson::JValue respArray = pbnjson::Array();
-        pbnjson::JValue list = pbnjson::Object();
+    bool subscribe = LSMessageIsSubscription(msg);
+    bool ret = false;
 
-        rv &= mdb->getImageList(uri, list);
-        if (!uri.empty())
-            list.put("uri", uri.c_str());
-        list.put("count", list["results"].arraySize());
-        respArray.append(list);
-
-        resp.put("imageList", respArray);
-        mdb->putRespObject(rv, resp);
-        mdb->sendResponse(lsHandle, msg, resp.stringify());
-    } else {
-        LOG_ERROR(0, "Failed to get instance of Media Db");
-        rv = false;
-        reply.put("returnValue", rv);
-        reply.put("errorCode", -1);
-        reply.put("errorText", "Invalid MediaDb Object");
-
+    if (subscribe) {
         LSError lsError;
         LSErrorInit(&lsError);
+        LOG_INFO(0, "[OYJ_DBG] Adding getVideoList subscription for '%s'",
+                senderName.c_str());
 
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
+        if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
+            LOG_ERROR(0, "Add subscription error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+        }
+
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
+
+        // initial reply to prevent application blocking
         if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
             LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
         }
+
+        ret = indexerService->getImageList(uri, count);
+    } else {
+        // increase reference count for message.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->getImageList(uri, count, msg);
     }
 
-    return rv;
+    return ret;
 }
 
-bool IndexerService::getImageList(const std::string &uri, int count)
+bool IndexerService::getImageList(const std::string &uri, int count, LSMessage *msg)
 {
-    /*OYJ
-    MediaDb *mdb = MediaDb::instance();
-    // TODO: add define guard
-    if (count == 0 || count > 500) // DB8 limit is 500
-        return mdb->getImageList(uri);
+    LOG_INFO(0, "[OYJ_DBG] IndexerService::getImageList()");
 
-    return mdb->getImageList(uri, count);
-    */
-    return true;
+    MediaDb *mdb = MediaDb::instance();
+    return mdb->getImageList(uri, count, msg);
 }
 
 bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
@@ -933,8 +850,8 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
     if (mdb && mparser) {
         pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
-        rv = mdb->getVideoList(uri, resp);
-        metadata << resp["results"];
+//        rv = mdb->getVideoList(uri, resp);
+//        metadata << resp["results"];
         rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);

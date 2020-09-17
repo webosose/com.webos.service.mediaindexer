@@ -303,7 +303,7 @@ void MediaIndexer::cleanupDevice(Device* device)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaIndexer::cleanupDevice");
     auto mdb = MediaDb::instance();
-    mdb->removeDirty(device);    
+    mdb->removeDirty(device); 
 }
 
 void MediaIndexer::notifyDeviceScanned(Device* device)
@@ -313,8 +313,9 @@ void MediaIndexer::notifyDeviceScanned(Device* device)
 }
 
 bool MediaIndexer::sendMediaMetaDataNotification(const std::string &method,
-                                                 const std::string &metaData)
+                                                 const std::string &metaData,
+                                                 LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaIndexer::sendMediaListNotification");
-    return indexerService_->notifyMediaMetaData(method, metaData);
+    return indexerService_->notifyMediaMetaData(method, metaData, msg);
 }

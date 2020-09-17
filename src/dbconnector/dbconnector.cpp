@@ -42,9 +42,10 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
         LOG_ERROR(0, "Failed to create lunaconnector object");
 
     connector_->registerTokenCallback(
-        [this](LSMessageToken & token, const std::string &dbMethod, const std::string &indexerMethod, void *obj) -> void {
-            LOG_INFO(0, "[OYJ_DBG] registerTokenCallback() dbMethod->'%s' indexerMethod->'%s'", dbMethod.c_str());
-            rememberSessionData(token, dbMethod, indexerMethod, obj);
+        [this](LSMessageToken & token, const std::string &dbServiceMethod, 
+               const std::string &dbMethod, void *obj) -> void {
+            auto query = pbnjson::Object();
+            rememberSessionData(token, dbServiceMethod, dbMethod, query, obj);
         });
 
     connector_->registerTokenCancelCallback(
@@ -226,54 +227,30 @@ bool DbConnector::find(const std::string &uri, bool precise,
     return true;
 }
 
-bool DbConnector::search(const std::string &kind_name, pbnjson::JValue &selects,
-    pbnjson::JValue &where, pbnjson::JValue &filter, void *obj, bool atomic,
-    const std::string &method, int count, const std::string& page)
+bool DbConnector::search(pbnjson::JValue &query, const std::string &dbMethod, void *obj)
 {
-    LOG_INFO(0, "[OYJ_DBG] DbConnector::search() kind '%s'", kind_name.c_str());
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::search() kind '%s'", query["from"].stringify().c_str());
     LSError lsError;
     LSErrorInit(&lsError);
     LSMessageToken sessionToken;
-    bool async = !atomic;
+
     std::string url = dbUrl_;
-    url += "search";
+    std::string dbServiceMethod = std::string("search");
+    url += dbServiceMethod;
 
-    // query for matching uri
-    auto query = pbnjson::Object();
-    query.put("select", selects);
-    query.put("from", kind_name);
-    query.put("where", where);
-    if(filter.isArray() && filter.arraySize() > 0)
-        query.put("filter", filter);
-
-    if (count != 0)
-        query.put("limit", count);
-
-    if (!page.empty())
-        query.put("page", page);
     auto request = pbnjson::Object();
     request.put("query", query);
 
-    //OYJ
     LOG_INFO(0, "[OYJ_DBG] DbConnector::search() LScall Start!");
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
-                DbConnector::onLunaResponse2, this, &sessionToken, &lsError)) {
+                DbConnector::onLunaResponseMetaData, this, &sessionToken, &lsError)) {
 
         LOG_ERROR(0, "Db service search error");
         LSErrorPrint(&lsError, stderr);
         LSErrorFree(&lsError);
-    }
-    std::string dbMethod = __func__;
-    rememberSessionData(sessionToken, dbMethod, method, nullptr);
-
-    /*
-    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
-        LOG_ERROR(0, "Db service search error");
         return false;
     }
-    */
-
+    rememberSessionData(sessionToken, dbServiceMethod, dbMethod, query, obj);
     LOG_INFO(0, "[OYJ_DBG] DbConnector::search() done!");
 
     return true;
@@ -438,45 +415,25 @@ bool DbConnector::onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx)
     return connector->handleLunaResponse(msg);
 }
 
-bool DbConnector::onLunaResponse2(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+bool DbConnector::onLunaResponseMetaData(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] DbConnector::onLunaResponse2()");
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::onLunaResponseMetadata()");
     DbConnector *connector = static_cast<DbConnector *>(ctx);
-    /*
-    pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
-    const char *payload = LSMessageGetPayload(msg);
-
-    if (!parser.parse(payload)) {
-        LOG_ERROR(0, "Invalid JSON message: %s", payload);
-        return false;
-    }
-    auto domTree(parser.getDom());
-    auto reply = pbnjson::Object();
-    reply.put("audioList", domTree["results"]);
-
-    LSError lsError;
-    LSErrorInit(&lsError);
-
-    if (!LSSubscriptionReply(connector->lsHandle_, "getAudioList", reply.stringify().c_str(), &lsError)) {
-        LOG_INFO(0, "[OYJ_DBG] subscription reply error!");
-        return false;
-    }
-    return true;
-    */
-    return connector->handleLunaResponse2(msg);
-
+    return connector->handleLunaResponseMetaData(msg);
 }
 
 void DbConnector::rememberSessionData(LSMessageToken token,
-    const std::string &dbMethod, const std::string &indexerMethod, void *object)
+                                      const std::string &dbServiceMethod,
+                                      const std::string &dbMethod, 
+                                      pbnjson::JValue &query,
+                                      void *object)
 {
     LOG_INFO(0, "[OYJ_DBG] DbConnector::rememberSessionData()");
     // remember token for response - we could do that after the
     // request has been issued because the response will happen
     // from the mainloop in the same thread context
-    LOG_DEBUG("Save dbMethod %s, indexerMethod %s, token %ld pair", dbMethod.c_str(), indexerMethod.c_str(), (long)token);
-    //OYJ_TEST
-    SessionData sd = {dbMethod, indexerMethod, object};
+    LOG_DEBUG("Save dbServiceMethod %s, dbMethod %s, token %ld pair", dbServiceMethod.c_str(), dbMethod.c_str(), (long)token);
+    SessionData sd = {dbServiceMethod, dbMethod, query, object};
     auto p = std::make_pair(token, sd);
     std::lock_guard<std::mutex> lock(lock_);
     messageMap_.emplace(p);

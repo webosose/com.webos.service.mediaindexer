@@ -133,7 +133,9 @@ public:
 
     bool notifyScanDone();
 
-    bool notifyMediaMetaData(const std::string& method, const std::string& metaData);
+    bool notifyMediaMetaData(const std::string &method, 
+                             const std::string &metaData,
+                             LSMessage *msg);
 
     LSHandle* getServiceHandle() { return lsHandle_; };
 
@@ -245,7 +247,7 @@ private:
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
      */    
-    static bool onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Callback for getVideoMetadata() Luna method.
@@ -263,7 +265,7 @@ private:
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
      */     
-    static bool onGetImageList(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Callback for getImageMetadata() Luna method.
@@ -292,14 +294,13 @@ private:
      */
     static bool onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
-    static bool callbackSubscriptionCancel(LSHandle *lshandle, 
-                                           LSMessage *msg,
+    static bool callbackSubscriptionCancel(LSHandle *lshandle, LSMessage *msg, 
                                            void *ctx);
 
     
-    bool getAudioList(const std::string &uri, int count);
-    bool getVideoList(const std::string &uri, int count);
-    bool getImageList(const std::string &uri, int count);
+    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
 
     bool requestMediaScan(LSMessage *msg);
 
@@ -335,16 +336,13 @@ private:
 
     bool notifySubscriber(const std::string& method, pbnjson::JValue& response);
 
-    bool addClient(const std::string &sender,
-                   const std::string &method,
+    bool addClient(const std::string &sender, const std::string &method,
                    const LSMessageToken& token);
 
-    bool removeClient(const std::string &sender,
-                      const std::string &method,
+    bool removeClient(const std::string &sender, const std::string &method,
                       const LSMessageToken& token);
 
-    bool isClientExist(const std::string &sender,
-                       const std::string &method,
+    bool isClientExist(const std::string &sender, const std::string &method,
                        const LSMessageToken& token);
 
     /// Service method definitions.
