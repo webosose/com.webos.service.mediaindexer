@@ -330,7 +330,7 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
 
     gboolean res;
     LOG_DEBUG("uri : \"%s\"", uri.c_str());
-    pipelineStr = g_strdup_printf("uridecodebin uri=\"%s\" ! queue ! qvconv ! "" appsink name=video-sink caps=\"" CAPS "\"", uri.c_str());    
+    pipelineStr = g_strdup_printf("uridecodebin uri=\"%s\" force-sw-decoders=true ! queue ! videoconvert n-threads=4 ! videoscale ! "" appsink name=video-sink caps=\"" CAPS "\"", uri.c_str());
     pipeline = gst_parse_launch(pipelineStr, &error);
     if (error != nullptr)
     {
