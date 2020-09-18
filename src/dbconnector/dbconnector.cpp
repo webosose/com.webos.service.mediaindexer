@@ -244,39 +244,52 @@ bool DbConnector::search(pbnjson::JValue &query, const std::string &dbMethod, vo
     LOG_INFO(0, "[OYJ_DBG] DbConnector::search() LScall Start!");
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
                 DbConnector::onLunaResponseMetaData, this, &sessionToken, &lsError)) {
-
         LOG_ERROR(0, "Db service search error");
         LSErrorPrint(&lsError, stderr);
         LSErrorFree(&lsError);
         return false;
     }
+
     rememberSessionData(sessionToken, dbServiceMethod, dbMethod, query, obj);
     LOG_INFO(0, "[OYJ_DBG] DbConnector::search() done!");
 
     return true;
 }
 
-bool DbConnector::del(const std::string &kind_name, pbnjson::JValue &where,
-    void *obj, bool atomic)
+bool DbConnector::del(pbnjson::JValue &query, const std::string &dbMethod, void *obj)
 {
-    LOG_INFO(0, "[OYJ_DBG] DbConnector::del() kind '%s'", kind_name.c_str());
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::del() kind '%s'", query["from"].stringify().c_str());
+    LSError lsError;
+    LSErrorInit(&lsError);
     LSMessageToken sessionToken;
-    bool async = !atomic;
     std::string url = dbUrl_;
-    url += "del";
-
-    auto query = pbnjson::Object();
-    query.put("from", kind_name);
-    query.put("where", where);
+    std::string dbServiceMethod = std::string("del");
+    url += dbServiceMethod;
 
     auto request = pbnjson::Object();
     request.put("query", query);
 
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::del() LSCall Start!");
+    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
+                DbConnector::onLunaResponseMetaData, this, &sessionToken, &lsError)) {
+        LOG_ERROR(0, "Db service del error");
+        LSErrorPrint(&lsError, stderr);
+        LSErrorFree(&lsError);
+        return false;
+    }
+
+    LOG_INFO(0, "[OYJ_DBG] Save dbServiceMethod %s, dbMethod %s, token %ld pair", dbServiceMethod.c_str(), dbMethod.c_str(), (long)sessionToken);
+    rememberSessionData(sessionToken, dbServiceMethod, dbMethod, query, obj);
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::del() LSCall done!");
+
+
+    /*
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
             DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
         LOG_ERROR(0, "Db service delete error");
         return false;
     }
+    */
     return true;
 }
 

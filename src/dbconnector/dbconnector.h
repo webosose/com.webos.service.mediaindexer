@@ -130,7 +130,7 @@ protected:
 //                        const std::string &method = std::string(), 
 //                        int count = 0, const std::string &page = std::string());
       virtual bool search(pbnjson::JValue &query, const std::string &dbMethod,
-                          void *obj);
+                          void *obj = nullptr);
     /**
      * \brief Delete all objects with the given uri by JSON object.
      *
@@ -140,8 +140,8 @@ protected:
      * \param[in] atomic Sync/Async.
      * \return True on success, false on error.
      */
-    virtual bool del(const std::string &kind_name, pbnjson::JValue &where,
-                     void *obj = nullptr, bool atomic = false);
+    virtual bool del(pbnjson::JValue &query, const std::string &dbMethod,
+                     void *obj = nullptr);
 
     /**
      * \brief Give read only access to other services.

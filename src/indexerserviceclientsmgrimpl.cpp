@@ -55,9 +55,8 @@ bool IndexerServiceClientsMgrImpl::removeClient(const std::string &sender,
 
     if (client != targetClient) {
         LOG_DEBUG("Failed to remove: sender[%s]<->stored sender[%s] \
-                   method[%s]<->stored method[%s]",
-                   sender.c_str(), client.first.c_str(),
-                   method.c_str(), client.second.c_str());
+                method[%s]<->stored method[%s]", sender.c_str(), client.first.c_str(),
+                method.c_str(), client.second.c_str());
         return false;
     }
 

@@ -29,6 +29,17 @@ class Device;
 class MediaDb : public DbConnector
 {
 public:
+    
+    // TODO: other APIs shouled be added
+    enum class MediaDbMethod : int {
+        GetAudioList,
+        GetVideoList, 
+        GetImageList,
+        RequestDelete,
+        RemoveDirty,  
+        EOL
+    };
+
     /**
      * \brief Get device database connector.
      *
@@ -142,7 +153,7 @@ public:
      * \param[in] uri Uri of the media item.
      * \param[in] resp return response.
      */
-    bool requestDelete(const std::string &uri, pbnjson::JValue &resp);
+    bool requestDelete(const std::string &uri, LSMessage *msg = nullptr);
 
     /**
      * \brief guess media type with uri.
@@ -176,6 +187,15 @@ private:
         {MediaItem::Type::Video, VIDEO_KIND},
         {MediaItem::Type::Image, IMAGE_KIND}
     };
+
+    std::map<std::string, MediaDbMethod> dbMethodMap_ = {
+        { std::string("getAudioList"),   MediaDbMethod::GetAudioList  },
+        { std::string("getVideoList"),   MediaDbMethod::GetVideoList  },
+        { std::string("getImageList"),   MediaDbMethod::GetImageList  },
+        { std::string("requestDelete"),  MediaDbMethod::RequestDelete },
+        { std::string("removeDirty"),    MediaDbMethod::RemoveDirty   }
+    };
+
     /// List of services that should have read-only access to
     /// database.
     std::list<std::string> dbClients_;

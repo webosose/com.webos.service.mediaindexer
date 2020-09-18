@@ -42,7 +42,8 @@
 #define LSERROR_CHECK_AND_PRINT(ret, lsError) \
     do { \
         if (!ret) { \
-            LSErrorPrintAndFree(&lsError); \
+            LSErrorPrint(&lsError, stderr); \
+            LSErrorFree(&lsError); \
             return false; \
         } \
     } while (0)
@@ -531,7 +532,7 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
 
         ret = indexerService->getAudioList(uri, count);
     } else {
-        // increase reference count for message.
+        // increase reference count for LSMessage.
         // this reference count will be decrease in notification callback.
         LSMessageRef(msg);
         ret = indexerService->getAudioList(uri, count, msg);
@@ -877,10 +878,10 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
 bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_INFO(0, "start onRequestDelete");
-
-    IndexerService *is = static_cast<IndexerService *>(ctx);
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
 
     // parse incoming message
+    std::string senderName = LSMessageGetSenderServiceName(msg);
     const char *payload = LSMessageGetPayload(msg);
     std::string method = LSMessageGetMethod(msg);
     pbnjson::JDomParser parser;
@@ -894,12 +895,61 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
     auto domTree(parser.getDom());
     RETURN_IF(!domTree.hasKey("uri"), false, "client must specify uri");
 
+    bool subscribe = LSMessageIsSubscription(msg);
+
     // get the playback uri for the given media item uri
     auto uri = domTree["uri"].asString();
-    bool rv = true;
-    auto mdb = MediaDb::instance();
+    bool ret = false;
     auto reply = pbnjson::Object();
-    std::lock_guard<std::mutex> lk(mutex_);
+    /////////////////
+    if (subscribe) {
+        LSError lsError;
+        LSErrorInit(&lsError);
+        LOG_INFO(0, "[OYJ_DBG] Adding requestDelete subscription for '%s'",
+                senderName.c_str());
+
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
+        if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
+            LOG_ERROR(0, "Add subscription error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+        }
+
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
+
+        // initial reply to prevent application blocking
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        ret = indexerService->requestDelete(uri);
+    } else {
+        // increase reference count for message.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->requestDelete(uri, msg);
+    }
+    
+
+
+
+    ////////////////
+    return ret;
+
+/*
     if (mdb) {
         rv = mdb->requestDelete(uri, reply);
         mdb->putRespObject(rv, reply);
@@ -919,6 +969,14 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
         }
     }
     return rv;
+*/
+}
+
+bool IndexerService::requestDelete(const std::string &uri, LSMessage *msg)
+{
+    LOG_INFO(0, "[OYJ_DBG] IndexerService::requestDelete()");
+    MediaDb *mdb = MediaDb::instance();
+    return mdb->requestDelete(uri, msg);
 }
 
 bool IndexerService::onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx)
@@ -1107,21 +1165,32 @@ void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
 
 bool IndexerService::addClient(const std::string &sender, 
                                const std::string &method,
-                               const LSMessageToken& token)
+                               const LSMessageToken &token)
 {
     return clientMgr_->addClient(sender, method, token);
 }
 
 bool IndexerService::removeClient(const std::string &sender,
                                   const std::string &method,
-                                  const LSMessageToken& token)
+                                  const LSMessageToken &token)
 {
     return clientMgr_->removeClient(sender, method, token);
 }
 
 bool IndexerService::isClientExist(const std::string &sender,
                                    const std::string &method,
-                                   const LSMessageToken& token)
+                                   const LSMessageToken &token)
 {
     return clientMgr_->isClientExist(sender, method, token);
+}
+
+void IndexerService::putRespResult(pbnjson::JValue &obj,
+                                   const bool &returnValue,
+                                   const int &errorCode,
+                                   const std::string &errorText)
+{
+    LOG_INFO(0, "[OYJ_DBG] DbConnector::putRespObject()");
+    obj.put("returnValue", returnValue);
+    obj.put("errorCode", errorCode);
+    obj.put("errorText", errorText);
 }

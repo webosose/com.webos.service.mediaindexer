@@ -302,6 +302,8 @@ private:
     bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
     bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
 
+    bool requestDelete(const std::string &uri, LSMessage *msg = nullptr);
+
     bool requestMediaScan(LSMessage *msg);
 
     bool waitForScan();
@@ -344,6 +346,10 @@ private:
 
     bool isClientExist(const std::string &sender, const std::string &method,
                        const LSMessageToken& token);
+
+    void putRespResult(pbnjson::JValue &obj, const bool &returnValue,
+                       const int& errorCode = 0, 
+                       const std::string& errorText = std::string("No Error"));
 
     /// Service method definitions.
     static LSMethod serviceMethods_[];

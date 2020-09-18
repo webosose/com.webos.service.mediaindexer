@@ -155,7 +155,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     return true;
 }
 
-//TODO : handleLunaResponse should be merged including above handler.
+//TODO : should be merged including above handler.
 bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
 {
     struct SessionData sd;
@@ -166,23 +166,37 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
         return false;
     }
 
+    // we do not need to check, the service implementation should do that
+    pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
+    const char *payload = LSMessageGetPayload(msg);
+
+    if (!parser.parse(payload)) {
+        LOG_ERROR(0, "Invalid JSON message: %s", payload);
+        return false;
+    }
+
     auto dbServiceMethod = sd.dbServiceMethod;
     auto dbMethod = sd.dbMethod;
     auto dbQuery = sd.query;
     auto object = sd.object;
-    LOG_INFO(0, "[OYJ_DBG] Received response com.webos.mediadb for: method[%s], \
-            dbMethod[%s]", dbServiceMethod.c_str(), dbMethod.c_str());
+    LOG_INFO(0, "[OYJ_DBG] Received response com.webos.mediadb for: \
+            dbServiceMethod[%s], dbMethod[%s]",
+            dbServiceMethod.c_str(), dbMethod.c_str());
 
-    if (dbServiceMethod == std::string("search")) {
-        // we do not need to check, the service implementation should do that
-        pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
-        const char *payload = LSMessageGetPayload(msg);
+    const auto &it = dbMethodMap_.find(dbMethod);
+    if (it == dbMethodMap_.end()) {
+        LOG_ERROR(0, "Failed to find media db method[%s]", dbMethod.c_str());
+        return false;
+    }
 
-        if (!parser.parse(payload)) {
-            LOG_ERROR(0, "Invalid JSON message: %s", payload);
-            return false;
-        }
+    const auto method = it->second;
 
+    bool ret = false;
+
+    // getAudioList, getVideoList, getImageList are same in switch statement.
+    // but it could be changed in the future. so remain it eventhough same thing.
+    switch(method) {
+    case MediaDbMethod::GetAudioList: {
         pbnjson::JValue domTree(parser.getDom());
         auto result = domTree["results"];
 
@@ -196,12 +210,110 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
             std::string page = domTree["next"].asString();
             dbQuery.put("page", page);
 
-            bool ret = search(dbQuery, dbMethod, object);
-            return ret;
+            ret = search(dbQuery, dbMethod, object);
         }
+        break;
     }
+    case MediaDbMethod::GetVideoList: {
+        pbnjson::JValue domTree(parser.getDom());
+        auto result = domTree["results"];
+
+        MediaIndexer *indexer = MediaIndexer::instance();
+        indexer->sendMediaMetaDataNotification(dbMethod, result.stringify(),
+                static_cast<LSMessage*>(object));
+
+        // again send search command if payload has "next" key.
+        // object null means subscription
+        if (domTree.hasKey("next") && object == nullptr) {
+            std::string page = domTree["next"].asString();
+            dbQuery.put("page", page);
+
+            ret = search(dbQuery, dbMethod, object);
+        }
+        break;
+    }
+    case MediaDbMethod::GetImageList: {
+        pbnjson::JValue domTree(parser.getDom());
+        auto result = domTree["results"];
+
+        MediaIndexer *indexer = MediaIndexer::instance();
+        indexer->sendMediaMetaDataNotification(dbMethod, result.stringify(),
+                static_cast<LSMessage*>(object));
+
+        // again send search command if payload has "next" key.
+        // object null means subscription
+        if (domTree.hasKey("next") && object == nullptr) {
+            std::string page = domTree["next"].asString();
+            dbQuery.put("page", page);
+
+            ret = search(dbQuery, dbMethod, object);
+        }
+        break;
+    }
+    case MediaDbMethod::RequestDelete: {
+        pbnjson::JValue domTree(parser.getDom());
+        auto result = domTree["results"];
+
+        MediaIndexer *indexer = MediaIndexer::instance();
+        indexer->sendMediaMetaDataNotification(dbMethod, result.stringify(),
+                static_cast<LSMessage*>(object));
+        break;
+    }
+    case MediaDbMethod::RemoveDirty: {
+        pbnjson::JValue domTree(parser.getDom());
+        auto result = domTree["results"];
+        if (result.isArray() && result.isValid() && !result.isNull()) {
+            for (auto item : result.items()) {
+                auto uri = item["uri"].asString();
+                auto thumbnail = item["thumbnail"].asString();
+
+                if (!uri.empty()) {
+                    auto where = prepareWhere(URI, uri, true);
+                    auto kind = dbQuery["from"].asString();
+                    auto query = pbnjson::Object();
+                    query.put("from", kind);
+                    query.put("where", where);
+                    ret = del(query, dbMethod);
+
+                    if (!ret)
+                        LOG_ERROR(0, "ERROR deleting mediaDB uri : [%s]",
+                                uri.c_str());
+
+                }
+
+                if (!thumbnail.empty()) {
+                    int remove_result = std::remove(thumbnail.c_str());
+
+                    if (remove_result != 0)
+                        LOG_ERROR(0, "Error deleting thumbnail file : [%s]",
+                                thumbnail.c_str());
+
+                    sync();
+                }
+
+            }
+        }
+        ret = true;
+        break;
+    }
+    default: {
+        LOG_ERROR(0, "Unknown db method[%s]", dbMethod.c_str());
+        ret = false;
+        break;
+    }
+    } // end of switch
+
+    return ret;
+
+}
+
+/*
+bool MediaDb::processResponse(MediaDbMethod method)
+{
+
     return true;
 }
+*/
 
 void MediaDb::checkForChange(MediaItemPtr mediaItem)
 {
@@ -393,7 +505,6 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 
 void MediaDb::removeDirty(Device* device)
 {
-    /*
     LOG_INFO(0, "[OYJ_DBG] MediaDb::removeDirty");
     std::map<MediaItem::Type, pbnjson::JValue> listMap;
     std::string uri = device->uri();
@@ -405,7 +516,26 @@ void MediaDb::removeDirty(Device* device)
     auto where = prepareWhere(URI, uri, false);
     auto filter = prepareWhere(DIRTY, true, true);
    
-    std::string method = std::string("removeDirty");
+    auto query = pbnjson::Object();
+    query.put("select", selectArray);
+    query.put("where", where);
+    query.put("filter", filter);
+
+    std::string dbMethod = std::string("removeDirty");
+    for (auto const &[type, kind] : kindMap_) {
+        query.put("from", kind);
+        bool ret = search(query, dbMethod);
+        if (!ret) LOG_ERROR(0, "search fail for removeDirty. uri[%s]", uri.c_str());
+    }
+
+
+
+
+
+
+
+
+    /*
     for (auto const &[type, kind] : kindMap_) {
         listMap[type] = pbnjson::Object();
         search(kind, selectArray, where, filter, &listMap[type], true, method);
@@ -429,6 +559,7 @@ void MediaDb::removeDirty(Device* device)
         }
     }
     */
+    
 }
 
 void MediaDb::grantAccess(const std::string &serviceName)
@@ -553,13 +684,17 @@ bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg)
 //    return search(IMAGE_KIND, selectArray, where, filter, &resp, true, method);
 }
 
-bool MediaDb::requestDelete(const std::string &uri, pbnjson::JValue &resp)
+bool MediaDb::requestDelete(const std::string &uri, LSMessage *msg)
 {
     LOG_INFO(0, "[OYJ_DBG] MediaDb::requestDelete");
-    LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
+    LOG_DEBUG("%s Start for uri : %s", __func__, uri.c_str());
     auto where = prepareWhere(URI, uri, true);
     MediaItem::Type type =guessType(uri);
-    return del(kindMap_[type], where, &resp, true);
+    auto query = pbnjson::Object();
+    query.put("from", kindMap_[type]);
+    query.put("where", where);
+    std::string dbMethod = std::string("requestDelete");
+    return del(query, dbMethod, msg);
 }
 
 MediaItem::Type MediaDb::guessType(const std::string &uri)
