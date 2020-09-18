@@ -1152,7 +1152,7 @@ void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
     if (pos != std::string::npos)
         sn.erase(pos);
     auto reply = pbnjson::Object();
-    mdb->grantAccessAll(sn, false, reply);
+    mdb->grantAccessAll(sn, true, reply);
 }
 
 bool IndexerService::addClient(const std::string &sender, 
