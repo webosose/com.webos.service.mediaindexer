@@ -63,11 +63,11 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getMediaDbPermission", IndexerService::onMediaDbPermissionGet, LUNA_METHOD_FLAGS_NONE },
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
     { "getAudioList", IndexerService::onAudioListGet, LUNA_METHOD_FLAGS_NONE },
-    { "getAudioMetadata", IndexerService::onGetAudioMetadata, LUNA_METHOD_FLAGS_NONE },
+    { "getAudioMetadata", IndexerService::onAudioMetadataGet, LUNA_METHOD_FLAGS_NONE },
     { "getVideoList", IndexerService::onVideoListGet, LUNA_METHOD_FLAGS_NONE },
-    { "getVideoMetadata", IndexerService::onGetVideoMetadata, LUNA_METHOD_FLAGS_NONE },
+    { "getVideoMetadata", IndexerService::onVideoMetadataGet, LUNA_METHOD_FLAGS_NONE },
     { "getImageList", IndexerService::onImageListGet, LUNA_METHOD_FLAGS_NONE },
-    { "getImageMetadata", IndexerService::onGetImageMetadata, LUNA_METHOD_FLAGS_NONE },
+    { "getImageMetadata", IndexerService::onImageMetadataGet, LUNA_METHOD_FLAGS_NONE },
     { "requestDelete", IndexerService::onRequestDelete, LUNA_METHOD_FLAGS_NONE },
     { "requestMediaScan", IndexerService::onRequestMediaScan, LUNA_METHOD_FLAGS_NONE },
     { nullptr, nullptr}
@@ -135,7 +135,6 @@ pbnjson::JSchema IndexerService::listGetSchema_(
 IndexerService::IndexerService(MediaIndexer *indexer) :
     indexer_(indexer)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::IndexerService");
     LSError lsError;
     LSErrorInit(&lsError);
 
@@ -191,7 +190,6 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
 
 IndexerService::~IndexerService()
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::~IndexerService");
     if (!lsHandle_)
         return;
 
@@ -213,7 +211,6 @@ IndexerService::~IndexerService()
 
 bool IndexerService::pushDeviceList(LSMessage *msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::pushDeviceList");
     if (msg) {
         // parse incoming message
         const char *payload = LSMessageGetPayload(msg);
@@ -290,14 +287,12 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
 
 bool IndexerService::onPluginGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onPluginGet");
     IndexerService *is = static_cast<IndexerService *>(ctx);
     return is->pluginPutGet(msg, true);
 }
 
 bool IndexerService::onPluginPut(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onPluginPut");
     IndexerService *is = static_cast<IndexerService *>(ctx);
     return is->pluginPutGet(msg, false);
 }
@@ -305,7 +300,6 @@ bool IndexerService::onPluginPut(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 bool IndexerService::onPluginListGet(LSHandle *lsHandle, LSMessage *msg,
     void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onPluginListGet");
     // no schema check needed as we do not expect any objects/properties
     
     // generate response
@@ -337,7 +331,6 @@ bool IndexerService::onPluginListGet(LSHandle *lsHandle, LSMessage *msg,
 
 bool IndexerService::onDeviceListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onDeviceListGet");
     IndexerService *is = static_cast<IndexerService *>(ctx);
     // TODO
     return is->pushDeviceList(msg);
@@ -345,21 +338,18 @@ bool IndexerService::onDeviceListGet(LSHandle *lsHandle, LSMessage *msg, void *c
 
 bool IndexerService::onRun(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onRun");
     IndexerService *is = static_cast<IndexerService *>(ctx);
     return is->detectRunStop(msg, true);
 }
 
 bool IndexerService::onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onStop");
     IndexerService *is = static_cast<IndexerService *>(ctx);
     return is->detectRunStop(msg, false);
 }
 
 bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onMediaDbPermissionGet");
     LOG_DEBUG("call onMediaDbPermissionGet");
     std::string uri;
     // parse incoming message
@@ -420,7 +410,6 @@ bool IndexerService::notifyMediaMetaData(const std::string &method,
                                          const std::string &metaData,
                                          LSMessage *msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::notifyMediaMetaData()");
     LSError lsError;
     LSErrorInit(&lsError);
 
@@ -451,7 +440,6 @@ bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle,
                                                LSMessage *msg,
                                                void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::callbackSubscriptionCancel!");
     IndexerService* indexerService = static_cast<IndexerService *>(ctx);
 
     if (indexerService == NULL) {
@@ -469,7 +457,6 @@ bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle,
 
 bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onAudioListGet()");
     IndexerService *indexerService = static_cast<IndexerService *>(ctx);
 
     // parse incoming message
@@ -500,8 +487,7 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (subscribe) {
         LSError lsError;
         LSErrorInit(&lsError);
-        LOG_INFO(0, "[OYJ_DBG] Adding getAudioList subscription for '%s'",
-                senderName.c_str());
+        LOG_DEBUG("Adding getAudioList subscription for '%s'", senderName.c_str());
 
         std::string sender = LSMessageGetSender(msg);
         std::string method = LSMessageGetMethod(msg);
@@ -515,7 +501,7 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         }
 
         if (!indexerService->addClient(sender, method, token)) {
-            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
         }
 
         auto reply = pbnjson::Object();
@@ -543,14 +529,12 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
 
 bool IndexerService::getAudioList(const std::string &uri, int count, LSMessage *msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::getAudioList()");
     MediaDb *mdb = MediaDb::instance();
     return mdb->getAudioList(uri, count, msg);
 }
 
-bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+bool IndexerService::onAudioMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onGetAudioMetadata");
     LOG_DEBUG("call onGetAudioMetadata");
 
     // parse incoming message
@@ -576,10 +560,7 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
     auto reply = pbnjson::Object();
     std::lock_guard<std::mutex> lk(mutex_);
     if (mdb && mparser) {
-        pbnjson::JValue resp = pbnjson::Object();
-        pbnjson::JValue metadata = pbnjson::Object(); 
-//        rv = mdb->getAudioList(uri, resp);
-        metadata << resp["results"];
+        pbnjson::JValue metadata = pbnjson::Object();
         rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);
@@ -605,7 +586,6 @@ bool IndexerService::onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void
 
 bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onVideoListGet()");
     IndexerService *indexerService = static_cast<IndexerService *>(ctx);
 
     // parse incoming message
@@ -636,8 +616,7 @@ bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (subscribe) {
         LSError lsError;
         LSErrorInit(&lsError);
-        LOG_INFO(0, "[OYJ_DBG] Adding getVideoList subscription for '%s'",
-                senderName.c_str());
+        LOG_DEBUG("Adding getVideoList subscription for '%s'", senderName.c_str());
 
         std::string sender = LSMessageGetSender(msg);
         std::string method = LSMessageGetMethod(msg);
@@ -679,15 +658,12 @@ bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
 
 bool IndexerService::getVideoList(const std::string &uri, int count, LSMessage *msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::getVideoList()");
-
     MediaDb *mdb = MediaDb::instance();
     return mdb->getVideoList(uri, count, msg);
 }
 
-bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+bool IndexerService::onVideoMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onGetVideoMetadata");
     LOG_DEBUG("call onGetVideoMetadata");
 
     // parse incoming message
@@ -713,10 +689,7 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
     auto reply = pbnjson::Object();
     std::lock_guard<std::mutex> lk(mutex_);
     if (mdb && mparser) {
-        pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
-//        rv = mdb->getVideoList(uri, resp);
-//        metadata << resp["results"];
         rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);
@@ -740,7 +713,6 @@ bool IndexerService::onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void
 
 bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onImageListGet()");
     IndexerService *indexerService = static_cast<IndexerService *>(ctx);
 
     // parse incoming message
@@ -771,8 +743,7 @@ bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (subscribe) {
         LSError lsError;
         LSErrorInit(&lsError);
-        LOG_INFO(0, "[OYJ_DBG] Adding getVideoList subscription for '%s'",
-                senderName.c_str());
+        LOG_DEBUG("Adding getImageList subscription for '%s'", senderName.c_str());
 
         std::string sender = LSMessageGetSender(msg);
         std::string method = LSMessageGetMethod(msg);
@@ -786,7 +757,7 @@ bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         }
 
         if (!indexerService->addClient(sender, method, token)) {
-            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
         }
 
         auto reply = pbnjson::Object();
@@ -814,13 +785,11 @@ bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
 
 bool IndexerService::getImageList(const std::string &uri, int count, LSMessage *msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::getImageList()");
-
     MediaDb *mdb = MediaDb::instance();
     return mdb->getImageList(uri, count, msg);
 }
 
-bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+bool IndexerService::onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_INFO(0, "[OYJ_DBG] IndexerService::onGetImageMetadata");
     //IndexerService *is = static_cast<IndexerService *>(ctx);
@@ -849,10 +818,7 @@ bool IndexerService::onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void
     auto reply = pbnjson::Object();
     std::lock_guard<std::mutex> lk(mutex_);
     if (mdb && mparser) {
-        pbnjson::JValue resp = pbnjson::Object();
         pbnjson::JValue metadata = pbnjson::Object();
-//        rv = mdb->getVideoList(uri, resp);
-//        metadata << resp["results"];
         rv = mparser->setMediaItem(uri);
         rv = mparser->extractMetaDirect(metadata);
         reply.put("metadata", metadata);
@@ -900,13 +866,10 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
     // get the playback uri for the given media item uri
     auto uri = domTree["uri"].asString();
     bool ret = false;
-    auto reply = pbnjson::Object();
-    /////////////////
     if (subscribe) {
         LSError lsError;
         LSErrorInit(&lsError);
-        LOG_INFO(0, "[OYJ_DBG] Adding requestDelete subscription for '%s'",
-                senderName.c_str());
+        LOG_DEBUG("Adding requestDelete subscription for '%s'", senderName.c_str());
 
         std::string sender = LSMessageGetSender(msg);
         std::string method = LSMessageGetMethod(msg);
@@ -920,7 +883,7 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
         }
 
         if (!indexerService->addClient(sender, method, token)) {
-            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
         }
 
         auto reply = pbnjson::Object();
@@ -943,38 +906,11 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
         ret = indexerService->requestDelete(uri, msg);
     }
     
-
-
-
-    ////////////////
     return ret;
-
-/*
-    if (mdb) {
-        rv = mdb->requestDelete(uri, reply);
-        mdb->putRespObject(rv, reply);
-        mdb->sendResponse(lsHandle, msg, reply.stringify());
-    } else {
-        LOG_ERROR(0, "Failed to get instance of Media Db");
-        rv = false;
-        reply.put("returnValue", rv);
-        reply.put("errorCode", -1);
-        reply.put("errorText", "Invalid MediaDb Object");
-
-        LSError lsError;
-        LSErrorInit(&lsError);
-
-        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
-            LOG_ERROR(0, "Message reply error");
-        }
-    }
-    return rv;
-*/
 }
 
 bool IndexerService::requestDelete(const std::string &uri, LSMessage *msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::requestDelete()");
     MediaDb *mdb = MediaDb::instance();
     return mdb->requestDelete(uri, msg);
 }
@@ -1047,21 +983,18 @@ bool IndexerService::requestMediaScan(LSMessage *msg)
 
 bool IndexerService::waitForScan()
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::waitForScan");
     std::unique_lock<std::mutex> lk(scanMutex_);
     return !(scanCv_.wait_for(lk, std::chrono::seconds(SCAN_TIMEOUT)) == std::cv_status::timeout);
 }
 
 bool IndexerService::notifyScanDone()
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::notifyScanDone");
     scanCv_.notify_one();
     return true;
 }
 
 bool IndexerService::pluginPutGet(LSMessage *msg, bool get)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::pluginPutGet");
     const char *payload = LSMessageGetPayload(msg);
     pbnjson::JDomParser parser;
     LOG_DEBUG("LSMessageGetMethod : %s", LSMessageGetMethod(msg));
@@ -1102,7 +1035,6 @@ bool IndexerService::pluginPutGet(LSMessage *msg, bool get)
 
 bool IndexerService::detectRunStop(LSMessage *msg, bool run)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::detectRunStop");
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     pbnjson::JDomParser parser;
@@ -1141,7 +1073,6 @@ bool IndexerService::detectRunStop(LSMessage *msg, bool run)
 void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
     pbnjson::JDomParser &parser)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::checkForDeviceListSubscriber");
     auto domTree(parser.getDom());
     auto subscribe = domTree["subscribe"].asBool();
 
@@ -1189,7 +1120,6 @@ void IndexerService::putRespResult(pbnjson::JValue &obj,
                                    const int &errorCode,
                                    const std::string &errorText)
 {
-    LOG_INFO(0, "[OYJ_DBG] DbConnector::putRespObject()");
     obj.put("returnValue", returnValue);
     obj.put("errorCode", errorCode);
     obj.put("errorText", errorText);

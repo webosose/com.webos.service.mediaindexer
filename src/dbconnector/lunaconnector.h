@@ -72,7 +72,6 @@ public:
     void registerTokenCancelCallback(tokenCancelCallback_t cb) { tokenCancelCallback_ = cb; }
     bool run();
     bool stop();
-    //OYJ TEST
     bool sendMessage(const std::string &uri,
         const std::string &payload,
         LunaConnectorCallback cb, void *ctx, bool async = true, LSMessageToken *token = nullptr, void *obj = nullptr, std::string forcemethod = std::string(), std::string indexerMethod = std::string());

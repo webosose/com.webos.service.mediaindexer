@@ -30,13 +30,11 @@ GMainLoop *MediaIndexer::mainLoop_ = nullptr;
 
 void MediaIndexer::init(GMainLoop *mainLoop)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::init");
     mainLoop_ = mainLoop;
 }
 
 MediaIndexer *MediaIndexer::instance()
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::instance");
     if (!instance_.get())
         instance_.reset(new MediaIndexer);
     return instance_.get();
@@ -50,19 +48,16 @@ MediaIndexer::MediaIndexer() :
 #endif
     plugins_()
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::MediaIndexer");
     
 }
 
 MediaIndexer::~MediaIndexer()
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::~MediaIndexer");
     // nothing to be done here
 }
 
 bool MediaIndexer::get(const std::string &uri)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::get uri->'%s'", uri.c_str());
     PluginFactory factory;
 
     // check if we need to create all available plugins
@@ -103,7 +98,6 @@ bool MediaIndexer::get(const std::string &uri)
 
 bool MediaIndexer::addPlugin(const std::string &uri)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::addPlugin uri->'%s'", uri.c_str());
     PluginFactory factory;
     if (!uri.empty()) {
         if (!hasPlugin(uri)) {
@@ -124,7 +118,6 @@ bool MediaIndexer::addPlugin(const std::string &uri)
 
 bool MediaIndexer::put(const std::string &uri)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::put uri->'%s'", uri.c_str());
     if (!hasPlugin(uri))
         return false;
 
@@ -154,7 +147,6 @@ bool MediaIndexer::put(const std::string &uri)
 
 bool MediaIndexer::setDetect(bool on)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::setDetect bool[%d]", on);
     std::shared_lock lock(lock_);
     LOG_DEBUG("setDetect Start");
     for (auto const & [uri, plg] : plugins_) {
@@ -167,7 +159,6 @@ bool MediaIndexer::setDetect(bool on)
 
 bool MediaIndexer::setDetect(bool on, const std::string &uri)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::setDetect bool[%d], uri[%s]", on, uri.c_str());
     if (!hasPlugin(uri)) {
         LOG_DEBUG("%s is not included in plugin list of mediaindexer service", uri.c_str());
         return false;
@@ -202,7 +193,6 @@ bool MediaIndexer::setDetect(bool on, const std::string &uri)
 
 bool MediaIndexer::sendDeviceNotification(LSMessage * msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::sendDeviceNotification");
     if (indexerService_)
         return indexerService_->pushDeviceList(msg);
     else
@@ -211,7 +201,6 @@ bool MediaIndexer::sendDeviceNotification(LSMessage * msg)
 
 void MediaIndexer::deviceStateChanged(std::shared_ptr<Device> device)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::deviceStateChanged");
     LOG_INFO(0, "Device '%s' has been %s", device->uri().c_str(),
         device->available() ? "added" : "removed");
 
@@ -234,7 +223,6 @@ void MediaIndexer::deviceStateChanged(std::shared_ptr<Device> device)
 
 void MediaIndexer::deviceModified(std::shared_ptr<Device> device)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::deviceModified");
     LOG_INFO(0, "Device '%s' has been modified", device->uri().c_str());
 
 #if defined HAS_LUNA
@@ -245,7 +233,6 @@ void MediaIndexer::deviceModified(std::shared_ptr<Device> device)
 
 void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::newMediaItem");
     // this helps us for logging
     auto dev = mediaItem->device();
     // if the media item has not yet been parsed we first check if
@@ -286,13 +273,11 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 
 void MediaIndexer::metaDataUpdateRequired(MediaItemPtr mediaItem)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::metaDataUpdateRequired");
     MediaParser::enqueueTask(std::move(mediaItem));
 }
 
 bool MediaIndexer::hasPlugin(const std::string &uri) const
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::hasPlugin uri->'%s'", uri.c_str());
     std::shared_lock lock(lock_);
 
     auto plg = plugins_.find(uri);
@@ -301,14 +286,12 @@ bool MediaIndexer::hasPlugin(const std::string &uri) const
 
 void MediaIndexer::cleanupDevice(Device* device)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::cleanupDevice");
     auto mdb = MediaDb::instance();
     mdb->removeDirty(device); 
 }
 
 void MediaIndexer::notifyDeviceScanned(Device* device)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::notifyDeviceScanned");
     indexerService_->notifyScanDone();
 }
 
@@ -316,6 +299,6 @@ bool MediaIndexer::sendMediaMetaDataNotification(const std::string &method,
                                                  const std::string &metaData,
                                                  LSMessage *msg)
 {
-    LOG_INFO(0, "[OYJ_DBG] MediaIndexer::sendMediaListNotification");
+    LOG_INFO(0, "MediaIndexer::sendMediaListNotification");
     return indexerService_->notifyMediaMetaData(method, metaData, msg);
 }

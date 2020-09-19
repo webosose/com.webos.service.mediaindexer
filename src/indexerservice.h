@@ -238,7 +238,7 @@ private:
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
      */    
-    static bool onGetAudioMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onAudioMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Callback for getVideoList() Luna method.
@@ -256,7 +256,7 @@ private:
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
      */     
-    static bool onGetVideoMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onVideoMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
      * \brief Callback for getImageList() Luna method.
@@ -274,7 +274,7 @@ private:
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
      */     
-    static bool onGetImageMetadata(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
    /**
      * \brief Callback for onRequestDelete() Luna method.
@@ -347,7 +347,7 @@ private:
     bool isClientExist(const std::string &sender, const std::string &method,
                        const LSMessageToken& token);
 
-    void putRespResult(pbnjson::JValue &obj, const bool &returnValue,
+    void putRespResult(pbnjson::JValue &obj, const bool &returnValue = true,
                        const int& errorCode = 0, 
                        const std::string& errorText = std::string("No Error"));
 
