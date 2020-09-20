@@ -53,6 +53,7 @@ extern const char *lunaServiceId;
 std::mutex IndexerService::mutex_;
 std::mutex IndexerService::scanMutex_;
 constexpr int SCAN_TIMEOUT = 10;
+constexpr int MAXIMUM_DB_COUNT = 500;
 
 LSMethod IndexerService::serviceMethods_[] = {
     { "runDetect", IndexerService::onRun, LUNA_METHOD_FLAGS_NONE },
@@ -481,6 +482,26 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (domTree.hasKey("count"))
         count = domTree["count"].asNumber<int32_t>();
 
+    if (count < 0 || count > MAXIMUM_DB_COUNT) {
+        auto reply = pbnjson::Object();
+        LOG_ERROR(0, "Invalid request count : %d", count);
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid request count");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        return false;
+    }
+
     bool subscribe = LSMessageIsSubscription(msg);
     bool ret = false;
 
@@ -610,6 +631,26 @@ bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     if (domTree.hasKey("count"))
         count = domTree["count"].asNumber<int32_t>();
 
+    if (count < 0 || count > MAXIMUM_DB_COUNT) {
+        auto reply = pbnjson::Object();
+        LOG_ERROR(0, "Invalid request count : %d", count);
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid request count");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        return false;
+    }
+
     bool subscribe = LSMessageIsSubscription(msg);
     bool ret = false;
 
@@ -736,6 +777,26 @@ bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         uri = domTree["uri"].asString();
     if (domTree.hasKey("count"))
         count = domTree["count"].asNumber<int32_t>();
+
+    if (count < 0 || count > MAXIMUM_DB_COUNT) {
+        auto reply = pbnjson::Object();
+        LOG_ERROR(0, "Invalid request count : %d", count);
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid request count");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        return false;
+    }
 
     bool subscribe = LSMessageIsSubscription(msg);
     bool ret = false;
