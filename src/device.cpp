@@ -348,7 +348,7 @@ bool Device::addFileList(std::string &fpath)
         LOG_ERROR(0, "Input fpath is invalid");
         return false;
     }
-    fileList_.push_back(fpath);    
+    fileList_.push_back(fpath);
     return true;
 }
 

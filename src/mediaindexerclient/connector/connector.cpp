@@ -26,7 +26,7 @@ Connector::Connector(std::string&& serviceName)
 }
 
 Connector::~Connector()
-{ 
+{
     connector_.reset();
 }
 

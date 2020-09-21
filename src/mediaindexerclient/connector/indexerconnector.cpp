@@ -35,7 +35,7 @@ std::string IndexerConnector::sendMessage(std::string& url, std::string&& reques
     LSMessageToken sessionToken;
     bool async = false;
 
-    if (!connector_->sendMessage(url.c_str(), request.c_str(), 
+    if (!connector_->sendMessage(url.c_str(), request.c_str(),
                                  IndexerConnector::onLunaResponse, this,
                                  async, &sessionToken)) {
         std::cout << "sendMessage ERROR!" << std::endl;
@@ -50,7 +50,7 @@ std::string IndexerConnector::sendMessage(std::string& url, std::string&& reques
 
 std::string IndexerConnector::getIndexerUrl() const
 {
-    return indexerUrl_; 
+    return indexerUrl_;
 }
 
 bool IndexerConnector::onLunaResponse(LSHandle* lsHandle, LSMessage* msg, void* ctx)

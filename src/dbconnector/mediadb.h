@@ -29,14 +29,14 @@ class Device;
 class MediaDb : public DbConnector
 {
 public:
-    
+
     // TODO: other APIs shouled be added
     enum class MediaDbMethod : int {
         GetAudioList,
-        GetVideoList, 
+        GetVideoList,
         GetImageList,
         RequestDelete,
-        RemoveDirty,  
+        RemoveDirty,
         EOL
     };
 

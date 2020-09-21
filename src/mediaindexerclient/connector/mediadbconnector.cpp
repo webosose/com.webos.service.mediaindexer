@@ -36,7 +36,7 @@ std::string MediaDBConnector::sendMessage(std::string& url, std::string&& reques
     LSMessageToken sessionToken;
     bool async = false;
 
-    if (!connector_->sendMessage(url.c_str(), request.c_str(), 
+    if (!connector_->sendMessage(url.c_str(), request.c_str(),
                                  MediaDBConnector::onLunaResponse, this,
                                  async, &sessionToken)) {
         std::cout << "sendMessage ERROR!" << std::endl;
@@ -59,7 +59,7 @@ std::string MediaDBConnector::sendSearchMessage(std::string&& request)
     std::string url = dbUrl_ + std::string("search");
     std::cout << "Url : " << url << std::endl;
 
-    if (!connector_->sendMessage(url.c_str(), request.c_str(), 
+    if (!connector_->sendMessage(url.c_str(), request.c_str(),
                                  MediaDBConnector::onLunaResponse, this,
                                  async, &sessionToken)) {
         std::cout << "sendMessage ERROR!" << std::endl;

@@ -65,7 +65,7 @@ public:
      * \param[in] state The state identifier.
      * \return The related string.
      */
-    static std::string stateToString(Device::State state);    
+    static std::string stateToString(Device::State state);
 
     /**
     * \brief System wide search for a device by uri.
@@ -156,7 +156,7 @@ public:
      *
      * \param[in] state New state.
      */
-    virtual void setState(Device::State state);    
+    virtual void setState(Device::State state);
 
     /**
      * \brief Tell the timestamp when the device was available last
@@ -273,7 +273,7 @@ private:
     void resetMediaItemCount();
 
     /// Handler for internal state changes.
-    void setState(Device::State state, bool force);    
+    void setState(Device::State state, bool force);
 
     /// Make class meta data usage thread safe.
     mutable std::shared_mutex lock_;

@@ -246,7 +246,7 @@ private:
      * \param[in] lsHandle Luna service handle.
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
-     */    
+     */
     static bool onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
@@ -255,7 +255,7 @@ private:
      * \param[in] lsHandle Luna service handle.
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
-     */     
+     */
     static bool onVideoMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
@@ -264,7 +264,7 @@ private:
      * \param[in] lsHandle Luna service handle.
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
-     */     
+     */
     static bool onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
@@ -273,7 +273,7 @@ private:
      * \param[in] lsHandle Luna service handle.
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
-     */     
+     */
     static bool onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
    /**
@@ -297,7 +297,6 @@ private:
     static bool callbackSubscriptionCancel(LSHandle *lshandle, LSMessage *msg, 
                                            void *ctx);
 
-    
     bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr);
     bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
     bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
@@ -348,7 +347,7 @@ private:
                        const LSMessageToken& token);
 
     void putRespResult(pbnjson::JValue &obj, const bool &returnValue = true,
-                       const int& errorCode = 0, 
+                       const int& errorCode = 0,
                        const std::string& errorText = std::string("No Error"));
 
     /// Service method definitions.
@@ -365,5 +364,4 @@ private:
     std::condition_variable scanCv_;
 
     std::unique_ptr<IndexerServiceClientsMgr> clientMgr_;
-    
 };

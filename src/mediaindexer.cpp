@@ -48,7 +48,7 @@ MediaIndexer::MediaIndexer() :
 #endif
     plugins_()
 {
-    
+
 }
 
 MediaIndexer::~MediaIndexer()
@@ -287,7 +287,7 @@ bool MediaIndexer::hasPlugin(const std::string &uri) const
 void MediaIndexer::cleanupDevice(Device* device)
 {
     auto mdb = MediaDb::instance();
-    mdb->removeDirty(device); 
+    mdb->removeDirty(device);
 }
 
 void MediaIndexer::notifyDeviceScanned(Device* device)

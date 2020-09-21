@@ -1,6 +1,7 @@
 {
     "com.webos.service.mediaindexer": [
         "all",
+        "database.internal",
         "settings"
     ],
     "com.webos.service.mediaindexer.media": [

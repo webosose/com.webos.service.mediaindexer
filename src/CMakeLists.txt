@@ -123,7 +123,6 @@ include_directories(./log)
 include_directories(./mediaindexerclient)
 
 # definitions for thumbnail directory
-add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
 
 # build and link the plugins
 add_subdirectory(plugins)

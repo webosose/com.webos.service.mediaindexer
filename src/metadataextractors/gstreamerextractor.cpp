@@ -155,7 +155,7 @@ bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
         break;
     }
     case MediaItem::Type::Video: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);    
+        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
         setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
         setMeta(mediaItem, discoverInfo, GST_TAG_THUMBNAIL);
         if (expand) {
@@ -315,8 +315,8 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     }
     std::string uri = "file://";
     uri.append(mediaItem.path());
-    //filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + std::filesystem::path(uri).stem().string() + "." + ext;
-    filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + randFilename() + "." + ext;
+    std::string thumbnailBase = std::string(std::getenv("HOME")) + "/.thumbnail/";
+    filename = thumbnailBase + mediaItem.uuid() + "/" + randFilename() + "." + ext;
 
     GstElement *pipeline = nullptr;
     GstElement *videoSink = nullptr;

@@ -40,7 +40,7 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
         LOG_ERROR(0, "Failed to create lunaconnector object");
 
     connector_->registerTokenCallback(
-        [this](LSMessageToken & token, const std::string &dbServiceMethod, 
+        [this](LSMessageToken & token, const std::string &dbServiceMethod,
                const std::string &dbMethod, void *obj) -> void {
             auto query = pbnjson::Object();
             rememberSessionData(token, dbServiceMethod, dbMethod, query, obj);
@@ -91,12 +91,10 @@ void DbConnector::ensureKind(const std::string &kind_name)
         LOG_ERROR(0, "db service putKind error");
     }
 */
-    
     if (!connector_->sendMessage(url.c_str(), kind.stringify().c_str(),
             DbConnector::onLunaResponse, this, true, &sessionToken)) {
         LOG_ERROR(0, "Db service putKind error");
     }
-    
 }
 
 bool DbConnector::mergePut(const std::string &uri, bool precise,
@@ -406,7 +404,7 @@ bool DbConnector::onLunaResponseMetaData(LSHandle *lsHandle, LSMessage *msg, voi
 
 void DbConnector::rememberSessionData(LSMessageToken token,
                                       const std::string &dbServiceMethod,
-                                      const std::string &dbMethod, 
+                                      const std::string &dbMethod,
                                       pbnjson::JValue &query,
                                       void *object)
 {

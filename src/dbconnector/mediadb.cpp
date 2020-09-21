@@ -50,7 +50,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
     LSMessageToken token = LSMessageGetResponseToken(msg);
-    
+
     if (!sessionDataFromToken(token, &sd)) {
         LOG_ERROR(0, "Failed to find session data from message token %ld", (long)token);
         return false;
@@ -125,7 +125,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
                 if (device->processingDone()) {
                     LOG_DEBUG("Activate cleanup task");
                     device->activateCleanUpTask();
-                }                
+                }
             }
             free(miw);
         }
@@ -157,7 +157,7 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
 {
     struct SessionData sd;
     LSMessageToken token = LSMessageGetResponseToken(msg);
-    
+
     if (!sessionDataFromToken(token, &sd)) {
         LOG_ERROR(0, "Failed to find session data from message token %ld", (long)token);
         return false;
@@ -205,7 +205,6 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
         result.put("count", results.arraySize());
         response.put("audioList", result);
         putRespObject(true, response);
-        
         MediaIndexer *indexer = MediaIndexer::instance();
         ret = indexer->sendMediaMetaDataNotification(dbMethod, response.stringify(),
                 static_cast<LSMessage*>(object));
@@ -523,7 +522,7 @@ void MediaDb::removeDirty(Device* device)
 
     auto where = prepareWhere(URI, uri, false);
     auto filter = prepareWhere(DIRTY, true, true);
-   
+
     auto query = pbnjson::Object();
     query.put("select", selectArray);
     query.put("where", where);
@@ -591,7 +590,7 @@ bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg)
 
     if (count != 0)
         query.put("limit", count);
-    
+
     std::string dbMethod = std::string("getAudioList");
     return search(query, dbMethod, msg);
 }

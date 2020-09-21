@@ -75,7 +75,8 @@ void Usb::pdmUpdate(const pbnjson::JValue &dev, bool available)
         suri << Usb::uri << "://" << // Uri identifier.
             uuid; // Device UUID.
         std::error_code err;
-        std::string thumbnailDir = THUMBNAIL_DIRECTORY + uuid;
+        std::string thumbnailBase = std::string(std::getenv("HOME")) + "/.thumbnail/";
+        std::string thumbnailDir = thumbnailBase + uuid;
         if (!std::filesystem::is_directory(thumbnailDir))
         {
             if (!std::filesystem::create_directory(thumbnailDir, err))

@@ -160,7 +160,7 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
         return;
     }
 
-    if (!LSSubscriptionSetCancelFunction(lsHandle_, 
+    if (!LSSubscriptionSetCancelFunction(lsHandle_,
                                          &IndexerService::callbackSubscriptionCancel,
                                          this, &lsError)) {
         LOG_CRITICAL(0, "Unable to set subscription cancel");
@@ -175,7 +175,7 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
         MediaDb *mdb = MediaDb::instance();
         // get the permission for the com.webos.service.mediaindexer
         // TODO: reply doesn't used in grantAccessAll function.
-        auto reply = pbnjson::Object(); 
+        auto reply = pbnjson::Object();
         mdb->grantAccessAll(std::string(lunaServiceId), false, reply);
         SettingsDb::instance();
         DeviceDb::instance();
@@ -189,7 +189,7 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
 
     dbObserver_ = new DbObserver(lsHandle_, dbInitialized);
     //localeObserver_ = new LocaleObserver(lsHandle_, nullptr);
-    
+
     clientMgr_ = std::make_unique<IndexerServiceClientsMgrImpl>();
 }
 
@@ -210,7 +210,7 @@ IndexerService::~IndexerService()
 
     //if (localeObserver_)
     //  delete localeObserver_;
-    
+
     clientMgr_.reset();
 }
 
@@ -306,7 +306,7 @@ bool IndexerService::onPluginListGet(LSHandle *lsHandle, LSMessage *msg,
     void *ctx)
 {
     // no schema check needed as we do not expect any objects/properties
-    
+
     // generate response
     auto reply = pbnjson::Object();
     auto pluginList = pbnjson::Array();
@@ -411,14 +411,13 @@ bool IndexerService::notifySubscriber(const std::string& method, pbnjson::JValue
     return true;
 }
 
-bool IndexerService::notifyMediaMetaData(const std::string &method, 
+bool IndexerService::notifyMediaMetaData(const std::string &method,
                                          const std::string &metaData,
                                          LSMessage *msg)
 {
     LSError lsError;
     LSErrorInit(&lsError);
 
-    
     if (msg != nullptr) {
         if (!LSMessageRespond(msg, metaData.c_str(), &lsError)) {
             LOG_ERROR(0, "Message respond error");
@@ -441,7 +440,7 @@ bool IndexerService::notifyMediaMetaData(const std::string &method,
     return true;
 }
 
-bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle, 
+bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle,
                                                LSMessage *msg,
                                                void *ctx)
 {
@@ -969,7 +968,7 @@ bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *c
         LSMessageRef(msg);
         ret = indexerService->requestDelete(uri, msg);
     }
-    
+
     return ret;
 }
 
@@ -1158,7 +1157,7 @@ void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
     mdb->grantAccessAll(sn, true, reply);
 }
 
-bool IndexerService::addClient(const std::string &sender, 
+bool IndexerService::addClient(const std::string &sender,
                                const std::string &method,
                                const LSMessageToken &token)
 {

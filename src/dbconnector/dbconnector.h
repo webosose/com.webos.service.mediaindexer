@@ -126,8 +126,8 @@ protected:
      */
 //    virtual bool search(const std::string &kind_name, pbnjson::JValue &selects,
 //                        pbnjson::JValue &where, pbnjson::JValue &filter,
-//                        void *obj = nullptr, bool atomic = false, 
-//                        const std::string &method = std::string(), 
+//                        void *obj = nullptr, bool atomic = false,
+//                        const std::string &method = std::string(),
 //                        int count = 0, const std::string &page = std::string());
       virtual bool search(pbnjson::JValue &query, const std::string &dbMethod,
                           void *obj = nullptr);
@@ -159,7 +159,7 @@ protected:
      * \param[in] obj user data.
      * \return True on success, false on error.
      */
-    virtual bool roAccess(std::list<std::string> &services, 
+    virtual bool roAccess(std::list<std::string> &services,
                           std::list<std::string> &kinds, void *obj = nullptr,
                           bool atomic = false);
 
@@ -210,7 +210,7 @@ private:
     /// Callback for luna responses.
     static bool onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
-    /// Callback for luna responses. 
+    /// Callback for luna responses.
     // TODO this response will be merged above callback.
     static bool onLunaResponseMetaData(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
@@ -218,7 +218,7 @@ private:
     mutable std::mutex lock_;
 
     /// Remember session data.
-    void rememberSessionData(LSMessageToken token, 
+    void rememberSessionData(LSMessageToken token,
                              const std::string &dbServiceMethod,
                              const std::string &dbMethod,
                              pbnjson::JValue &query,

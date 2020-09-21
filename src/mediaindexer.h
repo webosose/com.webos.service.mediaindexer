@@ -109,11 +109,10 @@ public:
 
     bool sendMediaMetaDataNotification(const std::string &method,
                                        const std::string &metaData,
-                                       LSMessage *msg);
-     
+                                       LSMessage *msg); 
 protected:
     /// Activate plugins and detection
-    static gboolean _activate(gpointer data);    
+    static gboolean _activate(gpointer data);
     /// DeviceObserver interface.
     void deviceStateChanged(DevicePtr device);
 
