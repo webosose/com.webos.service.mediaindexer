@@ -172,7 +172,11 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
     PdmListener::init(lsHandle_);
     DbConnector::init(lsHandle_);
     auto dbInitialized = [&] () -> void {
-        MediaDb::instance();
+        MediaDb *mdb = MediaDb::instance();
+        // get the permission for the com.webos.service.mediaindexer
+        // TODO: reply doesn't used in grantAccessAll function.
+        auto reply = pbnjson::Object(); 
+        mdb->grantAccessAll(std::string(lunaServiceId), false, reply);
         SettingsDb::instance();
         DeviceDb::instance();
         MediaParser::instance();
@@ -671,7 +675,7 @@ bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
         }
 
         if (!indexerService->addClient(sender, method, token)) {
-            LOG_ERROR(0, "[OYJ_DBG] Failed to add client: '%s'", sender.c_str());
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
         }
 
         auto reply = pbnjson::Object();
@@ -852,7 +856,6 @@ bool IndexerService::getImageList(const std::string &uri, int count, LSMessage *
 
 bool IndexerService::onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    LOG_INFO(0, "[OYJ_DBG] IndexerService::onGetImageMetadata");
     //IndexerService *is = static_cast<IndexerService *>(ctx);
     LOG_DEBUG("call onGetImageMetadata");
 
