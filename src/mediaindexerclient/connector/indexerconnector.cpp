@@ -21,17 +21,14 @@ const char *IndexerConnector::indexerClientService_ = "com.webos.service.mediain
 IndexerConnector::IndexerConnector()
     : Connector(indexerClientService_)
 {
-    std::cout << "I'm IndexerConnector!" << std::endl;
 }
 
 IndexerConnector::~IndexerConnector()
 {
-    std::cout << "I'm ~IndexerConnector!" << std::endl;
 }
 
 std::string IndexerConnector::sendMessage(std::string& url, std::string&& request)
 {
-    std::cout << "I'm IndexerConnector::sendMessage" << std::endl;
     LSMessageToken sessionToken;
     bool async = false;
 
@@ -43,8 +40,6 @@ std::string IndexerConnector::sendMessage(std::string& url, std::string&& reques
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value : " << response_ << std::endl;
-    std::cout << "I'm IndexerConnector::sendMessage END!!!!!!!" << std::endl;
     return response_;
 }
 
@@ -56,18 +51,13 @@ std::string IndexerConnector::getIndexerUrl() const
 bool IndexerConnector::onLunaResponse(LSHandle* lsHandle, LSMessage* msg, void* ctx)
 {
     IndexerConnector *conn = static_cast<IndexerConnector*>(ctx);
-    std::cout << "I'm IndexerConnector::onLunaResponse" << std::endl;
     return conn->handleLunaResponse(msg);
 }
 
 bool IndexerConnector::handleLunaResponse(LSMessage* msg)
 {
-    std::cout << "I'm IndexerConnector::handleLunaResponse. thread id[" << std::this_thread::get_id() << "]" << std::endl;
-
     pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
     const char *payload = LSMessageGetPayload(msg);
-
-    std::cout << "payload : " << payload << std::endl;
 
     if (!parser.parse(payload)) {
         std::cout << "Invalid JSON message: " << payload << std::endl;
@@ -75,9 +65,14 @@ bool IndexerConnector::handleLunaResponse(LSMessage* msg)
     }
 
     pbnjson::JValue domTree(parser.getDom());
-    std::cout << "Message : " << domTree.stringify() << std::endl;
 
     std::lock_guard<std::mutex> lock(mutex_);
     response_ = domTree.stringify();
+
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT, &schemaInfo);
+    pretty_print(object, 0, 4);
+
     return true;
 }

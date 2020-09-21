@@ -22,17 +22,14 @@ const char *MediaDBConnector::dbUrl_ = "luna://com.webos.mediadb/";
 MediaDBConnector::MediaDBConnector()
     : Connector(mediaDBClientService_)
 {
-    std::cout << "I'm MediaDBConnector" << std::endl;
 }
 
 MediaDBConnector::~MediaDBConnector()
 {
-    std::cout << "I'm ~MediaDBConnector" << std::endl;
 }
 
 std::string MediaDBConnector::sendMessage(std::string& url, std::string&& request)
 {
-    std::cout << "I'm MediaDBConnector::sendMessage" << std::endl;
     LSMessageToken sessionToken;
     bool async = false;
 
@@ -44,20 +41,17 @@ std::string MediaDBConnector::sendMessage(std::string& url, std::string&& reques
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value : " << response_ << std::endl;
-    std::cout << "I'm MediaDBConnector::sendMessage END!!!!!!!" << std::endl;
     return response_;
 }
 
 std::string MediaDBConnector::sendSearchMessage(std::string&& request)
 {
-    std::cout << "I'm MediaDBConnector::sendSearchMessage" << std::endl;
-    std::cout << "request param : " << request << std::endl;
     LSMessageToken sessionToken;
     bool async = false;
 
     std::string url = dbUrl_ + std::string("search");
     std::cout << "Url : " << url << std::endl;
+    std::cout << "request : " << request << std::endl;
 
     if (!connector_->sendMessage(url.c_str(), request.c_str(),
                                  MediaDBConnector::onLunaResponse, this,
@@ -67,20 +61,17 @@ std::string MediaDBConnector::sendSearchMessage(std::string&& request)
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value : " << response_ << std::endl;
-    std::cout << "I'm MediaDBConnector::sendSearchMessage END!!!!!!!" << std::endl;
     return response_;
 }
 
 std::string MediaDBConnector::sendDelMessage(std::string&& request)
 {
-    std::cout << "I'm MediaDBConnector::sendDelMessage" << std::endl;
-    std::cout << "request param : " << request << std::endl;
     LSMessageToken sessionToken;
     bool async = false;
 
     std::string url = dbUrl_ + std::string("del");
     std::cout << "Url : " << url << std::endl;
+    std::cout << "request : " << request << std::endl;
 
     if (!connector_->sendMessage(url.c_str(), request.c_str(),
                                  MediaDBConnector::onLunaResponse, this,
@@ -90,8 +81,6 @@ std::string MediaDBConnector::sendDelMessage(std::string&& request)
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "Return value : " << response_ << std::endl;
-    std::cout << "I'm MediaDBConnector::sendDelMessage END!!!!!!!" << std::endl;
     return response_;
 }
 
@@ -104,19 +93,13 @@ std::string MediaDBConnector::getDBUrl() const
 bool MediaDBConnector::onLunaResponse(LSHandle* lsHandle, LSMessage* msg, void* ctx)
 {
     MediaDBConnector *conn = static_cast<MediaDBConnector*>(ctx);
-    std::cout << "I'm MediaDBConnector::onLunaResponse" << std::endl;
     return conn->handleLunaResponse(msg);
 }
 
 bool MediaDBConnector::handleLunaResponse(LSMessage* msg)
 {
-    std::cout << "I'm MediaDBConnector::handleLunaResponse" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
-
     pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
     const char *payload = LSMessageGetPayload(msg);
-
-    std::cout << "payload : " << payload << std::endl;
 
     if (!parser.parse(payload)) {
         std::cout << "Invalid JSON message: " << payload << std::endl;
@@ -124,9 +107,14 @@ bool MediaDBConnector::handleLunaResponse(LSMessage* msg)
     }
 
     pbnjson::JValue domTree(parser.getDom());
-    std::cout << "Message : " << domTree.stringify() << std::endl;
 
     std::lock_guard<std::mutex> lock(mutex_);
     response_ = domTree.stringify();
+
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT, &schemaInfo);
+    pretty_print(object, 0, 4);
+
     return true;
 }

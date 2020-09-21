@@ -25,19 +25,17 @@ MediaIndexerClient::MediaIndexerClient(MediaIndexerCallback cb, void* userData)
     : callback_(cb),
       userData_(userData)
 {
-    std::cout << std::string("MediaIndexerClient ctor!") << std::endl;
-
     mediaDBConnector_ = std::unique_ptr<MediaDBConnector>(new MediaDBConnector);
 
     if (!mediaDBConnector_)
         std::cout << "Failed to create mediaDBConnector object" << std::endl;
-    std::cout << "mediaDBConnector service name : " << mediaDBConnector_->getServiceName() << std::endl;
+    //std::cout << "mediaDBConnector service name : " << mediaDBConnector_->getServiceName() << std::endl;
 
     indexerConnector_ = std::unique_ptr<IndexerConnector>(new IndexerConnector);
 
     if (!indexerConnector_)
         std::cout << "Failed to create indexerConnector object" << std::endl;
-    std::cout << "indexerConnector service name : " << indexerConnector_->getServiceName() << std::endl;
+    //std::cout << "indexerConnector service name : " << indexerConnector_->getServiceName() << std::endl;
 
 }
 
@@ -60,13 +58,10 @@ std::string MediaIndexerClient::getAudioList(const std::string& uri) const
         return std::string();
     }
 
-    std::cout << "I'm getAudioList" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
-
+    std::cout << "[START] getAudioList" << std::endl;
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetAudioListAPI, uri);
     std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
-    std::cout << "Return value_ in getAudioList : " << ret << std::endl;
-    std::cout << "I'm getAudioList END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getAudioList" << std::endl;
     return ret;
 }
 
@@ -77,13 +72,10 @@ std::string MediaIndexerClient::getVideoList(const std::string& uri) const
         return std::string();
     }
 
-    std::cout << "I'm getVideoList" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
-
+    std::cout << "[START] getVideoList" << std::endl;
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetVideoListAPI, uri);
     std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
-    std::cout << "Return value_ in getVideoList : " << ret << std::endl;
-    std::cout << "I'm getVideoList END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getVideoList" << std::endl;
     return ret;
 }
 
@@ -94,10 +86,10 @@ std::string MediaIndexerClient::getImageList(const std::string& uri) const
         return std::string();
     }
 
+    std::cout << "[START] getImageList" << std::endl;
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetImageListAPI, uri);
     std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
-    std::cout << "Return value_ in getImageList : " << ret << std::endl;
-    std::cout << "I'm getImageList END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getImageList" << std::endl;
     return ret;
 }
 
@@ -113,10 +105,10 @@ std::string MediaIndexerClient::getAudioMetaData(const std::string& uri) const
         return std::string();
     }
 
+    std::cout << "[START] getAudioMetaData" << std::endl;
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetAudioMetaDataAPI, uri);
     std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
-    std::cout << "Return value_ in getAudioMetaData : " << ret << std::endl;
-    std::cout << "I'm getAudioMetaData END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getAudioMetaData" << std::endl;
     return ret;
 }
 
@@ -132,10 +124,10 @@ std::string MediaIndexerClient::getVideoMetaData(const std::string& uri) const
         return std::string();
     }
 
+    std::cout << "[START] getVideoMetaData" << std::endl;
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetVideoMetaDataAPI, uri);
     std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
-    std::cout << "Return value_ in getVideoMetaData : " << ret << std::endl;
-    std::cout << "I'm getVideoMetaData END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getVideoMetaData" << std::endl;
     return ret;
 }
 
@@ -151,10 +143,10 @@ std::string MediaIndexerClient::getImageMetaData(const std::string& uri) const
         return std::string();
     }
 
+    std::cout << "[START] getImageMetaData" << std::endl;
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::GetImageMetaDataAPI, uri);
     std::string ret = mediaDBConnector_->sendSearchMessage(request.stringify());
-    std::cout << "Return value_ in getImageMetaData : " << ret << std::endl;
-    std::cout << "I'm getImageMetaData END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getImageMetaData" << std::endl;
     return ret;
 }
 
@@ -170,10 +162,10 @@ std::string MediaIndexerClient::requestDelete(const std::string& uri) const
         return std::string();
     }
 
+    std::cout << "[START] requestDelete" << std::endl;
     pbnjson::JValue request = generateLunaPayload(MediaIndexerClientAPI::RequestDelete, uri);
     std::string ret = mediaDBConnector_->sendDelMessage(request.stringify());
-    std::cout << "Return value_ in requestDelete : " << ret << std::endl;
-    std::cout << "I'm requestDelete END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] requestDelete" << std::endl;
     return ret;
 }
 
@@ -187,15 +179,17 @@ std::string MediaIndexerClient::requestMediaScan(const std::string& path) const
         return std::string();
     }
 
+    std::cout << "[START] requestMediaScan" << std::endl;
+
     std::string url = indexerConnector_->getIndexerUrl();
     url.append(std::string("requestMediaScan"));
     auto request = pbnjson::Object();
     request.put("path", path);
-    std::cout << "url : " << url << " request : " << request.stringify() << std::endl;
+    std::cout << "requestMediaScan url : " << url << std::endl;
+    std::cout << "requestMediaScan request : " << request.stringify() << std::endl;
 
     std::string ret = indexerConnector_->sendMessage(url, request.stringify());
-    std::cout << "Return value_ in requestMediaScan : " << ret << std::endl;
-    std::cout << "I'm MediaIndexerClient::requestMediaScan END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] requestMediaScan" << std::endl;
     return ret;
 }
 
@@ -475,18 +469,17 @@ std::string MediaIndexerClient::getDeviceList() const
         return std::string();
     }
 
-    std::cout << "I'm getDeviceList" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
+    std::cout << "[START] getDeviceList" << std::endl;
 
     std::string url = indexerConnector_->getIndexerUrl();
     url.append(std::string("getDeviceList"));
     auto request = pbnjson::Object();
     request.put("subscribe", true);
-    std::cout << "url : " << url << "request : " << request.stringify() << std::endl;
+    std::cout << "getDeviceList url : " << url << std::endl;
+    std::cout << "getDeviceList request : " << request.stringify() << std::endl;
 
     std::string ret = indexerConnector_->sendMessage(url, request.stringify());
-    std::cout << "Return value_ in getDeviceList : " << ret << std::endl;
-    std::cout << "I'm getDeviceList END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getDeviceList" << std::endl;
     return ret;
 }
 
@@ -495,16 +488,15 @@ void MediaIndexerClient::getMediaDBPermission() const
     if (!mediaDBConnector_ || !indexerConnector_)
         return;
 
-    std::cout << "I'm MediaIndexerClient::getMediaDBPermission" << std::endl;
-    std::cout << "thread id[" << std::this_thread::get_id() << "]" << std::endl;
+    std::cout << "[START] getMediaDBPermission" << std::endl;
 
     std::string url = indexerConnector_->getIndexerUrl();
     url.append(std::string("getMediaDbPermission"));
     auto request = pbnjson::Object();
     request.put("serviceName", mediaDBConnector_->getServiceName());
-    std::cout << "url : " << url << " request : " << request.stringify() << std::endl;
+    std::cout << "getMediaDBPermission url : " << url << std::endl;
+    std::cout << "getMediaDBPermission request : " << request.stringify() << std::endl;
 
     std::string ret = indexerConnector_->sendMessage(url, request.stringify());
-    std::cout << "Return value_ in getMediaDBPermission : " << ret << std::endl;
-    std::cout << "I'm MediaIndexerClient::getMediaDBPermission END!!!!!!!!!!!!" << std::endl;
+    std::cout << "[END] getMediaDBPermission \n" << std::endl;
 }

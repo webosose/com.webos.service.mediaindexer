@@ -76,7 +76,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
     switch(api) {
         case MediaIndexerAPI::GET_DEVICE_LIST: {
             std::string ret = client.getDeviceList();
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_AUDIO_LIST: {
@@ -85,7 +85,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = client.getAudioList(uri);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_VIDEO_LIST: {
@@ -94,7 +94,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = client.getVideoList(uri);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_IMAGE_LIST: {
@@ -103,7 +103,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = client.getImageList(uri);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_AUDIO_META_DATA: {
@@ -112,7 +112,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = client.getAudioMetaData(uri);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_VIDEO_META_DATA: {
@@ -121,7 +121,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = client.getVideoMetaData(uri);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::GET_IMAGE_META_DATA: {
@@ -130,7 +130,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = client.getImageMetaData(uri);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::REQUEST_DELETE: {
@@ -139,7 +139,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string uri;
             std::getline(std::cin, uri);
             std::string ret = client.requestDelete(uri);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         case MediaIndexerAPI::REQUEST_MEDIA_SCAN: {
@@ -148,7 +148,7 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
             std::string path;
             std::getline(std::cin, path);
             std::string ret = client.requestMediaScan(path);
-            std::cout << ret << std::endl;
+            //std::cout << ret << std::endl;
             break;
         }
         default: {
@@ -174,11 +174,11 @@ static bool onGetDeviceList(LSHandle *sh, LSMessage *request, void *context)
 
 int main(int argc, char* argv[])
 {
-    std::cout << "main thread[" << std::this_thread::get_id() << "]" << std::endl;
+//    std::cout << "main thread[" << std::this_thread::get_id() << "]" << std::endl;
     GMainLoop *loop = g_main_loop_new(NULL, FALSE);
 
     std::thread th([](GMainLoop *loop) -> void {
-        std::cout << "thread[" << std::this_thread::get_id() << "]" << std::endl;
+//        std::cout << "thread[" << std::this_thread::get_id() << "]" << std::endl;
 //        handle.attachToLoop(loop);
         MediaIndexerClient client(my_indexer_callback);
         client.initialize();

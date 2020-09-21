@@ -31,6 +31,7 @@ public:
     virtual bool handleLunaResponse(LSMessage*) = 0;
     virtual std::string sendMessage(std::string& url, std::string&& request) = 0;
     std::string getServiceName() const;
+    void pretty_print(jvalue_ref object, int first_indent, int indent);
 
 protected:
     std::unique_ptr<LunaConnector> connector_;
