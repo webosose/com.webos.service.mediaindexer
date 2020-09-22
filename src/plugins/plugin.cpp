@@ -256,7 +256,7 @@ bool Plugin::active() const
 
 void Plugin::scan(const std::string &uri)
 {
-    LOG_DEBUG("scan start!");
+    LOG_DEBUG("scan start! uri : %s", uri.c_str());
     // first get the device from the uri
     auto dev = device(uri);
     if (!dev)
@@ -284,36 +284,46 @@ void Plugin::scan(const std::string &uri)
                 continue;
             // get the file content type to decide if it can become a media
             // item
+            std::string mimeType;
             gchar *contentType = NULL;
             gboolean uncertain;
-            bool mimTypeSupported = false;
+            bool mimeTypeSupported = false;
             contentType = g_content_type_guess(file.path().c_str(), NULL, 0,
                 &uncertain);
+
+            LOG_DEBUG("contentType : %s", contentType);
 
             if (!contentType) {
                 LOG_INFO(0, "MIME type detection is failed for '%s'",
                     file.path().c_str());
                 continue;
             }
+            mimeType = contentType;
+            g_free(contentType);
 
-            mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
+            mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
             std::string path = file.path();
-            if (!mimTypeSupported) {
+            if (!mimeTypeSupported) {
                 // get the file extension for the ts or ps.
                 std::string ext = path.substr(path.find_last_of('.') + 1);
+                LOG_DEBUG("scan ext '%s'", ext.c_str());
 
+                //TODO: switch case
                 if (!ext.compare("ts"))
-                    contentType = "video/MP2T";
+                    mimeType = std::string("video/MP2T");
                 else if (!ext.compare("ps"))
-                    contentType = "video/MP2P";
+                    mimeType = std::string("video/MP2P");
+                else if (!ext.compare("asf"))
+                    mimeType = std::string("video/x-asf");
                 else {
-                    LOG_INFO(0, "it's NOT ts/ps. need to check for '%s'", file.path().c_str());
+                    LOG_INFO(0, "it's NOT ts/ps/asf. need to check for '%s'", file.path().c_str());
                     continue;
                 }
-                mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
+                // again check the mimtType supported or not.
+                mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
             }
 
-            if (uncertain && !mimTypeSupported) {
+            if (uncertain && !mimeTypeSupported) {
                 LOG_INFO(0, "Invalid MIME type for '%s'", path.c_str());
                 continue;
             }
@@ -323,16 +333,14 @@ void Plugin::scan(const std::string &uri)
                 continue;
             }
 
-            if (mimTypeSupported) {
+            if (mimeTypeSupported) {
                 auto lastWrite = file.last_write_time();
                 auto fileSize = file.file_size();
                 auto hash = lastWrite.time_since_epoch().count();
                 MediaItemPtr mi(new MediaItem(dev,
-                        file.path(), contentType, hash, fileSize));
+                        file.path(), mimeType, hash, fileSize));
                 obs->newMediaItem(std::move(mi));
             }
-
-            g_free(contentType);
         }
     } catch (const std::exception &ex) {
         LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",

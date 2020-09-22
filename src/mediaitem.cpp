@@ -95,6 +95,7 @@ MediaItem::Type MediaItem::typeFromMime(const std::string &mime)
     return MediaItem::Type::EOL;
 }
 
+
 std::string MediaItem::mediaTypeToString(MediaItem::Type type)
 {
     switch (type) {
@@ -247,6 +248,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     path_(""),
     ext_("")
 {
+    LOG_INFO(0, "path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
     // create uri
     uri_ = device->uri();
     if (uri_.back() != '/' && path.front() != '/')

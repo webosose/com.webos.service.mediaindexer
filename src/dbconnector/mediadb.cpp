@@ -687,7 +687,7 @@ MediaItem::Type MediaDb::guessType(const std::string &uri)
     LOG_DEBUG("%s Start for uri : %s", __FUNCTION__, uri.c_str());
     gchar *contentType = NULL;
     gboolean uncertain;
-    bool mimTypeSupported = false;
+    bool mimeTypeSupported = false;
 
     contentType = g_content_type_guess(uri.c_str(), NULL, 0, &uncertain);
     if (!contentType) {
@@ -695,28 +695,29 @@ MediaItem::Type MediaDb::guessType(const std::string &uri)
         return MediaItem::Type::EOL;
     }
 
-    mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
-    if (!mimTypeSupported) {
-        // get the file extension for the ts or ps.
+    std::string mimeType = contentType;
+    g_free(contentType);
+
+    mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
+    if (!mimeTypeSupported) {
+        // get the file extension for the ts or ps or asf.
         std::string ext = uri.substr(uri.find_last_of('.') + 1);
 
+        //TODO: switch
         if (!ext.compare("ts"))
-            contentType = "video/MP2T";
+            mimeType = std::string("video/MP2T");
         else if (!ext.compare("ps"))
-            contentType = "video/MP2P";
+            mimeType = std::string("video/MP2P");
+        else if (!ext.compare("asf"))
+            mimeType = std::string("video/x-asf");
         else {
-            LOG_INFO(0, "it's NOT ts/ps. need to check for '%s'", uri.c_str());
+            LOG_INFO(0, "it's NOT ts/ps/asf. need to check for '%s'", uri.c_str());
             return MediaItem::Type::EOL;
         }
-        mimTypeSupported = MediaItem::mimeTypeSupported(contentType);
     }
 
-    if (contentType) {
-        MediaItem::Type type = MediaItem::typeFromMime(contentType);
-        return type;
-    }
-    g_free(contentType);
-    return MediaItem::Type::EOL;
+    MediaItem::Type type = MediaItem::typeFromMime(mimeType);
+    return type;
 }
 
 pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
