@@ -80,8 +80,7 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
             ext = TAGLIB_EXT_JPG;
         else if (frame->mimeType().find(TAGLIB_EXT_PNG))
             ext = TAGLIB_EXT_PNG;
-        std::string thumbnailBase = std::string(std::getenv("HOME")) + "/.thumbnail/";
-        of = thumbnailBase + mediaItem.uuid() + "/" + fname + "." + ext;
+        of = TAGLIB_BASE_DIRECTORY + mediaItem.uuid() + "/" + fname + "." + ext;
 
         LOG_DEBUG("Save Attached Image, fullpath : %s",of.c_str());
         std::ofstream ofs(of, ios_base::out | ios_base::binary);
