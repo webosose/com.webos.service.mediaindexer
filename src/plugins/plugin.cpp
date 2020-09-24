@@ -288,6 +288,7 @@ void Plugin::scan(const std::string &uri)
             gchar *contentType = NULL;
             gboolean uncertain;
             bool mimeTypeSupported = false;
+            bool extTypeSupported = false;
             contentType = g_content_type_guess(file.path().c_str(), NULL, 0,
                 &uncertain);
 
@@ -300,12 +301,16 @@ void Plugin::scan(const std::string &uri)
             }
             mimeType = contentType;
             g_free(contentType);
-
-            mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
             std::string path = file.path();
+            std::string ext = path.substr(path.find_last_of('.') + 1);
+            extTypeSupported = MediaItem::extTypeSupported(ext);
+            if (!extTypeSupported) {
+                LOG_DEBUG("skip file scanning for %s", path.c_str());
+                continue;
+            }
+            mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
             if (!mimeTypeSupported) {
                 // get the file extension for the ts or ps.
-                std::string ext = path.substr(path.find_last_of('.') + 1);
                 LOG_DEBUG("scan ext '%s'", ext.c_str());
 
                 //TODO: switch case

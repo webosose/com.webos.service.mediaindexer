@@ -21,6 +21,13 @@
 #include <cinttypes>
 #include <gio/gio.h>
 
+std::vector<std::string> MediaItem::notSupportedExt_ = {
+    "rv",
+    "ra",
+    "rm",
+    "asf"
+};
+
 
 // Not part of Device class, this is defined at the bottom of device.h
 MediaItem::Type &operator++(MediaItem::Type &type)
@@ -80,6 +87,20 @@ bool MediaItem::mimeTypeSupported(const std::string &mime)
     LOG_DEBUG("MIME type '%s' not supported", mime.c_str());
 
     return false;
+}
+
+bool MediaItem::extTypeSupported(const std::string &ext)
+{
+    if (ext.empty()) {
+        LOG_ERROR(0, "Input fpath is invalid");
+        return false;
+    }
+    auto it = std::find(notSupportedExt_.begin(), notSupportedExt_.end(), ext);
+    if (it != notSupportedExt_.end()) {
+        LOG_DEBUG("ext %s is not supported extension", ext.c_str());
+        return false;
+    }
+    return true;
 }
 
 MediaItem::Type MediaItem::typeFromMime(const std::string &mime)

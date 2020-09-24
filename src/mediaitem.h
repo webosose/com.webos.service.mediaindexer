@@ -29,6 +29,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <vector>
 
 class Device;
 
@@ -127,6 +128,14 @@ public:
      * \return True if supported, else false.
      */
     static bool mimeTypeSupported(const std::string &mime);
+
+    /**
+     * \brief Check if given ext type is supported.
+     *
+     * \param[in] ext extension type string.
+     * \return True if supported, else false.
+     */
+    static bool extTypeSupported(const std::string &ext);
 
     /**
      * \brief Get media type from mime type.
@@ -358,6 +367,8 @@ private:
     std::string path_;
     /// The file extension
     std::string ext_;
+    /// Not supported ext
+    static std::vector<std::string> notSupportedExt_;
 };
 
 /// Useful when iterating over enum.
