@@ -54,14 +54,19 @@ public:
 
     /// lastmodified date type, support both uint64_t and string type
     typedef std::variant<std::int64_t, std::string> Date;
+
     /**
-     * \brief Gives us the last modified date value with different formats.
-     * \param[in] formatted specifies return type, default : true
-     * \param[in] localtime specifies time zone of returns, default : false
-     * \return The observer or nullptr if none is set.
+     * \brief Gives us the last modified date value with unformatted numeric value.
+     * \param[in] mediaItem mediaitem.
      */
-    virtual std::optional<IMetaDataExtractor::Date> lastModifiedDate(MediaItem &mediaItem,
-            bool formatted = true,  bool localTime = false) const;
+    virtual std::int64_t lastModifiedDate(MediaItem &mediaItem) const;
+
+    /**
+     * \brief Gives us the last modified date value with formatted string value.
+     * \param[in] mediaItem mediaitem.
+     * \param[in] localtime specifies time zone of returns, default : false
+     */
+    virtual std::string lastModifiedDate(MediaItem &mediaItem, bool localTime = false) const;
 
     void setMetaCommon(MediaItem &mediaItem) const;
 

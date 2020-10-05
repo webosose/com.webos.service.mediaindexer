@@ -195,8 +195,6 @@ std::string MediaItem::metaToString(MediaItem::Meta meta)
     default:
         return "";
     }
-
-    return "";
 }
 
 bool MediaItem::putProperties(std::string metaStr, std::optional<MediaItem::MetaData> data, pbnjson::JValue &props)
@@ -253,8 +251,6 @@ std::string MediaItem::metaToString(MediaItem::CommonType meta)
         default:
             return "";
     }
-
-    return "";
 }
 
 MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,

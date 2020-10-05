@@ -82,9 +82,6 @@ private:
     MediaIndexerCallback callback_;
     void* userData_;
 
-    LSHandle* lsHandle_;
-    GMainLoop* loop_;
-    GMainContext* context_;
     std::thread task_;
 
     // indexer service connector.

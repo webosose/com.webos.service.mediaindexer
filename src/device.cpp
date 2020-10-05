@@ -78,7 +78,8 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
     state_(Device::State::Inactive),
     available_(avail),
     alive_(alive),
-    maxAlive_(alive)
+    maxAlive_(alive),
+    observer_(nullptr)
 {
     lastSeen_ = std::chrono::system_clock::now();
     LOG_DEBUG("Device Ctor, URI : %s UUID : %s, object : %p", uri_.c_str(), uuid_.c_str(), this);
@@ -87,7 +88,6 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
 
     cleanUpTask_.create([] (void *ctx, void *data) -> void {
         Device* dev = static_cast<Device *>(ctx);
-        
         if (dev) {
             LOG_DEBUG("Clean Up Task start for device ");
             auto obs = dev->observer();

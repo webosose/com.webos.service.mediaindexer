@@ -48,7 +48,9 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
 
     connector_->registerTokenCancelCallback(
         [this](LSMessageToken & token, void *obj) -> void {
-            sessionDataFromToken(token, static_cast<SessionData*>(obj));
+            if (!sessionDataFromToken(token, static_cast<SessionData*>(obj))) {
+                LOG_ERROR(0, "Failed in sessionDataFromToken for token %ld", (long)token);
+            }
         });
 }
 
