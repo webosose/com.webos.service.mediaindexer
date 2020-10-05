@@ -33,6 +33,12 @@ webos_add_compiler_flags(ALL -Wno-unused-parameter
 webos_add_compiler_flags(ALL -Werror=return-type -Werror=reorder
   -Werror=uninitialized)
 
+# Fix compile error
+# ld: error: src/dbconnector/libdbconnector.a(lunaconnector.cpp.o): 
+# requires unsupported dynamic reloc R_ARM_REL32; recompile with -fPIC
+# collect2: error: ld returned 1 exit status
+webos_add_compiler_flags(ALL -fPIC)
+
 # for pkg-config
 find_package(PkgConfig)
 
