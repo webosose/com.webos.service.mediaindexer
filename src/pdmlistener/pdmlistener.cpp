@@ -49,8 +49,10 @@ PdmListener::PdmListener() :
 PdmListener::~PdmListener()
 {
     // now delete the pdmDevice objects
-    for (auto const &[path, dev] : deviceMap_)
-        delete dev;
+    for (auto &devmap : deviceMap_) {
+        if (devmap.second)
+            delete devmap.second;
+    }
     deviceMap_.clear();
 }
 
@@ -136,22 +138,25 @@ void PdmListener::checkDevice(std::string &rootPath, pbnjson::JValue &dev)
 
 void PdmListener::cleanupDevices()
 {
-    for (auto const &[path, dev] : deviceMap_) {
-        if (!dev->dirty())
-            continue;
+    for (auto &devmap : deviceMap_) {
+        PdmDevice *dev = devmap.second;
+        if (dev) {
+            if (!dev->dirty())
+                continue;
 
-        // tell all observers for this device type of the removed
-        // device
-        for (auto const obs : deviceObservers_[dev->type()])
-            obs->pdmUpdate(dev->dev(), false);
+            // tell all observers for this device type of the removed
+            // device
+            for (auto const obs : deviceObservers_[dev->type()])
+                obs->pdmUpdate(dev->dev(), false);
 
-        // remove all references from the deviceMapByType_
-        auto deviceType = dev->type();
-        deviceMapByType_[deviceType].remove(dev->rootPath());
+            // remove all references from the deviceMapByType_
+            auto deviceType = dev->type();
+            deviceMapByType_[deviceType].remove(dev->rootPath());
 
-        // remove device from list of devices
-        delete dev;
-        deviceMap_.erase(path);
+            // remove device from list of devices
+            delete dev;
+        }
+        deviceMap_.erase(devmap.first);
     }
 }
 

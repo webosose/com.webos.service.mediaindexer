@@ -51,8 +51,6 @@ std::unique_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
         extractor(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
     return extractor;
 #endif
-
-    return nullptr;
 }
 
 /// Get base filename from mediaItem
@@ -75,16 +73,15 @@ std::string IMetaDataExtractor::baseFilename(MediaItem &mediaItem, bool noExt, s
 /// Get random filename for attached image
 std::string IMetaDataExtractor::randFilename() const
 {
-    size_t size = TAGLIB_FILE_NAME_SIZE;
-
-    std::uint64_t val = 0;
+    size_t size = TAGLIB_FILE_NAME_SIZE-1;
+    uint64_t val = 0;
     std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
     if (fs)
     {
-        fs.read(reinterpret_cast<char*>(&val), size);
+        fs.read(reinterpret_cast<char *>(&val), sizeof(val));
     }
     fs.close();
-    return std::to_string(val).substr(0,size);
+    return std::to_string(val).substr(0, size);
 }
 
 /// Get extension from mediaItem
@@ -98,49 +95,49 @@ std::string IMetaDataExtractor::extension(MediaItem &mediaItem) const
     return ret;
 }
 
-std::optional<IMetaDataExtractor::Date> IMetaDataExtractor::lastModifiedDate(MediaItem &mediaItem, bool formatted, bool localTime) const
+std::int64_t IMetaDataExtractor::lastModifiedDate(MediaItem &mediaItem) const
 {
     std::string path = mediaItem.path();
     if (path.empty())
     {
         LOG_ERROR(0, "Invalid media item path");
-        return std::nullopt;
+        return -1;
     }
-
-    if (formatted)
-    {
-        struct stat fStatus;
-        if (stat(path.c_str(), &fStatus) < 0) {
-            LOG_ERROR(0, "stat error, caused by : %s", strerror(errno));
-            return std::nullopt;
-        }
-        std::stringstream ss;
-        std::time_t timeFormatted = fStatus.st_mtime;
-        if (localTime)
-        {
-            ss << std::put_time(std::localtime(&timeFormatted), "%c %Z");
-            LOG_DEBUG("Return time with formatted value %s", ss.str().c_str());
-            return ss.str();
-        }
-        else
-        {
-            ss << std::put_time(std::gmtime(&timeFormatted), "%c %Z");
-            LOG_DEBUG("Return time with formatted value %s", ss.str().c_str());
-            return ss.str();
-        }
-    }
-    else
-    {
-        std::filesystem::file_time_type ftime = std::filesystem::last_write_time(path);
-        LOG_DEBUG("Return time with unformatted value %"PRId64"", ftime.time_since_epoch().count());
-        return ftime.time_since_epoch().count();
-    }
+    std::filesystem::file_time_type ftime = std::filesystem::last_write_time(path);
+    LOG_DEBUG("Return time with unformatted value %zu", ftime.time_since_epoch().count());
+    return ftime.time_since_epoch().count();
 }
 
+std::string IMetaDataExtractor::lastModifiedDate(MediaItem &mediaItem, bool localTime) const
+{
+    std::string path = mediaItem.path();
+    if (path.empty())
+    {
+        LOG_ERROR(0, "Invalid media item path");
+        return "";
+    }
+
+    struct stat fStatus;
+    if (stat(path.c_str(), &fStatus) < 0) {
+        LOG_ERROR(0, "stat error, caused by : %s", strerror(errno));
+        return "";
+    }
+    std::stringstream ss;
+    std::time_t timeFormatted = fStatus.st_mtime;
+    if (localTime)
+    {
+        ss << std::put_time(std::localtime(&timeFormatted), "%c %Z");
+        LOG_DEBUG("Return time with formatted value %s", ss.str().c_str());
+        return ss.str();
+    }
+    ss << std::put_time(std::gmtime(&timeFormatted), "%c %Z");
+    LOG_DEBUG("Return time with formatted value %s", ss.str().c_str());
+    return ss.str();
+}
 
 void IMetaDataExtractor::setMetaCommon(MediaItem &mediaItem) const
 {
-    std::string modified = std::get<std::string>(lastModifiedDate(mediaItem).value());
+    std::string modified = lastModifiedDate(mediaItem, false);
     std::int64_t filesize = mediaItem.fileSize();
     mediaItem.setMeta(MediaItem::Meta::LastModifiedDate, modified);
     mediaItem.setMeta(MediaItem::Meta::FileSize, filesize);

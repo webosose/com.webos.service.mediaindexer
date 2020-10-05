@@ -134,6 +134,8 @@ pbnjson::JSchema IndexerService::listGetSchema_(
         "}"));
 
 IndexerService::IndexerService(MediaIndexer *indexer) :
+    dbObserver_(nullptr),
+    localeObserver_(nullptr),
     indexer_(indexer)
 {
     LSError lsError;

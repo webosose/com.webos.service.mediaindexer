@@ -52,6 +52,7 @@ void DestroyMediaIndexerClient(MediaIndexerHandle handle)
         return;
     }
     IndexerClientWrapper* indexerWrapper = static_cast<IndexerClientWrapper*>(handle);
+    delete indexerWrapper->client_;
     delete indexerWrapper;
 }
 

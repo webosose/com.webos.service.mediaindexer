@@ -40,6 +40,7 @@ std::shared_ptr<Plugin> Upnp::instance()
 
 Upnp::Upnp() : Plugin(Upnp::uri)
 {
+    upnpHandle_ = -1;
     auto err = UpnpInit(NULL, 0);
     if (err)
         LOG_CRITICAL(0, "UpnpInit2() failed (%i)", err);
@@ -568,9 +569,13 @@ bool Upnp::parseBrowseResponse(IXML_Document *doc,
         //auto s = ixmlNodetoString(node);
         //LOG_DEBUG("Item node: '%s'", s);
         auto id = getAttributeText(node, "id");
-        auto upnpClass = getNodeText(node, "upnp:class");
-        if (!id || !upnpClass)
+        if (!id)
             return;
+        auto upnpClass = getNodeText(node, "upnp:class");
+        if (!upnpClass) {
+            free(id);
+            return;
+        }
         auto hash = generateItemHash(node);
         auto mime = upnpClassToMime(upnpClass);
         if (mime.empty()) {
@@ -580,7 +585,7 @@ bool Upnp::parseBrowseResponse(IXML_Document *doc,
         auto obs = device->observer();
         /// @todo This is unsafe, obs might be reset after getting it
         if (!obs) {
-            delete id;
+            free(id);
             return;
         }
         MediaItemPtr mi(new MediaItem(device,
@@ -702,16 +707,13 @@ void Upnp::setMetaOnMediaItem(IXML_Document *doc, MediaItem &mediaItem,
         mediaItem.setMeta(meta, s);
         break;
     case MediaItem::Meta::Duration:
+    {
         int hours, minutes, seconds;
         std::sscanf(s, "%i:%i:%i", &hours, &minutes, &seconds);
-        mediaItem.setMeta(meta,
-            std::int64_t((hours * 60 + minutes) * 60 + seconds));
+        int64_t inSeconds = static_cast<int64_t>(hours * 60 + minutes) * 60 + seconds;
+        mediaItem.setMeta(meta, inSeconds);
         break;
-    case MediaItem::Meta::GeoLocLongitude:
-    case MediaItem::Meta::GeoLocLatitude:
-    case MediaItem::Meta::GeoLocCountry:
-    case MediaItem::Meta::GeoLocCity:
-        break;
+    }
     case MediaItem::Meta::EOL:
         std::abort();
     }

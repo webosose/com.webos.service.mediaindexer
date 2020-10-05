@@ -25,6 +25,7 @@ LunaConnector::LunaConnector(const std::string& name, bool async)
       mainLoop_(nullptr),
       mainContext_(nullptr),
       handle_(nullptr),
+      token_(LSMESSAGE_TOKEN_INVALID),
       userData_(nullptr),
       stopped_(false),
       async_(async)
