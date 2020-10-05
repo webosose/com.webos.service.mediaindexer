@@ -211,14 +211,14 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("thumbnail"));
 
             auto query = pbnjson::Object();
+            auto wheres = pbnjson::Array();
             if (uri.empty()) {
-                auto where = prepareWhere("dirty", false, true);
-                query = prepareQuery(selectArray, audioKind_, where);
+                wheres << prepareWhere("dirty", false, true, wheres);
             } else {
-                auto where = prepareWhere("uri", uri, false);
-                auto filter = prepareWhere("dirty", false, true);
-                query = prepareQuery(selectArray, audioKind_, where, filter);
+                wheres << prepareWhere("dirty", false, true, wheres);
+                wheres << prepareWhere("uri", uri, false, wheres);
             }
+            query = prepareQuery(selectArray, audioKind_, wheres);
             request.put("query", query);
             break;
         }
@@ -234,14 +234,14 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("thumbnail"));
 
             auto query = pbnjson::Object();
+            auto wheres = pbnjson::Array();
             if (uri.empty()) {
-                auto where = prepareWhere("dirty", false, true);
-                query = prepareQuery(selectArray, videoKind_, where);
+                wheres << prepareWhere("dirty", false, true, wheres);
             } else {
-                auto where = prepareWhere("uri", uri, false);
-                auto filter = prepareWhere("dirty", false, true);
-                query = prepareQuery(selectArray, videoKind_, where, filter);
+                wheres << prepareWhere("dirty", false, true, wheres);
+                wheres << prepareWhere("uri", uri, false, wheres);
             }
+            query = prepareQuery(selectArray, videoKind_, wheres);
             request.put("query", query);
             break;
         }
@@ -257,14 +257,14 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("height"));
 
             auto query = pbnjson::Object();
+            auto wheres = pbnjson::Array();
             if (uri.empty()) {
-                auto where = prepareWhere("dirty", false, true);
-                query = prepareQuery(selectArray, imageKind_, where);
+                wheres << prepareWhere("dirty", false, true, wheres);
             } else {
-                auto where = prepareWhere("uri", uri, false);
-                auto filter = prepareWhere("dirty", false, true);
-                query = prepareQuery(selectArray, imageKind_, where, filter);
+                wheres << prepareWhere("dirty", false, true, wheres);
+                wheres << prepareWhere("uri", uri, false, wheres);
             }
+            query = prepareQuery(selectArray, imageKind_, wheres);
             request.put("query", query);
             break;
         }
@@ -292,9 +292,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("channels"));
             selectArray.append(std::string("lyric"));
 
-            auto where = prepareWhere("uri", uri, false);
-            auto filter = prepareWhere("dirty", false, true);
-            auto query = prepareQuery(selectArray, audioKind_, where, filter);
+            auto wheres = pbnjson::Array();
+            wheres << prepareWhere("uri", uri, false, wheres);
+            wheres << prepareWhere("dirty", false, true, wheres);
+            auto query = prepareQuery(selectArray, audioKind_, wheres);
             request.put("query", query);
             break;
         }
@@ -314,9 +315,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("thumbnail"));
             selectArray.append(std::string("frame_rate"));
 
-            auto where = prepareWhere("uri", uri, false);
-            auto filter = prepareWhere("dirty", false, true);
-            auto query = prepareQuery(selectArray, videoKind_, where, filter);
+            auto wheres = pbnjson::Array();
+            wheres << prepareWhere("uri", uri, false, wheres);
+            wheres << prepareWhere("dirty", false, true, wheres);
+            auto query = prepareQuery(selectArray, videoKind_, wheres);
             request.put("query", query);
             break;
         }
@@ -337,9 +339,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("geo_location_latitude"));
             selectArray.append(std::string("geo_location_longitude"));
 
-            auto where = prepareWhere("uri", uri, false);
-            auto filter = prepareWhere("dirty", false, true);
-            auto query = prepareQuery(selectArray, imageKind_, where, filter);
+            auto wheres = pbnjson::Array();
+            wheres << prepareWhere("uri", uri, false, wheres);
+            wheres << prepareWhere("dirty", false, true, wheres);
+            auto query = prepareQuery(selectArray, imageKind_, wheres);
             request.put("query", query);
             break;
         }
@@ -446,19 +449,6 @@ pbnjson::JValue MediaIndexerClient::prepareQuery(pbnjson::JValue selectArray,
     query.put("select", selectArray);
     query.put("from", kindId);
     query.put("where", where);
-    return query;
-}
-
-pbnjson::JValue MediaIndexerClient::prepareQuery(pbnjson::JValue selectArray,
-                                                 const std::string& kindId,
-                                                 pbnjson::JValue where,
-                                                 pbnjson::JValue filter) const
-{
-    auto query = pbnjson::Object();
-    query.put("select", selectArray);
-    query.put("from", kindId);
-    query.put("where", where);
-    query.put("filter", filter);
     return query;
 }
 

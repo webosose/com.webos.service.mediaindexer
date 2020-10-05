@@ -69,11 +69,6 @@ private:
                                  const std::string& kindId,
                                  pbnjson::JValue where) const;
 
-    pbnjson::JValue prepareQuery(pbnjson::JValue selectArray,
-                                 const std::string& kindId,
-                                 pbnjson::JValue where,
-                                 pbnjson::JValue filter) const;
-
     static constexpr const char *mediaKind_ = "com.webos.service.mediaindexer.media:1";
     static constexpr const char *audioKind_ = "com.webos.service.mediaindexer.audio:1";
     static constexpr const char *videoKind_ = "com.webos.service.mediaindexer.video:1";

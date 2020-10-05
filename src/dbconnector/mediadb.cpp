@@ -572,21 +572,18 @@ bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
-    auto where = pbnjson::Object();
-    auto filter = pbnjson::Object();
+    auto wheres = pbnjson::Array();
     if (uri.empty()) {
-        where = prepareWhere(DIRTY, false, true);
+        wheres << prepareWhere(DIRTY, false, true, wheres);
     } else {
-        where = prepareWhere(URI, uri, false);
-        filter = prepareWhere(DIRTY, false, true);
+        wheres << prepareWhere(URI, uri, false, wheres);
+        wheres << prepareWhere(DIRTY, false, true, wheres);
     }
 
     auto query = pbnjson::Object();
     query.put("select", selectArray);
     query.put("from", AUDIO_KIND);
-    query.put("where", where);
-    if(filter.isArray() && filter.arraySize() > 0)
-        query.put("filter", filter);
+    query.put("where", wheres);
 
     if (count != 0)
         query.put("limit", count);
@@ -610,21 +607,18 @@ bool MediaDb::getVideoList(const std::string &uri, int count, LSMessage *msg)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Duration));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
-    auto where = pbnjson::Object();
-    auto filter = pbnjson::Object();
+    auto wheres = pbnjson::Array();
     if (uri.empty()) {
-        where = prepareWhere(DIRTY, false, true);
+        wheres << prepareWhere(DIRTY, false, true, wheres);
     } else {
-        where = prepareWhere(URI, uri, false);
-        filter = prepareWhere(DIRTY, false, true);
+        wheres << prepareWhere(URI, uri, false, wheres);
+        wheres << prepareWhere(DIRTY, false, true, wheres);
     }
 
     auto query = pbnjson::Object();
     query.put("select", selectArray);
     query.put("from", VIDEO_KIND);
-    query.put("where", where);
-    if(filter.isArray() && filter.arraySize() > 0)
-        query.put("filter", filter);
+    query.put("where", wheres);
 
     if (count != 0)
         query.put("limit", count);
@@ -647,21 +641,18 @@ bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg)
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Width));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Height));
 
-    auto where = pbnjson::Object();
-    auto filter = pbnjson::Object();
+    auto wheres = pbnjson::Array();
     if (uri.empty()) {
-        where = prepareWhere(DIRTY, false, true);
+        wheres << prepareWhere(DIRTY, false, true, wheres);
     } else {
-        where = prepareWhere(URI, uri, false);
-        filter = prepareWhere(DIRTY, false, true);
+        wheres << prepareWhere(URI, uri, false, wheres);
+        wheres << prepareWhere(DIRTY, false, true, wheres);
     }
 
     auto query = pbnjson::Object();
     query.put("select", selectArray);
     query.put("from", IMAGE_KIND);
-    query.put("where", where);
-    if(filter.isArray() && filter.arraySize() > 0)
-        query.put("filter", filter);
+    query.put("where", wheres);
 
     if (count != 0)
         query.put("limit", count);
@@ -746,39 +737,26 @@ pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
     return whereClause;
 }
 
-void MediaDb::makeUriIndex(){
-    std::list<std::string> indexes = {URI, DIRTY};
-    for (auto idx : indexes) {
-        auto index = pbnjson::Object();
-        index.put("name", idx);
-
-        auto props = pbnjson::Array();
-        auto prop = pbnjson::Object();
-        prop.put("name", idx);
-        props << prop;
-
-        index.put("props", props);
-
-        uriIndexes_ << index;
-    }
-}
-
 MediaDb::MediaDb() :
     DbConnector("com.webos.service.mediaindexer.media", true)
 {
-    std::list<std::string> indexes = {URI, TYPE};
-    for (auto idx : indexes) {
+    std::list<std::list<std::string>> indexList = {
+        {URI}, {DIRTY}, {DIRTY, URI}
+    };
+
+    int i = 1;
+    for (std::list list : indexList) {
         auto index = pbnjson::Object();
-        index.put("name", idx);
+        index.put("name", "index"+ std::to_string(i));
+        i++;
 
         auto props = pbnjson::Array();
-        auto prop = pbnjson::Object();
-        prop.put("name", idx);
-        props << prop;
-
+        for (std::string idx : list) {
+            auto prop = pbnjson::Object();
+            prop.put("name", idx);
+            props << prop;
+        }
         index.put("props", props);
-
         kindIndexes_ << index;
     }
-    makeUriIndex();
 }
