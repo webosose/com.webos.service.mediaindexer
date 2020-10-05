@@ -78,12 +78,10 @@ void DbConnector::ensureKind(const std::string &kind_name)
     auto kind = pbnjson::Object();
     if (kind_name.empty()) {
         kind.put("id", kindId_);
-        kind.put("indexes", kindIndexes_);
     } else {
         kind.put("id", kind_name);
-        kind.put("indexes", uriIndexes_);
     }
-
+    kind.put("indexes", kindIndexes_);
     kind.put("owner", serviceName_.c_str());
 
     LOG_INFO(0, "Ensure kind '%s' or '%s'", kind_name.c_str(), kindId_.c_str());
