@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+include_directories(../log)
+
 # libmtp
 pkg_check_modules(LIBMTP libmtp>=1.0)
 if (LIBMTP_FOUND AND STANDALONE)
@@ -70,4 +73,4 @@ add_definitions(-DHAS_PLUGIN_STORAGE)
 list(APPEND PLUGINS plugin.cpp)
 list(APPEND PLUGINS pluginfactory.cpp)
 
-add_library(plugins STATIC ${PLUGINS})
+add_library(plugins STATIC ${PLUGINS} ../log/logging.cpp)

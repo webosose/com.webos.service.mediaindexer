@@ -1,3 +1,19 @@
 {
-    "com.webos.service.mediaindexer": [ "all" ]
+    "com.webos.service.mediaindexer": [
+        "all",
+        "database.internal",
+        "settings"
+    ],
+    "com.webos.service.mediaindexer.media": [
+        "all",
+        "database.internal"
+    ],
+    "com.webos.service.mediaindexer.devices": [
+        "all",
+        "database.internal"
+    ],
+    "com.webos.service.mediaindexer.settings": [
+        "all",
+        "database.internal"
+    ]
 }

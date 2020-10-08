@@ -17,9 +17,14 @@
 #pragma once
 
 #include "logging.h"
-
+#include "dbobserver.h"
+#include "localeobserver.h"
+#include "indexerserviceclientsmgr.h"
 #include <pbnjson.hpp>
-#include <luna-service2/lunaservice.h>
+#include <string.h>
+#include <mutex>
+#include <condition_variable>
+#include <memory>
 
 class MediaIndexer;
 
@@ -126,6 +131,14 @@ public:
      */
     bool pushDeviceList(LSMessage *msg = nullptr);
 
+    bool notifyScanDone();
+
+    bool notifyMediaMetaData(const std::string &method, 
+                             const std::string &metaData,
+                             LSMessage *msg);
+
+    LSHandle* getServiceHandle() { return lsHandle_; };
+
 private:
     /// Get message id.
     LOG_MSGID;
@@ -141,8 +154,10 @@ private:
     static pbnjson::JSchema deviceListGetSchema_;
     /// Schema for runDetect and stopDetect.
     static pbnjson::JSchema detectRunStopSchema_;
-    /// Schema for getPlaybackUri.
-    static pbnjson::JSchema playbackUriGetSchema_;
+    /// Schema for getXXXXXMetadata.
+    static pbnjson::JSchema metadataGetSchema_;
+    /// Schema for getXXXXXList.
+    static pbnjson::JSchema listGetSchema_;
 
     /**
      * \brief Callback for getPlugin() Luna method.
@@ -181,6 +196,15 @@ private:
     static bool onDeviceListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
+     * \brief Callback for getMediaDbPermission() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
      * \brief Callback for runDetect() Luna method.
      *
      * \param[in] lsHandle Luna service handle.
@@ -199,13 +223,89 @@ private:
     static bool onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
     /**
-     * \brief Callback for getPlaybackUri() Luna method.
+     * \brief Callback for getAudioList() Luna method.
      *
      * \param[in] lsHandle Luna service handle.
      * \param[in] msg The Luna message.
      * \param[in] ctx Pointer to IndexerService class instance.
      */
-    static bool onGetPlaybackUri(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+    static bool onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getAudioMetadata() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */    
+    static bool onAudioMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getVideoList() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getVideoMetadata() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onVideoMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getImageList() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for getImageMetadata() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+   /**
+     * \brief Callback for onRequestDelete() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    /**
+     * \brief Callback for onRequestMediaScan() Luna method.
+     *
+     * \param[in] lsHandle Luna service handle.
+     * \param[in] msg The Luna message.
+     * \param[in] ctx Pointer to IndexerService class instance.
+     */
+    static bool onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx);
+
+    static bool callbackSubscriptionCancel(LSHandle *lshandle, LSMessage *msg, 
+                                           void *ctx);
+
+    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
+
+    bool requestDelete(const std::string &uri, LSMessage *msg = nullptr);
+
+    bool requestMediaScan(LSMessage *msg);
+
+    bool waitForScan();
 
     /**
      * \brief Combines functionality for onPluginGet and onPluginPut.
@@ -235,11 +335,33 @@ private:
     void checkForDeviceListSubscriber(LSMessage *msg,
         pbnjson::JDomParser &parser);
 
+    bool notifySubscriber(const std::string& method, pbnjson::JValue& response);
+
+    bool addClient(const std::string &sender, const std::string &method,
+                   const LSMessageToken& token);
+
+    bool removeClient(const std::string &sender, const std::string &method,
+                      const LSMessageToken& token);
+
+    bool isClientExist(const std::string &sender, const std::string &method,
+                       const LSMessageToken& token);
+
+    void putRespResult(pbnjson::JValue &obj, const bool &returnValue = true,
+                       const int& errorCode = 0,
+                       const std::string& errorText = std::string("No Error"));
+
     /// Service method definitions.
     static LSMethod serviceMethods_[];
 
     /// Luna service handle.
     LSHandle *lsHandle_;
     /// Media indexer.
+    DbObserver *dbObserver_;
+    LocaleObserver *localeObserver_;
     MediaIndexer *indexer_;
+    static std::mutex mutex_;
+    static std::mutex scanMutex_;
+    std::condition_variable scanCv_;
+
+    std::unique_ptr<IndexerServiceClientsMgr> clientMgr_;
 };

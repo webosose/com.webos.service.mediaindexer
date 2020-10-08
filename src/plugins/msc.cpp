@@ -22,6 +22,8 @@
 #include <string>
 #include <sstream>
 #include <chrono>
+#include <filesystem>
+#include <system_error>
 
 std::string Usb::uri("msc");
 std::shared_ptr<Plugin> Usb::instance_ = nullptr;
@@ -68,13 +70,26 @@ void Usb::pdmUpdate(const pbnjson::JValue &dev, bool available)
 
         // remember mountpoint for device creation
         auto mp = drive["mountName"].asString();
-
+        auto uuid = drive["uuid"].asString(); // Device UUID.
         std::stringstream suri;
         suri << Usb::uri << "://" << // Uri identifier.
-            drive["uuid"].asString(); // Device UUID.
+            uuid; // Device UUID.
+        std::error_code err;
+        std::string thumbnailDir = THUMBNAIL_DIRECTORY + uuid;
+        if (!std::filesystem::is_directory(thumbnailDir))
+        {
+            if (!std::filesystem::create_directory(thumbnailDir, err))
+            {
+                LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
+                LOG_DEBUG("Retry with create_directories");
+                if (!std::filesystem::create_directories(thumbnailDir, err))
+                    LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+            }
+        }
+
         auto uri = suri.str();
         if (available) {
-            addDevice(uri, mp);
+            addDevice(uri, mp, uuid);
 
             // add meta data, for USB case we may only know the volume
             // label

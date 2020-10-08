@@ -15,19 +15,45 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "mediaindexer.h"
+#include "mediaparser.h"
 #include "plugins/pluginfactory.h"
 #include "pdmlistener/pdmlistener.h"
 #include "dbconnector/dbconnector.h"
 #include "mediaitem.h"
+#include "mediaparser.h"
+#include "dbconnector/settingsdb.h"
+#include "dbconnector/devicedb.h"
 #include "dbconnector/mediadb.h"
+#include "indexerserviceclientsmgrimpl.h"
 
 #include <glib.h>
-#include <pbnjson.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
+
+#define RETURN_IF(exp,rv,format,args...) \
+        { if(exp) { \
+            LOG_ERROR(0, format, ##args); \
+            return rv; \
+        } \
+        }
+
+#define LSERROR_CHECK_AND_PRINT(ret, lsError) \
+    do { \
+        if (!ret) { \
+            LSErrorPrint(&lsError, stderr); \
+            LSErrorFree(&lsError); \
+            return false; \
+        } \
+    } while (0)
 
 /// From main.cpp.
 extern const char *lunaServiceId;
+std::mutex IndexerService::mutex_;
+std::mutex IndexerService::scanMutex_;
+constexpr int SCAN_TIMEOUT = 10;
+constexpr int MAXIMUM_DB_COUNT = 500;
 
 LSMethod IndexerService::serviceMethods_[] = {
     { "runDetect", IndexerService::onRun, LUNA_METHOD_FLAGS_NONE },
@@ -35,9 +61,17 @@ LSMethod IndexerService::serviceMethods_[] = {
     { "getPlugin", IndexerService::onPluginGet, LUNA_METHOD_FLAGS_NONE },
     { "putPlugin", IndexerService::onPluginPut, LUNA_METHOD_FLAGS_NONE },
     { "getPluginList", IndexerService::onPluginListGet, LUNA_METHOD_FLAGS_NONE },
+    { "getMediaDbPermission", IndexerService::onMediaDbPermissionGet, LUNA_METHOD_FLAGS_NONE },
     { "getDeviceList", IndexerService::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
-    { "getPlaybackUri", IndexerService::onGetPlaybackUri, LUNA_METHOD_FLAGS_NONE },
-    {NULL, NULL}
+    { "getAudioList", IndexerService::onAudioListGet, LUNA_METHOD_FLAGS_NONE },
+    { "getAudioMetadata", IndexerService::onAudioMetadataGet, LUNA_METHOD_FLAGS_NONE },
+    { "getVideoList", IndexerService::onVideoListGet, LUNA_METHOD_FLAGS_NONE },
+    { "getVideoMetadata", IndexerService::onVideoMetadataGet, LUNA_METHOD_FLAGS_NONE },
+    { "getImageList", IndexerService::onImageListGet, LUNA_METHOD_FLAGS_NONE },
+    { "getImageMetadata", IndexerService::onImageMetadataGet, LUNA_METHOD_FLAGS_NONE },
+    { "requestDelete", IndexerService::onRequestDelete, LUNA_METHOD_FLAGS_NONE },
+    { "requestMediaScan", IndexerService::onRequestMediaScan, LUNA_METHOD_FLAGS_NONE },
+    { nullptr, nullptr}
 };
 
 pbnjson::JSchema IndexerService::pluginGetSchema_(pbnjson::JSchema::fromString(
@@ -76,7 +110,7 @@ pbnjson::JSchema IndexerService::detectRunStopSchema_(
         "  }"
         "}"));
 
-pbnjson::JSchema IndexerService::playbackUriGetSchema_(
+pbnjson::JSchema IndexerService::metadataGetSchema_(
     pbnjson::JSchema::fromString(
         "{ \"type\": \"object\","
         "  \"properties\": {"
@@ -86,7 +120,22 @@ pbnjson::JSchema IndexerService::playbackUriGetSchema_(
         "  \"required\": [ \"uri\" ]"
         "}"));
 
+pbnjson::JSchema IndexerService::listGetSchema_(
+    pbnjson::JSchema::fromString(
+        "{ \"type\": \"object\","
+        "  \"properties\": {"
+        "    \"uri\": {"
+        "      \"type\": \"string\" },"
+        "    \"count\": {"
+        "      \"type\": \"number\" },"
+        "    \"subscribe\": {"
+        "      \"type\": \"boolean\" }"
+        "  }"
+        "}"));
+
 IndexerService::IndexerService(MediaIndexer *indexer) :
+    dbObserver_(nullptr),
+    localeObserver_(nullptr),
     indexer_(indexer)
 {
     LSError lsError;
@@ -113,10 +162,37 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
         return;
     }
 
+    if (!LSSubscriptionSetCancelFunction(lsHandle_,
+                                         &IndexerService::callbackSubscriptionCancel,
+                                         this, &lsError)) {
+        LOG_CRITICAL(0, "Unable to set subscription cancel");
+        return;
+    }
+
     /// @todo Implement bus disconnect handler.
 
     PdmListener::init(lsHandle_);
     DbConnector::init(lsHandle_);
+    auto dbInitialized = [&] () -> void {
+        MediaDb *mdb = MediaDb::instance();
+        // get the permission for the com.webos.service.mediaindexer
+        // TODO: reply doesn't used in grantAccessAll function.
+        auto reply = pbnjson::Object();
+        mdb->grantAccessAll(std::string(lunaServiceId), false, reply);
+        SettingsDb::instance();
+        DeviceDb::instance();
+        MediaParser::instance();
+        if(indexer_) {
+            indexer_->addPlugin("msc");
+            indexer_->addPlugin("storage");
+            indexer_->setDetect(true);
+        }
+    };
+
+    dbObserver_ = new DbObserver(lsHandle_, dbInitialized);
+    //localeObserver_ = new LocaleObserver(lsHandle_, nullptr);
+
+    clientMgr_ = std::make_unique<IndexerServiceClientsMgrImpl>();
 }
 
 IndexerService::~IndexerService()
@@ -127,8 +203,17 @@ IndexerService::~IndexerService()
     LSError lsError;
     LSErrorInit(&lsError);
 
-    if (!LSUnregister(lsHandle_, &lsError))
+    if (!LSUnregister(lsHandle_, &lsError)) {
         LOG_ERROR(0, "Service unregister failed");
+    }
+
+    if (dbObserver_)
+        delete dbObserver_;
+
+    //if (localeObserver_)
+    //  delete localeObserver_;
+
+    clientMgr_.reset();
 }
 
 bool IndexerService::pushDeviceList(LSMessage *msg)
@@ -150,14 +235,12 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
     // generate response
     auto reply = pbnjson::Object();
     auto pluginList = pbnjson::Array();
-
     for (auto const &[uri, plg] : indexer_->plugins_) {
         auto plugin = pbnjson::Object();
         plugin.put("active", plg->active());
         plugin.put("uri", uri);
 
         auto deviceList = pbnjson::Array();
-
         plg->lock();
         for (auto const &[uri, dev] : plg->devices()) {
             auto device = pbnjson::Object();
@@ -190,10 +273,9 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
     }
     reply.put("pluginList", pluginList);
     reply.put("returnValue", true);
-
     LSError lsError;
     LSErrorInit(&lsError);
-
+    std::lock_guard<std::mutex> lk(mutex_);
     if (msg) {
         if (!LSMessageReply(lsHandle_, msg, reply.stringify().c_str(),
                 &lsError)) {
@@ -207,7 +289,6 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
             return false;
         }
     }
-
     return true;
 }
 
@@ -227,7 +308,7 @@ bool IndexerService::onPluginListGet(LSHandle *lsHandle, LSMessage *msg,
     void *ctx)
 {
     // no schema check needed as we do not expect any objects/properties
-    
+
     // generate response
     auto reply = pbnjson::Object();
     auto pluginList = pbnjson::Array();
@@ -258,6 +339,7 @@ bool IndexerService::onPluginListGet(LSHandle *lsHandle, LSMessage *msg,
 bool IndexerService::onDeviceListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     IndexerService *is = static_cast<IndexerService *>(ctx);
+    // TODO
     return is->pushDeviceList(msg);
 }
 
@@ -273,43 +355,706 @@ bool IndexerService::onStop(LSHandle *lsHandle, LSMessage *msg, void *ctx)
     return is->detectRunStop(msg, false);
 }
 
-bool IndexerService::onGetPlaybackUri(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+bool IndexerService::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    IndexerService *is = static_cast<IndexerService *>(ctx);
-
+    LOG_DEBUG("call onMediaDbPermissionGet");
+    std::string uri;
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
     pbnjson::JDomParser parser;
 
-    if (!parser.parse(payload, playbackUriGetSchema_)) {
-        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", method.c_str(),
             payload);
         return false;
     }
 
     auto domTree(parser.getDom());
 
-    // response message
+    MediaDb *mdb = MediaDb::instance();
     auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (mdb) {
+        if (!domTree.hasKey("serviceName")) {
+            LOG_ERROR(0, "serviceName field is mandatory input");
+            mdb->putRespObject(false, reply, -1, "serviceName field is mandatory input");
+            mdb->sendResponse(lsHandle, msg, reply.stringify());
+            return false;
+        }
+        std::string serviceName = domTree["serviceName"].asString();
+        if (serviceName.empty()) {
+            LOG_ERROR(0, "empty string input");
+            mdb->putRespObject(false, reply, -1, "empty string input");
+            mdb->sendResponse(lsHandle, msg, reply.stringify());
+            return false;
+        }
+        mdb->grantAccessAll(serviceName, true, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
+    } else {
+        LOG_ERROR(0, "Failed to get instance of Media Db");
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid MediaDb Object");
 
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+        }
+        return false;
+    }
+    return true;
+}
+
+bool IndexerService::notifySubscriber(const std::string& method, pbnjson::JValue& response)
+{
+    return true;
+}
+
+bool IndexerService::notifyMediaMetaData(const std::string &method,
+                                         const std::string &metaData,
+                                         LSMessage *msg)
+{
+    LSError lsError;
+    LSErrorInit(&lsError);
+
+    if (msg != nullptr) {
+        if (!LSMessageRespond(msg, metaData.c_str(), &lsError)) {
+            LOG_ERROR(0, "Message respond error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            LSMessageUnref(msg);
+            return false;
+        }
+        LSMessageUnref(msg);
+        return true;
+    }
+
+    // reply for subscription
+    if (!LSSubscriptionReply(lsHandle_, method.c_str(), metaData.c_str(), &lsError)) {
+        LOG_ERROR(0, "subscription reply error!");
+        LSErrorPrint(&lsError, stderr);
+        LSErrorFree(&lsError);
+        return false;
+    }
+    return true;
+}
+
+bool IndexerService::callbackSubscriptionCancel(LSHandle *lshandle,
+                                               LSMessage *msg,
+                                               void *ctx)
+{
+    IndexerService* indexerService = static_cast<IndexerService *>(ctx);
+
+    if (indexerService == NULL) {
+        LOG_ERROR(0, "Subscription cancel callback context is invalid %p", ctx);
+        return false;
+    }
+
+    LSMessageToken token = LSMessageGetToken(msg);
+    std::string method = LSMessageGetMethod(msg);
+    std::string sender = LSMessageGetSender(msg);
+    bool ret = indexerService->removeClient(sender, method, token);
+    return ret;
+}
+
+
+bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
+
+    // parse incoming message
+    std::string senderName = LSMessageGetSenderServiceName(msg);
+    const char *payload = LSMessageGetPayload(msg);
+
+    pbnjson::JDomParser parser;
+    // TODO: apply listSchema
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid request: payload[%s] sender[%s]",
+                payload, senderName.c_str());
+        return false;
+    }
+
+    // parse uri and count from application payload
+    std::string uri;
+    int count = 0;
+    auto domTree(parser.getDom());
+
+    if (domTree.hasKey("uri"))
+        uri = domTree["uri"].asString();
+    if (domTree.hasKey("count"))
+        count = domTree["count"].asNumber<int32_t>();
+
+    if (count < 0 || count > MAXIMUM_DB_COUNT) {
+        auto reply = pbnjson::Object();
+        LOG_ERROR(0, "Invalid request count : %d", count);
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid request count");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        return false;
+    }
+
+    bool subscribe = LSMessageIsSubscription(msg);
+    bool ret = false;
+
+    if (subscribe) {
+        LSError lsError;
+        LSErrorInit(&lsError);
+        LOG_DEBUG("Adding getAudioList subscription for '%s'", senderName.c_str());
+
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
+        if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
+            LOG_ERROR(0, "Add subscription error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
+        }
+
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
+
+        // initial reply to prevent application blocking
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        ret = indexerService->getAudioList(uri, count);
+    } else {
+        // increase reference count for LSMessage.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->getAudioList(uri, count, msg);
+    }
+
+    return ret;
+}
+
+bool IndexerService::getAudioList(const std::string &uri, int count, LSMessage *msg)
+{
+    MediaDb *mdb = MediaDb::instance();
+    return mdb->getAudioList(uri, count, msg);
+}
+
+bool IndexerService::onAudioMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_DEBUG("call onGetAudioMetadata");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+    RETURN_IF(!domTree.hasKey("uri"), false, "client must specify uri");
     // get the playback uri for the given media item uri
     auto uri = domTree["uri"].asString();
     LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
         uri.c_str());
+    bool rv = false;
+    auto mdb = MediaDb::instance();
+    auto mparser = MediaParser::instance();
+    auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (mdb && mparser) {
+        pbnjson::JValue metadata = pbnjson::Object();
+        rv = mparser->setMediaItem(uri);
+        rv = mparser->extractMetaDirect(metadata);
+        reply.put("metadata", metadata);
+        mdb->putRespObject(rv, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
+    } else {
+        LOG_ERROR(0, "Failed to get instance of Media Db");
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid MediaDb Object");
 
-    auto pbUri = is->indexer_->getPlaybackUri(uri);
-    reply.put("returnValue", !!pbUri);
-    if (pbUri)
-        reply.put("playbackUri", pbUri.value());
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+        }
+    }
+    return rv;
+
+}
+
+
+bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
+
+    // parse incoming message
+    std::string senderName = LSMessageGetSenderServiceName(msg);
+    const char *payload = LSMessageGetPayload(msg);
+
+    pbnjson::JDomParser parser;
+    // TODO: apply listSchema
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid request: payload[%s] sender[%s]",
+                payload, senderName.c_str());
+        return false;
+    }
+
+    // parse uri and count from application payload
+    std::string uri;
+    int count = 0;
+    auto domTree(parser.getDom());
+
+    if (domTree.hasKey("uri"))
+        uri = domTree["uri"].asString();
+    if (domTree.hasKey("count"))
+        count = domTree["count"].asNumber<int32_t>();
+
+    if (count < 0 || count > MAXIMUM_DB_COUNT) {
+        auto reply = pbnjson::Object();
+        LOG_ERROR(0, "Invalid request count : %d", count);
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid request count");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        return false;
+    }
+
+    bool subscribe = LSMessageIsSubscription(msg);
+    bool ret = false;
+
+    if (subscribe) {
+        LSError lsError;
+        LSErrorInit(&lsError);
+        LOG_DEBUG("Adding getVideoList subscription for '%s'", senderName.c_str());
+
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
+        if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
+            LOG_ERROR(0, "Add subscription error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
+        }
+
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
+
+        // initial reply to prevent application blocking
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        ret = indexerService->getVideoList(uri, count);
+    } else {
+        // increase reference count for message.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->getVideoList(uri, count, msg);
+    }
+
+    return ret;
+}
+
+bool IndexerService::getVideoList(const std::string &uri, int count, LSMessage *msg)
+{
+    MediaDb *mdb = MediaDb::instance();
+    return mdb->getVideoList(uri, count, msg);
+}
+
+bool IndexerService::onVideoMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_DEBUG("call onGetVideoMetadata");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+    RETURN_IF(!domTree.hasKey("uri"), false, "client must specify uri");
+    // get the playback uri for the given media item uri
+    auto uri = domTree["uri"].asString();
+    LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
+        uri.c_str());
+    bool rv = false;
+    auto mdb = MediaDb::instance();
+    auto mparser = MediaParser::instance();
+    auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (mdb && mparser) {
+        pbnjson::JValue metadata = pbnjson::Object();
+        rv = mparser->setMediaItem(uri);
+        rv = mparser->extractMetaDirect(metadata);
+        reply.put("metadata", metadata);
+        mdb->putRespObject(rv, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
+    } else {
+        LOG_ERROR(0, "Failed to get instance of Media Db");
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid MediaDb Object");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+        }
+    }
+    return rv;
+}
+
+bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
+
+    // parse incoming message
+    std::string senderName = LSMessageGetSenderServiceName(msg);
+    const char *payload = LSMessageGetPayload(msg);
+
+    pbnjson::JDomParser parser;
+    // TODO: apply listSchema
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid request: payload[%s] sender[%s]",
+                payload, senderName.c_str());
+        return false;
+    }
+
+    // parse uri and count from application payload
+    std::string uri;
+    int count = 0;
+    auto domTree(parser.getDom());
+
+    if (domTree.hasKey("uri"))
+        uri = domTree["uri"].asString();
+    if (domTree.hasKey("count"))
+        count = domTree["count"].asNumber<int32_t>();
+
+    if (count < 0 || count > MAXIMUM_DB_COUNT) {
+        auto reply = pbnjson::Object();
+        LOG_ERROR(0, "Invalid request count : %d", count);
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid request count");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        return false;
+    }
+
+    bool subscribe = LSMessageIsSubscription(msg);
+    bool ret = false;
+
+    if (subscribe) {
+        LSError lsError;
+        LSErrorInit(&lsError);
+        LOG_DEBUG("Adding getImageList subscription for '%s'", senderName.c_str());
+
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
+        if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
+            LOG_ERROR(0, "Add subscription error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
+        }
+
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
+
+        // initial reply to prevent application blocking
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        ret = indexerService->getImageList(uri, count);
+    } else {
+        // increase reference count for message.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->getImageList(uri, count, msg);
+    }
+
+    return ret;
+}
+
+bool IndexerService::getImageList(const std::string &uri, int count, LSMessage *msg)
+{
+    MediaDb *mdb = MediaDb::instance();
+    return mdb->getImageList(uri, count, msg);
+}
+
+bool IndexerService::onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    //IndexerService *is = static_cast<IndexerService *>(ctx);
+    LOG_DEBUG("call onGetImageMetadata");
+
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+    RETURN_IF(!domTree.hasKey("uri"), false, "client must specify uri");
+    // get the playback uri for the given media item uri
+    auto uri = domTree["uri"].asString();
+    LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
+        uri.c_str());
+    bool rv = false;
+    auto mdb = MediaDb::instance();
+    auto mparser = MediaParser::instance();
+    auto reply = pbnjson::Object();
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (mdb && mparser) {
+        pbnjson::JValue metadata = pbnjson::Object();
+        rv = mparser->setMediaItem(uri);
+        rv = mparser->extractMetaDirect(metadata);
+        reply.put("metadata", metadata);
+        mdb->putRespObject(rv, reply);
+        mdb->sendResponse(lsHandle, msg, reply.stringify());
+    } else {
+        LOG_ERROR(0, "Failed to get instance of Media Db");
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Invalid MediaDb Object");
+
+        LSError lsError;
+        LSErrorInit(&lsError);
+
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+        }
+    }
+    return rv;
+
+}
+
+bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_INFO(0, "start onRequestDelete");
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
+
+    // parse incoming message
+    std::string senderName = LSMessageGetSenderServiceName(msg);
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+    RETURN_IF(!domTree.hasKey("uri"), false, "client must specify uri");
+
+    bool subscribe = LSMessageIsSubscription(msg);
+
+    // get the playback uri for the given media item uri
+    auto uri = domTree["uri"].asString();
+    bool ret = false;
+    if (subscribe) {
+        LSError lsError;
+        LSErrorInit(&lsError);
+        LOG_DEBUG("Adding requestDelete subscription for '%s'", senderName.c_str());
+
+        std::string sender = LSMessageGetSender(msg);
+        std::string method = LSMessageGetMethod(msg);
+        LSMessageToken token = LSMessageGetToken(msg);
+
+        if (!LSSubscriptionAdd(lsHandle, method.c_str(), msg, &lsError)) {
+            LOG_ERROR(0, "Add subscription error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        if (!indexerService->addClient(sender, method, token)) {
+            LOG_ERROR(0, "Failed to add client: '%s'", sender.c_str());
+        }
+
+        auto reply = pbnjson::Object();
+        reply.put("subscribed", subscribe);
+        reply.put("returnValue", true);
+
+        // initial reply to prevent application blocking
+        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+            LOG_ERROR(0, "Message reply error");
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+            return false;
+        }
+
+        ret = indexerService->requestDelete(uri);
+    } else {
+        // increase reference count for message.
+        // this reference count will be decrease in notification callback.
+        LSMessageRef(msg);
+        ret = indexerService->requestDelete(uri, msg);
+    }
+
+    return ret;
+}
+
+bool IndexerService::requestDelete(const std::string &uri, LSMessage *msg)
+{
+    MediaDb *mdb = MediaDb::instance();
+    return mdb->requestDelete(uri, msg);
+}
+
+bool IndexerService::onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx)
+{
+    LOG_INFO(0, "start onRequestMediaScan");
+
+    IndexerService *is = static_cast<IndexerService *>(ctx);
+    return is->requestMediaScan(msg);
+}
+
+bool IndexerService::requestMediaScan(LSMessage *msg)
+{
+    // parse incoming message
+    const char *payload = LSMessageGetPayload(msg);
+    std::string method = LSMessageGetMethod(msg);
+    pbnjson::JDomParser parser;
+
+    if (!parser.parse(payload, pbnjson::JSchema::AllSchema())) {
+        LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
+            payload);
+        return false;
+    }
+
+    auto domTree(parser.getDom());
+    RETURN_IF(!domTree.hasKey("path"), false, "client must specify path");
+
+    // get the playback uri for the given media item uri
+    auto path = domTree["path"].asString();
+
+    LOG_INFO(0, "call IndexerService onRequestMediaScan");
+    Device *device = nullptr;
+    bool scanned = false;
+    int errorCode = 0;
+    // generate response
+    auto reply = pbnjson::Object();
+    for (auto const &[uri, plg] : indexer_->plugins_) {
+        plg->lock();
+        for (auto const &[uri, dev] : plg->devices()) {
+            if (plg->matchUri(dev->mountpoint(), path)) {
+                LOG_INFO(0, "Media Scan start for device %s", dev->uri().c_str());
+                dev->scan();
+                scanned = true;
+                break;
+            }
+        }
+        plg->unlock();
+    }
+
+    if (scanned && waitForScan()) {
+        reply.put("returnValue", true);
+        reply.put("errorCode", 0);
+        reply.put("errorText", "No Error");
+    } else {
+        reply.put("returnValue", false);
+        reply.put("errorCode", -1);
+        reply.put("errorText", "Scan Failed");
+    }
 
     LSError lsError;
     LSErrorInit(&lsError);
 
-    if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
+    if (!LSMessageReply(lsHandle_, msg, reply.stringify().c_str(), &lsError)) {
         LOG_ERROR(0, "Message reply error");
         return false;
     }
+    return true;
+}
 
+bool IndexerService::waitForScan()
+{
+    std::unique_lock<std::mutex> lk(scanMutex_);
+    return !(scanCv_.wait_for(lk, std::chrono::seconds(SCAN_TIMEOUT)) == std::cv_status::timeout);
+}
+
+bool IndexerService::notifyScanDone()
+{
+    scanCv_.notify_one();
     return true;
 }
 
@@ -317,7 +1062,7 @@ bool IndexerService::pluginPutGet(LSMessage *msg, bool get)
 {
     const char *payload = LSMessageGetPayload(msg);
     pbnjson::JDomParser parser;
-
+    LOG_DEBUG("LSMessageGetMethod : %s", LSMessageGetMethod(msg));
     if (!parser.parse(payload, get ? pluginGetSchema_ : pluginPutSchema_)) {
         LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
             payload);
@@ -358,7 +1103,6 @@ bool IndexerService::detectRunStop(LSMessage *msg, bool run)
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     pbnjson::JDomParser parser;
-
     if (!parser.parse(payload, detectRunStopSchema_)) {
         LOG_ERROR(0, "Invalid %s request: %s", LSMessageGetMethod(msg),
             payload);
@@ -387,6 +1131,7 @@ bool IndexerService::detectRunStop(LSMessage *msg, bool run)
         LOG_ERROR(0, "Message reply error");
         return false;
     }
+    LOG_DEBUG("detectRunStop Done");
     return true;
 }
 
@@ -410,5 +1155,37 @@ void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
     auto pos = sn.find_last_of("-");
     if (pos != std::string::npos)
         sn.erase(pos);
-    mdb->grantAccess(sn);
+    auto reply = pbnjson::Object();
+    mdb->grantAccessAll(sn, true, reply);
+}
+
+bool IndexerService::addClient(const std::string &sender,
+                               const std::string &method,
+                               const LSMessageToken &token)
+{
+    return clientMgr_->addClient(sender, method, token);
+}
+
+bool IndexerService::removeClient(const std::string &sender,
+                                  const std::string &method,
+                                  const LSMessageToken &token)
+{
+    return clientMgr_->removeClient(sender, method, token);
+}
+
+bool IndexerService::isClientExist(const std::string &sender,
+                                   const std::string &method,
+                                   const LSMessageToken &token)
+{
+    return clientMgr_->isClientExist(sender, method, token);
+}
+
+void IndexerService::putRespResult(pbnjson::JValue &obj,
+                                   const bool &returnValue,
+                                   const int &errorCode,
+                                   const std::string &errorText)
+{
+    obj.put("returnValue", returnValue);
+    obj.put("errorCode", errorCode);
+    obj.put("errorText", errorText);
 }

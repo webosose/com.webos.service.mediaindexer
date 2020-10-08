@@ -1,0 +1,12 @@
+{
+    "mediaindexerMock.operation": [
+        "com.webos.service.mediaindexerMock/getDeviceList",
+        "com.webos.service.mediaindexerMock/getAudioList",
+        "com.webos.service.mediaindexerMock/getAudioMetaData",
+        "com.webos.service.mediaindexerMock/getVideoList",
+        "com.webos.service.mediaindexerMock/getVideoMetaData",
+        "com.webos.service.mediaindexerMock/getImageList",
+        "com.webos.service.mediaindexerMock/getImageMetaData",
+        "com.webos.service.mediaindexerMock/getMediaDBPermission"
+    ]
+}

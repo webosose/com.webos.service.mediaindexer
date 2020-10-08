@@ -16,4 +16,14 @@
 
 include_directories(./)
 include_directories(../)
-add_library(dbconnector STATIC dbconnector.cpp devicedb.cpp settingsdb.cpp mediadb.cpp)
+include_directories(../log)
+
+set(SRC_LIST dbconnector.cpp
+    devicedb.cpp
+    settingsdb.cpp
+    mediadb.cpp
+    lunaconnector.cpp
+    ../log/logging.cpp
+    )
+
+add_library(dbconnector STATIC ${SRC_LIST})

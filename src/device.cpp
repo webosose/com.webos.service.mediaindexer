@@ -43,15 +43,58 @@ std::string Device::metaTypeToString(Device::Meta meta)
     return "";
 }
 
-Device::Device(const std::string &uri, int alive, bool avail) :
+std::string Device::stateToString(Device::State state)
+{
+    switch (state) {
+    case Device::State::Idle:
+        return std::string("idle");
+    case Device::State::Scanning:
+        return std::string("scanning");
+    case Device::State::Inactive:
+        return std::string("inactive");
+    }
+
+    return "";
+}
+
+std::shared_ptr<Device> Device::device(const std::string &uri)
+{
+    PluginFactory factory;
+    auto plg = factory.plugin(uri);
+    if (!plg)
+        return nullptr;
+
+    if (!plg->hasDevice(uri))
+        return nullptr;
+
+    return plg->device(uri);
+}
+
+Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) :
     uri_(uri),
     mountpoint_(""),
+    uuid_(uuid),
     lastSeen_(),
+    state_(Device::State::Inactive),
     available_(avail),
     alive_(alive),
-    maxAlive_(alive)
+    maxAlive_(alive),
+    observer_(nullptr)
 {
     lastSeen_ = std::chrono::system_clock::now();
+    LOG_DEBUG("Device Ctor, URI : %s UUID : %s, object : %p", uri_.c_str(), uuid_.c_str(), this);
+    task_ = std::thread(&Device::scanLoop, this);
+    task_.detach();
+
+    cleanUpTask_.create([] (void *ctx, void *data) -> void {
+        Device* dev = static_cast<Device *>(ctx);
+        if (dev) {
+            LOG_DEBUG("Clean Up Task start for device ");
+            auto obs = dev->observer();
+            if (obs)
+                obs->cleanupDevice(dev);
+        }        
+    });
 }
 
 Device::~Device()
@@ -59,6 +102,13 @@ Device::~Device()
     // nothing to be done here, the only allocated object is the
     // scanner thread which runs in detached mode and thus does not
     // need any cleanup
+    LOG_DEBUG("Device Dtor, URI : %s UUID : %s OBJECT : %p", uri_.c_str(), uuid_.c_str(), this);
+    exit_ = true;
+    queue_.push_back("");
+    cv_.notify_one();
+    if (task_.joinable())
+        task_.join();
+    cleanUpTask_.destroy();
 }
 
 bool Device::available(bool check)
@@ -74,6 +124,7 @@ bool Device::available(bool check)
     if (!available_) {
         meta_[Device::Meta::Icon] = "";
         resetMediaItemCount();
+        setState(State::Inactive, true);
     }
 
     return available_;
@@ -97,11 +148,14 @@ bool Device::setAvailable(bool avail)
     if (!available_) {
         meta_[Device::Meta::Icon] = "";
         resetMediaItemCount();
+        setState(State::Inactive, true);
     }
 
     auto changed = (before != avail);
-    if (avail && changed)
+    if (avail && changed) {
         lastSeen_ = std::chrono::system_clock::now();
+        setState(State::Idle, true);
+    }
 
     return changed;
 }
@@ -110,6 +164,18 @@ const std::string &Device::uri() const
 {
     return uri_;
 }
+
+const std::string &Device::uuid() const
+{
+    return uuid_;
+}
+
+void Device::setUuid(const std::string &uuid)
+{
+    std::unique_lock lock(lock_);
+    uuid_ = uuid;
+}
+
 
 int Device::alive() const
 {
@@ -138,10 +204,51 @@ bool Device::setMeta(Device::Meta type, const std::string value)
     return true;
 }
 
+Device::State Device::state() const
+{
+    std::shared_lock lock(lock_);
+    return state_;
+}
+
+void Device::setState(Device::State state)
+{
+    std::unique_lock lock(lock_);
+    setState(state, false);
+}
+
 const std::chrono::system_clock::time_point &Device::lastSeen() const
 {
     std::shared_lock lock(lock_);
     return lastSeen_;
+}
+
+void Device::scanLoop()
+{
+    while (!exit_)
+    {
+        std::unique_lock<std::mutex> lk(mutex_);
+        cv_.wait(lk, [this] { return !queue_.empty(); });
+        std::string uri = static_cast<std::string>(queue_.front());
+        if (uri.empty())
+        {
+            LOG_ERROR(0, "Deque data is invalid!");
+            continue;
+        }
+        LOG_DEBUG("scanLoop start for uri : %s",uri_.c_str());
+        // let the plugin scan the device for media items
+        auto plg = plugin();
+        if (plg == nullptr)
+        {
+            LOG_ERROR(0, "plugin for %s is not invalid",uri.c_str());
+            break;
+        }
+        setState(Device::State::Scanning);
+        plg->scan(uri);
+        setState(Device::State::Idle);
+        if (processingDone())
+            activateCleanUpTask();
+        queue_.pop_front();
+    }
 }
 
 bool Device::scan(IMediaItemObserver *observer)
@@ -154,19 +261,16 @@ bool Device::scan(IMediaItemObserver *observer)
         }
     }
 
+    if (observer)
     {
         std::unique_lock lock(lock_);
         observer_ = observer;
     }
 
-    // let the plugin scan the device for media items
-    auto plg = plugin();
     LOG_INFO(0, "Plugin will scan '%s' for us", uri_.c_str());
-    std::thread t(&Plugin::scan, plg, std::ref(uri_));
-    // this is a worker thread, in case the device becomes unavailable
-    // the thread will terminate due to some access errors anyway
-    t.detach();
-
+    resetMediaItemCount();
+    queue_.push_back(uri_);
+    cv_.notify_one();
     return true;
 }
 
@@ -196,6 +300,9 @@ std::shared_ptr<Plugin> Device::plugin() const
 
 void Device::incrementMediaItemCount(MediaItem::Type type)
 {
+    if (type == MediaItem::Type::EOL)
+        return;
+
     std::unique_lock lock(lock_);
 
     auto cntIter = mediaItemCount_.find(type);
@@ -203,11 +310,82 @@ void Device::incrementMediaItemCount(MediaItem::Type type)
         mediaItemCount_[type] = 1;
     else
         mediaItemCount_[type]++;
+    totalItemCount_++;
+}
+
+void Device::incrementProcessedItemCount(MediaItem::Type type)
+{
+    if (type == MediaItem::Type::EOL)
+        return;
+
+    std::unique_lock lock(lock_);
+
+    auto cntIter = processedCount_.find(type);
+    if (cntIter == processedCount_.end())
+        processedCount_[type] = 1;
+    else
+        processedCount_[type]++;
+    totalProcessedCount_++;
+}
+
+bool Device::processingDone()
+{
+    if (state_ == Device::State::Idle) {
+        LOG_INFO(0, "Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
+        if (totalItemCount_ == totalProcessedCount_) {
+            auto obs = observer();
+            if (obs)
+                obs->notifyDeviceScanned(this);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Device::addFileList(std::string &fpath)
+{
+    if (fpath.empty()) {
+        LOG_ERROR(0, "Input fpath is invalid");
+        return false;
+    }
+    fileList_.push_back(fpath);
+    return true;
+}
+
+bool Device::isValidFile(std::string &fpath)
+{
+    if (fpath.empty()) {
+        LOG_ERROR(0, "Input fpath is invalid");
+        return false;
+    }
+    auto it = std::find(fileList_.begin(), fileList_.end(), fpath);
+    if (it != fileList_.end()) {
+        LOG_DEBUG("fpath %s is already exist", fpath.c_str());
+        return false;
+    }
+    return true;
+}
+
+void Device::activateCleanUpTask()
+{
+    cleanUpTask_.sendMessage(this, nullptr);
 }
 
 void Device::resetMediaItemCount()
 {
     mediaItemCount_.clear();
+    processedCount_.clear();
+    totalItemCount_ = totalProcessedCount_ = 0;
+    fileList_.clear();
+}
+
+void Device::setState(Device::State state, bool force)
+{
+    if (state == state_)
+        return;
+    LOG_DEBUG("Device state change: %s -> %s",
+        stateToString(state_).c_str(), stateToString(state).c_str());
+    state_ = state;
 }
 
 int Device::mediaItemCount(MediaItem::Type type)

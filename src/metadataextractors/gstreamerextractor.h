@@ -20,7 +20,15 @@
 
 #if defined HAS_GSTREAMER
 #include <gst/pbutils/gstdiscoverer.h>
+#include <gst/pbutils/pbutils.h>
+#include <gst/audio/audio.h>
 #endif
+
+#include <turbojpeg.h>
+#include <chrono>
+#include <mutex>
+
+#define GST_TAG_THUMBNAIL "thumbnail"
 
 /**
  * \brief Media parser class for meta data extraction.
@@ -29,20 +37,46 @@
  */
 class GStreamerExtractor : public IMetaDataExtractor
 {
- public:
+public:
+    enum class StreamMeta : int {
+        SampleRate = 0, ///< Audio sample rate.
+        Channels, ///< Audio channels.
+        BitRate, ///< Audio bitrate.
+        BitPerSample, ///<Audio bit per sample.
+        Width, ///< Video width.
+        Height, ///< Video height.
+        FrameRate, ///< Video framerate.
+        EOL /// End of list marker.
+    };
+
     GStreamerExtractor();
     virtual ~GStreamerExtractor();
 
     /// From interface.
-    void extractMeta(MediaItem &mediaItem) const;
+    bool extractMeta(MediaItem &mediaItem, bool expand = false) const;
 
- private:
+private:
     /// Get message id.
     LOG_MSGID;
 
     /// Get media item meta identifier from GStreamer tag.
     MediaItem::Meta metaFromTag(const char *gstTag) const;
+
+    /// Get Thumbnail Image of video
+    bool getThumbnail(MediaItem &mediaItem, std::string &filename, const std::string &ext = "jpg") const;
+
+    /// Save Image to jpeg with libjpeg-turbo
+    bool saveBufferToImage(void *data, int32_t width, int32_t height,
+                                  const std::string &filename, const std::string &ext = "jpg") const;
+
     /// Set media item media per media type.
     void setMeta(MediaItem &mediaItem, const GstDiscovererInfo *metaInfo,
         const char *tag) const;
+    void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool expand = false) const;
+
+    static std::map<std::string, MediaItem::Meta> metaMap_;
+    mutable std::mutex mutex_;
 };
+
+/// Useful when iterating over enum.
+GStreamerExtractor::StreamMeta &operator++(GStreamerExtractor::StreamMeta &meta);

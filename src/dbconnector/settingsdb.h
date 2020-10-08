@@ -20,7 +20,7 @@
 
 #include <functional>
 
-/// Connector to com.webos.service.db.
+/// Connector to com.webos.mediadb.
 class SettingsDb : public DbConnector
 {
 public:
@@ -54,6 +54,13 @@ public:
      * \return Result of message processing.
      */
     virtual bool handleLunaResponse(LSMessage *msg);
+
+    /**
+     * \brief Db service response handler.
+     *
+     * \return Result of message processing.
+     */
+    virtual bool handleLunaResponseMetaData(LSMessage *msg);
 
 protected:
     /// Get message id.

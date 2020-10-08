@@ -1,0 +1,5 @@
+{
+    "com.webos.service.mediaindexerMockClient": [
+        "mediaindexerMock.operation"
+    ]
+}

@@ -19,6 +19,9 @@
 #include <memory>
 
 class MediaItem;
+class Device;
+
+typedef std::shared_ptr<Device> DevicePtr;
 
 /// Interface definition for mediaitem observers.
 class IMediaItemObserver
@@ -45,6 +48,23 @@ public:
      * \param[in] mediaItem The media item.
      */
     virtual void metaDataUpdateRequired(std::unique_ptr<MediaItem>  mediaItem) = 0;
+
+    /**
+     * \brief Called if device cleanup can be started.
+     *
+     * The callback is thread-safe.
+     *
+     * \param[in] dev The device.
+     */
+    virtual void cleanupDevice(Device* dev) = 0;
+
+     /**
+     * \brief notify after specified device has been scanned.
+     *
+     *
+     * \param[in] dev The device.
+     */
+    virtual void notifyDeviceScanned(Device* dev) = 0;
 
 protected:
     IMediaItemObserver() {};

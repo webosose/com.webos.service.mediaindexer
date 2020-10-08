@@ -17,6 +17,7 @@
 #pragma once
 
 #include "mediaitem.h"
+#include "jsonparser.h"
 
 #include <memory>
 
@@ -31,7 +32,7 @@ public:
      * all media items and that they are extracted from concurrent
      * threads so be careful with member variables.
      */
-    static std::unique_ptr<IMetaDataExtractor> extractor(MediaItem::Type type);
+    static std::unique_ptr<IMetaDataExtractor> extractor(MediaItem::Type type, std::string &ext);
     virtual ~IMetaDataExtractor() {};
 
     /**
@@ -39,8 +40,40 @@ public:
      *
      * \param[in] mediaItem The media item.
      */
-    virtual void extractMeta(MediaItem &mediaItem) const = 0;
+    virtual bool extractMeta(MediaItem &mediaItem, bool expand = false) const = 0;
+
+
+    /// Get base filename from mediaItem
+    virtual std::string baseFilename(MediaItem &mediaItem, bool noExt = false, std::string delimeter = "//") const;
+
+    /// Get random filename for attached image
+    virtual std::string randFilename() const;
+
+    /// Get extension from mediaItem
+    virtual std::string extension(MediaItem &mediaItem) const;
+
+    /// lastmodified date type, support both uint64_t and string type
+    typedef std::variant<std::int64_t, std::string> Date;
+
+    /**
+     * \brief Gives us the last modified date value with unformatted numeric value.
+     * \param[in] mediaItem mediaitem.
+     */
+    virtual std::int64_t lastModifiedDate(MediaItem &mediaItem) const;
+
+    /**
+     * \brief Gives us the last modified date value with formatted string value.
+     * \param[in] mediaItem mediaitem.
+     * \param[in] localtime specifies time zone of returns, default : false
+     */
+    virtual std::string lastModifiedDate(MediaItem &mediaItem, bool localTime = false) const;
+
+    void setMetaCommon(MediaItem &mediaItem) const;
 
 protected:
     IMetaDataExtractor() {};
+
+private:
+    /// Get message id.
+    LOG_MSGID;
 };

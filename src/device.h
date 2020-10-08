@@ -18,6 +18,7 @@
 
 #include "logging.h"
 #include "mediaitem.h"
+#include "task.h"
 
 #include <string>
 #include <chrono>
@@ -25,6 +26,9 @@
 #include <shared_mutex>
 #include <memory>
 #include <thread>
+#include <condition_variable>
+#include <deque>
+#include <vector>
 
 class Plugin;
 
@@ -40,6 +44,13 @@ public:
         EOL ///< End of list marker.
     };
 
+    /// Device indexing status.
+    enum class State {
+        Idle, ///< Scan has been completed, not monitoring.
+        Scanning, ///< Device is in initial scan mode.
+        Inactive ///< Device is not available.
+    };
+
     /**
      * \brief Convert meta type to string.
      *
@@ -49,13 +60,26 @@ public:
     static std::string metaTypeToString(Device::Meta meta);
 
     /**
+     * \brief Convert state to string.
+     *
+     * \param[in] state The state identifier.
+     * \return The related string.
+     */
+    static std::string stateToString(Device::State state);
+
+    /**
+    * \brief System wide search for a device by uri.
+    */
+    static std::shared_ptr<Device> device(const std::string &uri);
+
+    /**
      * \brief Construct device by uri.
      *
      * \param[in] uri Full device uri.
      * \param[in] alive If alive count should be used set this to value >1.
      * \param[in] avail Set initial available state.
      */
-    Device(const std::string &uri, int alive = -1, bool avail = true);
+    Device(const std::string &uri, int alive = -1, bool avail = true, std::string uuid = "");
 
     virtual ~Device();
 
@@ -92,6 +116,18 @@ public:
     virtual int alive() const;
 
     /**
+     * \brief Get uuid.
+     * \return uuid string.
+     */
+    virtual const std::string &uuid() const;
+
+    /**
+     * \brief Set uuid.
+     * \param[in] uuid string.
+     */
+    virtual void setUuid(const std::string &uuid);
+
+    /**
      * \brief Get meta data.
      *
      * \param[in] type Meta data type.
@@ -109,6 +145,20 @@ public:
     virtual bool setMeta(Device::Meta type, const std::string value);
 
     /**
+     * \brief Get the state.
+     *
+     * \return The current state.
+     */
+    virtual Device::State state() const;
+
+    /**
+     * \brief Set state.
+     *
+     * \param[in] state New state.
+     */
+    virtual void setState(Device::State state);
+
+    /**
      * \brief Tell the timestamp when the device was available last
      * time.
      *
@@ -122,7 +172,7 @@ public:
      * \param[in] observer Observer class for this device class.
      * \return True if device cares of media items, else false.
      */
-    virtual bool scan(IMediaItemObserver *observer);
+    virtual bool scan(IMediaItemObserver *observer = nullptr);
 
     /**
      *\brief Gives us the current media item observer.
@@ -160,12 +210,52 @@ public:
     void incrementMediaItemCount(MediaItem::Type type);
 
     /**
+     * \brief Increase processed media item count by one for given media type.
+     *
+     * \param[in] type Media item type.
+     */
+    void incrementProcessedItemCount(MediaItem::Type type);
+
+    /**
+     * \brief check if processing of media items inside device is done.
+     *
+     */
+    bool processingDone();
+
+    /**
+     * \brief Add absolute file path for device.
+     *
+     * \param[in] fpath file path.
+     */
+    bool addFileList(std::string &fpath);
+
+    /**
+     * \brief Check input file path is already exist in fileList_.
+     *
+     * \param[in] fpath file path.
+     */
+    bool isValidFile(std::string &fpath);
+
+    /**
+     * \brief If done, activate cleanup task to delete db not matched to
+     *        media files.
+     *
+     */
+    void activateCleanUpTask();
+
+    /**
      * \brief Return the media item count for given type.
      *
      * \param[in] type Media item type.
      * \return Media item count.
      */
     virtual int mediaItemCount(MediaItem::Type type);
+
+    /**
+     * \brief Thread loop for file scanning.
+     *
+     */
+    void scanLoop();
 
 private:
     /// Get message id.
@@ -182,6 +272,9 @@ private:
     /// Reset media item count for all media types.
     void resetMediaItemCount();
 
+    /// Handler for internal state changes.
+    void setState(Device::State state, bool force);
+
     /// Make class meta data usage thread safe.
     mutable std::shared_mutex lock_;
 
@@ -189,11 +282,15 @@ private:
     std::string uri_;
     /// Device mountpoint
     std::string mountpoint_;
+    /// Device uuid
+    std::string uuid_;
     /// Last seen timestamp of device.
     std::chrono::system_clock::time_point lastSeen_;
     /// The meta data map. The member is mutable as element are
     /// default constructed if not yet set.
     mutable std::map<Device::Meta, std::string> meta_;
+    /// The current device state.
+    Device::State state_;
     /// Device available state.
     bool available_;
     /// Alive refcount for device poll-mode.
@@ -201,12 +298,28 @@ private:
     /// Alive reset value.
     int maxAlive_;
 
+    std::thread task_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    std::deque<std::string> queue_;
+    bool exit_ = false;
+
     /// Media item observer.
     IMediaItemObserver *observer_;
 
     /// Media item count per media type.
     std::map<MediaItem::Type, int> mediaItemCount_;
+    int totalItemCount_ = 0;
+    /// Processed media item count per media type.
+    std::map<MediaItem::Type, int> processedCount_;
+    std::vector<std::string> fileList_;
+    int totalProcessedCount_ = 0;
+
+    Task cleanUpTask_;
 };
 
 /// Useful when iterating over enum.
 Device::Meta &operator++(Device::Meta &meta);
+
+/// This is handled with shared_ptr so give it an alias.
+typedef std::shared_ptr<Device> DevicePtr;

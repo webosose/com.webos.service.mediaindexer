@@ -46,6 +46,7 @@ void Plugin::unlock()
 
 void Plugin::setDeviceNotifications(IDeviceObserver *observer, bool on)
 {
+    LOG_DEBUG("setDeviceNotifications Start");
     if (on) {
         bool firstObserver = addObserver(observer);
 
@@ -64,9 +65,14 @@ void Plugin::setDeviceNotifications(IDeviceObserver *observer, bool on)
             LOG_INFO(0, "Enable device detection for: '%s'", uri_.c_str());
             runDeviceDetection(true);
         }
+        else {
+            LOG_INFO(0, "Not firstObserver, skip runDeviceDetection for: '%s'", uri_.c_str());
+        }
     } else {
+        LOG_DEBUG("removeObserver");
         removeObserver(observer);
     }
+    LOG_DEBUG("setDeviceNotifications Done");
 }
 
 const std::string &Plugin::uri() const
@@ -91,6 +97,23 @@ bool Plugin::injectDevice(std::shared_ptr<Device> device)
     return isNew;
 }
 
+bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::string uuid)
+{
+    bool isNew = false;
+
+    if (!hasDevice(uri)) {
+        std::unique_lock lock(lock_);
+        LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());
+        devices_[uri] = std::make_shared<Device>(uri, alive, avail, uuid);
+        isNew = true;
+    }
+
+    if (isNew)
+        notifyObserversStateChange(devices_[uri]);
+
+    return isNew;
+}
+
 bool Plugin::addDevice(const std::string &uri, int alive)
 {
     bool isNew = false;
@@ -102,11 +125,12 @@ bool Plugin::addDevice(const std::string &uri, int alive)
 
         if (!dev) {
             dev = std::make_shared<Device>(uri, alive);
+            LOG_DEBUG("Make new device for uri : %s", uri.c_str());
             devices_[uri] = dev;
             isNew = true;
         }
     }
-    
+
     if (isNew) {
         notifyObserversStateChange(dev);
     } else {
@@ -120,7 +144,7 @@ bool Plugin::addDevice(const std::string &uri, int alive)
     return isNew;
 }
 
-bool Plugin::addDevice(const std::string &uri, const std::string &mp, int alive)
+bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::string uuid, int alive)
 {
     bool isNew = false;
     std::shared_ptr<Device> dev = nullptr;
@@ -130,19 +154,21 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, int alive)
         dev = deviceUnlocked(uri);
 
         if (!dev) {
-            dev = std::make_shared<Device>(uri, alive);
+            LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());
+            dev = std::make_shared<Device>(uri, alive, true, uuid);
             dev->setMountpoint(mp);
             devices_[uri] = dev;
             isNew = true;
         }
     }
-    
+
     if (isNew) {
         notifyObserversStateChange(dev);
     } else {
         dev = device(uri);
         auto changed = dev->setAvailable(true);
         dev->setMountpoint(mp);
+        dev->setUuid(uuid);
         // now tell the observers if availability changed
         if (changed)
             notifyObserversStateChange(dev);
@@ -211,7 +237,6 @@ void Plugin::checkDevices(void)
         auto alive = dev.second->available();
         if (dev.second->available(true) == alive)
             continue;
-
         notifyObserversStateChange(dev.second);
     }
 }
@@ -231,6 +256,7 @@ bool Plugin::active() const
 
 void Plugin::scan(const std::string &uri)
 {
+    LOG_DEBUG("scan start! uri : %s", uri.c_str());
     // first get the device from the uri
     auto dev = device(uri);
     if (!dev)
@@ -238,53 +264,98 @@ void Plugin::scan(const std::string &uri)
 
     auto obs = dev->observer();
 
+    if (!obs) {
+        LOG_ERROR(0, "device %s has no observer, observer is manadatory", dev->uri().c_str());
+        return;
+    }
+
     // get the device mountpoint
     auto mp = dev->mountpoint();
     if (mp.empty()) {
         LOG_ERROR(0, "Device '%s' has no mountpoint", dev->uri().c_str());
         return;
     }
-
+    LOG_DEBUG("file scan start for mountpoint : %s!", mp.c_str());
     // do the file-tree-walk
     std::error_code err;
     try {
         for (auto &file : fs::recursive_directory_iterator(mp)) {
             if (!file.is_regular_file(err))
                 continue;
-
             // get the file content type to decide if it can become a media
             // item
-            gchar *contentType;
+            std::string mimeType;
+            gchar *contentType = NULL;
             gboolean uncertain;
+            bool mimeTypeSupported = false;
+            bool extTypeSupported = false;
             contentType = g_content_type_guess(file.path().c_str(), NULL, 0,
                 &uncertain);
 
-            if (!contentType || uncertain) {
-                LOG_INFO(0, "None or unprecise MIME type for '%s'",
+            LOG_DEBUG("contentType : %s", contentType);
+
+            if (!contentType) {
+                LOG_INFO(0, "MIME type detection is failed for '%s'",
                     file.path().c_str());
                 continue;
             }
+            mimeType = contentType;
+            g_free(contentType);
+            std::string path = file.path();
+            std::string ext = path.substr(path.find_last_of('.') + 1);
+            extTypeSupported = MediaItem::extTypeSupported(ext);
+            if (!extTypeSupported) {
+                LOG_DEBUG("skip file scanning for %s", path.c_str());
+                continue;
+            }
+            mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
+            if (!mimeTypeSupported) {
+                // get the file extension for the ts or ps.
+                LOG_DEBUG("scan ext '%s'", ext.c_str());
 
-            if (MediaItem::mimeTypeSupported(contentType)) {
-                auto lastWrite = file.last_write_time();
-                auto hash = lastWrite.time_since_epoch().count();
-                MediaItemPtr mi(new MediaItem(dev,
-                        file.path(), contentType, hash));
-                obs->newMediaItem(std::move(mi));
+                //TODO: switch case
+                if (!ext.compare("ts"))
+                    mimeType = std::string("video/MP2T");
+                else if (!ext.compare("ps"))
+                    mimeType = std::string("video/MP2P");
+                else if (!ext.compare("asf"))
+                    mimeType = std::string("video/x-asf");
+                else {
+                    LOG_INFO(0, "it's NOT ts/ps/asf. need to check for '%s'", file.path().c_str());
+                    continue;
+                }
+                // again check the mimtType supported or not.
+                mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
             }
 
-            g_free(contentType);
+            if (uncertain && !mimeTypeSupported) {
+                LOG_INFO(0, "Invalid MIME type for '%s'", path.c_str());
+                continue;
+            }
+
+            if (!dev->isValidFile(path)) {
+                LOG_WARNING(0, "file path : %s is already scanned before or path is invalid", path.c_str());
+                continue;
+            }
+
+            if (mimeTypeSupported) {
+                auto lastWrite = file.last_write_time();
+                auto fileSize = file.file_size();
+                auto hash = lastWrite.time_since_epoch().count();
+                MediaItemPtr mi(new MediaItem(dev,
+                        file.path(), mimeType, hash, fileSize));
+                obs->newMediaItem(std::move(mi));
+            }
         }
     } catch (const std::exception &ex) {
-        LOG_ERROR(0, "Exception caught while traversing through '%s'",
-            mp.c_str());
+        LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",
+            mp.c_str(), ex.what());
     }
-
     LOG_INFO(0, "File-tree-walk on device '%s' has been completed",
         dev->uri().c_str());
 }
 
-void Plugin::extractMeta(MediaItem &mediaItem)
+void Plugin::extractMeta(MediaItem &mediaItem, bool expand)
 {
     LOG_ERROR(0, "No meta data extraction for '%s'", mediaItem.uri().c_str());
     // nothing to be done here, this should be implemented in the
@@ -365,7 +436,6 @@ void Plugin::notifyObserversStateChange(const std::shared_ptr<Device> &device,
         observer->deviceStateChanged(device);
     } else {
         std::shared_lock lock(lock_);
-
         for (auto const obs : deviceObservers_)
             obs->deviceStateChanged(device);
     }
@@ -374,7 +444,6 @@ void Plugin::notifyObserversStateChange(const std::shared_ptr<Device> &device,
 void Plugin::notifyObserversModify(const std::shared_ptr<Device> &device) const
 {
     std::shared_lock lock(lock_);
-    
     for (auto const obs : deviceObservers_)
         obs->deviceModified(device);
 }

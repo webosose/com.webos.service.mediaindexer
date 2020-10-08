@@ -75,16 +75,6 @@ LOG_MSGID;
 const char *lunaServiceId = "com.webos.service.mediaindexer";
 #endif
 
-#if defined HAS_PMLOG
-PmLogContext getPmLogContext()
-{
-    static PmLogContext s_context = 0;
-    if (!s_context)
-        PmLogGetContext("com.webos.service.mediaindexer", &s_context);
-    return s_context;
-}
-#endif
-
 static void signalHandler(int sigNum)
 {
     if (terminating)
@@ -110,10 +100,14 @@ int main(int argc, char *argv[])
     using namespace std::chrono_literals;
 
     // install signal handler
-    signal(SIGABRT, signalHandler);
-    signal(SIGINT, signalHandler);
+    //signal(SIGABRT, signalHandler);
+    //signal(SIGINT, signalHandler);
 
-    LOG_INFO(0, "Mediaindexer started");
+    LOG_INFO(0, "//*****************************************//");
+    LOG_INFO(0, "//                                         //");
+    LOG_INFO(0, "//      Mediaindexer service started       //");
+    LOG_INFO(0, "//                                         //");
+    LOG_INFO(0, "//*****************************************//");
 
 #if defined HAS_GSTREAMER
     gst_init(nullptr, nullptr);

@@ -46,6 +46,20 @@ if (LUNASERVICE2_FOUND AND NOT STANDALONE)
   add_definitions(-DHAS_LUNA)
 endif ()
 
+# taglib
+pkg_check_modules(TAGLIB REQUIRED taglib)
+if (TAGLIB_FOUND)
+  include_directories(${TAGLIB_INCLUDE_DIRS})
+  link_directories(${TAGLIB_LIBRARY_DIRS})
+  webos_add_compiler_flags(ALL ${TAGLIB_CFLAGS})
+  link_libraries(${TAGLIB_LIBRARIES})
+  add_definitions(-DHAS_TAGLIB)
+endif ()
+
+# pbnjson
+pkg_check_modules(LIBPBNJSON REQUIRED pbnjson_cpp)
+webos_add_compiler_flags(ALL ${LIBPBNJSON_CFLAGS})
+
 # gstreamer
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 if (GSTREAMER_FOUND)
@@ -80,6 +94,15 @@ else ()
   add_definitions(-DPARALLEL_META_EXTRACTION=${PARALLEL_META_EXTRACTION})
 endif ()
 
+# add definition for the JSON configuration file
+if ("${WEBOS_TARGET_MACHINE}" STREQUAL "sa8155")
+  message(STATUS "Add definition for JSON configuration file for webOS Auto sa8155")
+  add_definitions(-DJSON_CONFIGURATION_FILE="/etc/com.webos.service.mediaindexer/com.webos.service.mediaindexer.conf")
+else ()
+  message(STATUS "Add definition for JSON configuration file for default machine")
+  add_definitions(-DJSON_CONFIGURATION_FILE="/etc/com.webos.service.mediaindexer/com.webos.service.mediaindexer.conf")
+endif ()
+
 # build settings
 add_executable(com.webos.service.mediaindexer
   ${MODULES}
@@ -88,14 +111,25 @@ add_executable(com.webos.service.mediaindexer
   device.cpp
   mediaitem.cpp
   mediaparser.cpp
-  mediaindexer.cpp)
+  dbobserver.cpp
+  localeobserver.cpp
+  task.cpp
+  mediaindexer.cpp
+  indexerserviceclientsmgrimpl.cpp)
 
 include_directories(./)
+include_directories(./jsonparser)
+include_directories(./log)
+include_directories(./mediaindexerclient)
+
+# definitions for thumbnail directory
+add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
 
 # build and link the plugins
 add_subdirectory(plugins)
 # choose a meta data extractor
 add_subdirectory(metadataextractors)
+add_subdirectory(mediaindexerclient)
 
 list(APPEND LOCAL_LIBS plugins metadataextractor pthread)
 target_link_libraries(com.webos.service.mediaindexer ${LOCAL_LIBS})

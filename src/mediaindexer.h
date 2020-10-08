@@ -62,6 +62,14 @@ public:
     bool get(const std::string &uri);
 
     /**
+     * \brief Add plugin if not yet exists.
+     *
+     *
+     * \param[in] uri Base uri.
+     */
+    bool addPlugin(const std::string &uri);
+
+    /**
      * \brief Decrease plugin refcount and release if unused.
      *
      * \param[in] uri Base uri.
@@ -84,25 +92,44 @@ public:
     bool setDetect(bool on, const std::string &uri);
 
     /**
-     * \brief Get the playback uri for the given media item uri.
+     * \brief Generate device list object and push either as reply to
+     * \p msg or to all registered subscribers.
      *
-     * \param[in] uri Base uri for plugin identification.
-     * \return The uri if available.
+     * This internally calls pushDeviceList of indexerservice object.
+     * \param[in] msg The Luna message.
      */
-    std::optional<std::string> getPlaybackUri(const std::string &uri) const;
+    bool sendDeviceNotification(LSMessage *msg = nullptr);
 
+    /**
+     * \brief Activate plugins to detect
+     *
+     * This internally calls get and setDetect.
+     */
+    bool activate();
+
+    bool sendMediaMetaDataNotification(const std::string &method,
+                                       const std::string &metaData,
+                                       LSMessage *msg); 
 protected:
+    /// Activate plugins and detection
+    static gboolean _activate(gpointer data);
     /// DeviceObserver interface.
-    void deviceStateChanged(std::shared_ptr<Device> device);
+    void deviceStateChanged(DevicePtr device);
 
     /// DeviceObserver interface.
-    void deviceModified(std::shared_ptr<Device> device);
+    void deviceModified(DevicePtr device);
 
     /// MediaItemObserver interface.
     void newMediaItem(MediaItemPtr mediaItem);
 
     /// MediaItemObserver interface.
     void metaDataUpdateRequired(MediaItemPtr mediaItem);
+
+    /// MediaItemObserver interface.
+    void cleanupDevice(Device* device);
+
+    /// MediaItemObserver interface.
+    void notifyDeviceScanned(Device* device);
 
 private:
     /// Get message id.

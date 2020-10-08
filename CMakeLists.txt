@@ -33,6 +33,12 @@ webos_add_compiler_flags(ALL -Wno-unused-parameter
 webos_add_compiler_flags(ALL -Werror=return-type -Werror=reorder
   -Werror=uninitialized)
 
+# Fix compile error
+# ld: error: src/dbconnector/libdbconnector.a(lunaconnector.cpp.o): 
+# requires unsupported dynamic reloc R_ARM_REL32; recompile with -fPIC
+# collect2: error: ld returned 1 exit status
+webos_add_compiler_flags(ALL -fPIC)
+
 # for pkg-config
 find_package(PkgConfig)
 
@@ -41,7 +47,7 @@ if (STANDALONE)
   message("Setup for standalone build")
   add_definitions(-DSTANDALONE)
 else ()
-  message("Setup for WebOS-OSE build")
+  message("Setup for WebOS-Auto build")
 
   webos_build_system_bus_files()
   webos_build_configured_file(
@@ -54,6 +60,11 @@ webos_add_linker_options(ALL --no-undefined)
 
 # get the sources
 add_subdirectory(src)
+add_subdirectory(test/mediaindexerclient)
+add_subdirectory(test/luna_async)
+
+# install configulation file
+add_subdirectory(files/conf)
 
 # doxygen section
 find_package(Doxygen)

@@ -1,0 +1,16 @@
+{
+    "id": "com.webos.service.mediaindexerMock",
+    "version": "1.0.0",
+    "roleFiles": [
+        "/usr/share/luna-service2/roles.d/com.webos.service.mediaindexermock.role.json"
+    ],
+    "serviceFiles": [
+        "/usr/share/luna-service2/service.d/com.webos.service.mediaindexermock.service"
+    ],
+    "apiPermissionFiles": [
+        "/usr/share/luna-service2/api-permissions.d/com.webos.service.mediaindexermock.api.json"
+    ],
+    "clientPermissionFiles": [
+        "/usr/share/luna-service2/client-permissions.d/com.webos.service.mediaindexermock.perm.json"
+    ]
+}

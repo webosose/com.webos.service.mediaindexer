@@ -52,19 +52,22 @@ bool SettingsDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
     if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
+    {
+        LOG_ERROR(0, "sessionDataFromToken failed");
         return false;
+    }
 
-    auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.service.db for: '%s'",
-        method.c_str());
+    auto dbServiceMethod = sd.dbServiceMethod;
+    LOG_INFO(0, "Received response com.webos.mediadb for: '%s'",
+            dbServiceMethod.c_str());
 
-    if (method != std::string("find"))
+    if (dbServiceMethod != std::string("find"))
         return true;
 
     // we do not need to check, the service implementation should do that
     pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
     const char *payload = LSMessageGetPayload(msg);
-
+    LOG_DEBUG("payload : %s", payload);
     if (!parser.parse(payload)) {
         LOG_ERROR(0, "Invalid JSON message: %s", payload);
         return false;
@@ -86,17 +89,21 @@ bool SettingsDb::handleLunaResponse(LSMessage *msg)
 
         auto uri = match["uri"].asString();
         auto enabled = match["enabled"].asBool();
-
         MediaIndexer *mi = MediaIndexer::instance();
-        mi->get(uri);
+        mi->sendDeviceNotification();
         mi->setDetect(enabled, uri);
     }
+    return true;
+}
 
+bool SettingsDb::handleLunaResponseMetaData(LSMessage *msg)
+{
+    // nothing to be done here.
     return true;
 }
 
 SettingsDb::SettingsDb() :
-    DbConnector("com.webos.service.mediaindexer.settings:1")
+    DbConnector("com.webos.service.mediaindexer.settings")
 {
     auto index = pbnjson::Object();
     index.put("name", "uri");

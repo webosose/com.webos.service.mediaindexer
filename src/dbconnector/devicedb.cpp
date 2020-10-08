@@ -51,16 +51,16 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
     if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
         return false;
 
-    auto method = sd.method;
-    LOG_INFO(0, "Received response com.webos.service.db for: '%s'",
-        method.c_str());
+    auto dbServiceMethod = sd.dbServiceMethod;
+    LOG_INFO(0, "Received response com.webos.mediadb for: '%s'", dbServiceMethod.c_str());
 
-    if (method != std::string("find"))
+    if (dbServiceMethod != std::string("find"))
         return true;
 
     // we do not need to check, the service implementation should do that
     pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
     const char *payload = LSMessageGetPayload(msg);
+    LOG_DEBUG("payload : %s", payload);
 
     if (!parser.parse(payload)) {
         LOG_ERROR(0, "Invalid JSON message: %s", payload);
@@ -82,6 +82,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
         auto match = matches[i];
 
         auto uri = match["uri"].asString();
+        auto uuid = match["uuid"].asString();
         PluginFactory fac;
         auto plg = fac.plugin(uri);
         if (!plg)
@@ -89,34 +90,42 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
         int alive;
         match["alive"].asNumber(alive);
 
-        auto device = std::make_shared<Device>(uri, alive, false);
-        auto meta = match["name"].asString();
-        device->setMeta(Device::Meta::Name, meta);
-        meta = match["description"].asString();
-        device->setMeta(Device::Meta::Description, meta);
+        LOG_INFO(0, "Device '%s', uuid '%s' will be injected into plugin", uri.c_str(),uuid.c_str());
 
-        LOG_INFO(0, "Device '%s' will be injected into plugin", uri.c_str());
-
-        plg->injectDevice(device);
+        if (plg->injectDevice(uri, alive, false, uuid)) {
+            auto meta = match["name"].asString();
+            plg->device(uri)->setMeta(Device::Meta::Name, meta);
+            meta = match["description"].asString();
+            plg->device(uri)->setMeta(Device::Meta::Description, meta);
+        }
     }
 
     return true;
 }
 
-DeviceDb::DeviceDb() :
-    DbConnector("com.webos.service.mediaindexer.devices:1")
+bool DeviceDb::handleLunaResponseMetaData(LSMessage *msg)
 {
-    auto index = pbnjson::Object();
-    index.put("name", "uri");
+    // nothing to de done here
+    return true;
+}
 
-    auto props = pbnjson::Array();
-    auto prop = pbnjson::Object();
-    prop.put("name", "uri");
-    props << prop;
+DeviceDb::DeviceDb() :
+    DbConnector("com.webos.service.mediaindexer.devices")
+{
+    std::list<std::string> indexes = {"uri", "available"}; // add index : available
+    for (auto idx : indexes) {
+        auto index = pbnjson::Object();
+        index.put("name", idx);
 
-    index.put("props", props);
+        auto props = pbnjson::Array();
+        auto prop = pbnjson::Object();
+        prop.put("name", idx);
+        props << prop;
 
-    kindIndexes_ << index;
+        index.put("props", props);
+
+        kindIndexes_ << index;
+    }
 }
 
 void DeviceDb::deviceStateChanged(std::shared_ptr<Device> device)
@@ -125,8 +134,8 @@ void DeviceDb::deviceStateChanged(std::shared_ptr<Device> device)
         device->available() ? "added" : "removed");
 
     // we only write updates if device appears
-    if (device->available())
-        updateDevice(device);
+    //if (device->available())
+    updateDevice(device);
 }
 
 void DeviceDb::deviceModified(std::shared_ptr<Device> device)
@@ -140,9 +149,11 @@ void DeviceDb::updateDevice(std::shared_ptr<Device> device)
     // update or create the device in the database
     auto props = pbnjson::Object();
     props.put("uri", device->uri());
+    props.put("uuid", device->uuid());
     props.put("name", device->meta(Device::Meta::Name));
     props.put("description", device->meta(Device::Meta::Description));
     props.put("alive", device->alive());
+    props.put("available", device->available()); //add device available status
     props.put("lastSeen", device->lastSeen().time_since_epoch().count());
 
     mergePut(device->uri(), true, props);
