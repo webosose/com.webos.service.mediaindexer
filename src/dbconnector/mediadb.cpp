@@ -745,7 +745,7 @@ MediaDb::MediaDb() :
     };
 
     int i = 1;
-    for (std::list list : indexList) {
+    for (std::list<std::string> list : indexList) {
         auto index = pbnjson::Object();
         index.put("name", "index"+ std::to_string(i));
         i++;
