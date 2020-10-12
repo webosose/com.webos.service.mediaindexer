@@ -737,6 +737,17 @@ pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
     return whereClause;
 }
 
+pbnjson::JValue MediaDb::prepareOperation(const std::string &method,
+                                                 pbnjson::JValue &param,
+                                                 pbnjson::JValue operationClause) const
+{
+    auto operation = pbnjson::Object();
+    operation.put("method", method);
+    operation.put("params", param);
+    operationClause << operation;
+    return operationClause;
+}
+
 MediaDb::MediaDb() :
     DbConnector("com.webos.service.mediaindexer.media", true)
 {

@@ -180,6 +180,10 @@ private:
                                  bool precise,
                                  pbnjson::JValue whereClause = pbnjson::Array()) const;
 
+    pbnjson::JValue prepareOperation(const std::string &method,
+                                 pbnjson::JValue &param,
+                                 pbnjson::JValue operationClause = pbnjson::Array()) const;
+
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
     std::map<MediaItem::Type, std::string> kindMap_ = {

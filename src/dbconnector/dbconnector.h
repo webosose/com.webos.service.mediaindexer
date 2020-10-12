@@ -114,6 +114,16 @@ protected:
         void *obj = nullptr, const std::string &kind_name = "", bool atomic = false);
 
     /**
+     * \brief Send batch request with multiple database operations.(merge, put, find, get, del)
+     *
+     * \param[in] operations   The list of database operation to perform.
+     * \param[in] dbMethod     Caller method.
+     * \param[in] obj          Some object to send with the luna request.
+     * \return                 True on success, false on error.
+     */
+    virtual bool batch(pbnjson::JValue &operations, const std::string &dbMethod, void *obj = nullptr, bool atomic = false);
+
+    /**
      * \brief Send search request with uri.
      *
      * \param[in] kind_name kind id.

@@ -216,6 +216,34 @@ bool DbConnector::find(const std::string &uri, bool precise,
     return true;
 }
 
+bool DbConnector::batch(pbnjson::JValue &operations, const std::string &dbMethod, void *obj, bool atomic)
+{
+    LSError lsError;
+    LSErrorInit(&lsError);
+    LSMessageToken sessionToken;
+
+    std::string url = dbUrl_;
+    std::string dbServiceMethod = std::string("batch");
+    url += dbServiceMethod;
+
+    auto request = pbnjson::Object();
+    request.put("operations", operations);
+
+    LOG_INFO(0, "Send batch for '%s'", dbMethod.c_str());
+
+    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
+        DbConnector::onLunaResponseMetaData, this, &sessionToken, &lsError)) {
+        LOG_ERROR(0, "Db service batch error");
+        LSErrorPrint(&lsError, stderr);
+        LSErrorFree(&lsError);
+        return false;
+    }
+
+    rememberSessionData(sessionToken, dbServiceMethod, dbMethod, operations, obj);
+
+    return true;
+}
+
 bool DbConnector::search(pbnjson::JValue &query, const std::string &dbMethod, void *obj)
 {
     LSError lsError;
