@@ -25,6 +25,10 @@ struct IndexerClientWrapper {
     IndexerClientWrapper(MediaIndexerCallback callback, void* userData) {
         client_ = new MediaIndexerClient(callback, userData);
     };
+    ~IndexerClientWrapper() {
+        if(client_)
+            delete client_;
+    };
     void initialize() {
         if (client_) client_->initialize();
     };
@@ -52,7 +56,6 @@ void DestroyMediaIndexerClient(MediaIndexerHandle handle)
         return;
     }
     IndexerClientWrapper* indexerWrapper = static_cast<IndexerClientWrapper*>(handle);
-    delete indexerWrapper->client_;
     delete indexerWrapper;
 }
 

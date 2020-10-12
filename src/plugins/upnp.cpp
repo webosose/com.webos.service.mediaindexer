@@ -41,7 +41,7 @@ std::shared_ptr<Plugin> Upnp::instance()
 Upnp::Upnp() : Plugin(Upnp::uri)
 {
     upnpHandle_ = -1;
-    auto err = UpnpInit(NULL, 0);
+    auto err = UpnpInit2(NULL, 0);
     if (err)
         LOG_CRITICAL(0, "UpnpInit2() failed (%i)", err);
 }
@@ -702,7 +702,6 @@ void Upnp::setMetaOnMediaItem(IXML_Document *doc, MediaItem &mediaItem,
     case MediaItem::Meta::Track:
         mediaItem.setMeta(meta, std::int64_t(std::atoi(s)));
         break;
-    case MediaItem::Meta::TotalTracks:
     case MediaItem::Meta::DateOfCreation:
         mediaItem.setMeta(meta, s);
         break;

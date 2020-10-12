@@ -17,6 +17,7 @@
 #include "IndexerService.h"
 #include <ctime>
 #include <cstdlib>
+#include <fstream>
 
 LSMethod IndexerServiceMock::serviceMethods_[] = {
     { "getDeviceList", IndexerServiceMock::onDeviceListGet, LUNA_METHOD_FLAGS_NONE },
@@ -105,8 +106,14 @@ bool IndexerServiceMock::onDeviceListGet(LSHandle *lsHandle, LSMessage *msg, voi
         LSSubscriptionAdd(lsHandle, "getDeviceList", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getDeviceList"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
     }
 
@@ -149,8 +156,14 @@ bool IndexerServiceMock::onGetAudioList(LSHandle *lsHandle, LSMessage *msg, void
         LSSubscriptionAdd(lsHandle, "getAudioList", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getAudioList"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
     }
 
@@ -193,8 +206,14 @@ bool IndexerServiceMock::onGetVideoList(LSHandle *lsHandle, LSMessage *msg, void
         LSSubscriptionAdd(lsHandle, "getVideoList", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getVideoList"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
     }
 
@@ -237,9 +256,16 @@ bool IndexerServiceMock::onGetImageList(LSHandle *lsHandle, LSMessage *msg, void
         LSSubscriptionAdd(lsHandle, "getImageList", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getImageList"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
+
     }
 
     return true;
@@ -281,8 +307,14 @@ bool IndexerServiceMock::onGetAudioMetaData(LSHandle *lsHandle, LSMessage *msg, 
         LSSubscriptionAdd(lsHandle, "getAudioMetaData", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getAudioMetaData"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
     }
 
@@ -325,8 +357,14 @@ bool IndexerServiceMock::onGetVideoMetaData(LSHandle *lsHandle, LSMessage *msg, 
         LSSubscriptionAdd(lsHandle, "getVideoMetaData", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getVideoMetaData"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
     }
 
@@ -369,8 +407,14 @@ bool IndexerServiceMock::onGetImageMetaData(LSHandle *lsHandle, LSMessage *msg, 
         LSSubscriptionAdd(lsHandle, "getImageMetaData", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getImageMetaData"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
     }
 
@@ -413,8 +457,14 @@ bool IndexerServiceMock::onMediaDbPermissionGet(LSHandle *lsHandle, LSMessage *m
         LSSubscriptionAdd(lsHandle, "getMediaDbPermission", msg, nullptr);
         IndexerServiceMock *mock = static_cast<IndexerServiceMock*>(ctx);
         mock->queue_.push(std::string("getMediaDbPermission"));
-        srand(static_cast<unsigned int>(time(nullptr)));
-        int sec = (rand() % 5) * 1000; // get the 1~5 sec from rand func
+        std::uint32_t val = 0;
+        std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+        if (fs)
+        {
+            fs.read(reinterpret_cast<char*>(&val), sizeof(val));
+        }
+        fs.close();
+        int sec = (val % 5) * 1000; // get the 1~5 sec from rand func
         g_timeout_add(sec, &IndexerServiceMock::sendResponse, mock);
     }
 
