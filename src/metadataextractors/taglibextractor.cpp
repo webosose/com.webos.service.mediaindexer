@@ -80,6 +80,20 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
             ext = TAGLIB_EXT_JPG;
         else if (frame->mimeType().find(TAGLIB_EXT_PNG))
             ext = TAGLIB_EXT_PNG;
+
+        std::error_code err;
+        std::string thumbnailDir = TAGLIB_BASE_DIRECTORY + mediaItem.uuid();
+        if (!std::filesystem::is_directory(thumbnailDir))
+        {
+            if (!std::filesystem::create_directory(thumbnailDir, err))
+            {
+                LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
+                LOG_DEBUG("Retry with create_directories");
+                if (!std::filesystem::create_directories(thumbnailDir, err))
+                    LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+            }
+        }
+
         of = TAGLIB_BASE_DIRECTORY + mediaItem.uuid() + "/" + fname + "." + ext;
 
         LOG_DEBUG("Save Attached Image, fullpath : %s",of.c_str());

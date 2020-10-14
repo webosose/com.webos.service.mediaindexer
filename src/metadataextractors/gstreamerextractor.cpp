@@ -393,6 +393,19 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
         buffer = gst_sample_get_buffer (sample);
         gst_buffer_map (buffer, &map, GST_MAP_READ);
 
+        std::error_code err;
+        std::string thumbnailDir = THUMBNAIL_DIRECTORY + mediaItem.uuid();
+        if (!std::filesystem::is_directory(thumbnailDir))
+        {
+            if (!std::filesystem::create_directory(thumbnailDir, err))
+            {
+                LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
+                LOG_DEBUG("Retry with create_directories");
+                if (!std::filesystem::create_directories(thumbnailDir, err))
+                    LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+            }
+        }
+
         if (!saveBufferToImage(map.data, width, height, filename, ext))
         {
             RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "could not save thumbnail image");
