@@ -282,6 +282,11 @@ void Plugin::scan(const std::string &uri)
         for (auto &file : fs::recursive_directory_iterator(mp)) {
             if (!file.is_regular_file(err))
                 continue;
+
+            std::string path = file.path();
+            if (isHiddenfolder(path))
+                continue;
+
             // get the file content type to decide if it can become a media
             // item
             std::string mimeType;
@@ -301,7 +306,6 @@ void Plugin::scan(const std::string &uri)
             }
             mimeType = contentType;
             g_free(contentType);
-            std::string path = file.path();
             std::string ext = path.substr(path.find_last_of('.') + 1);
             extTypeSupported = MediaItem::extTypeSupported(ext);
             if (!extTypeSupported) {
@@ -353,6 +357,13 @@ void Plugin::scan(const std::string &uri)
     }
     LOG_INFO(0, "File-tree-walk on device '%s' has been completed",
         dev->uri().c_str());
+}
+
+bool Plugin::isHiddenfolder(std::string &filepath)
+{
+    if(filepath.find("/.") != -1)
+        return true;
+    return false;
 }
 
 void Plugin::extractMeta(MediaItem &mediaItem, bool expand)
