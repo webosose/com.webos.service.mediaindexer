@@ -93,7 +93,7 @@ bool MediaParser::setMediaItem(std::string & uri)
     return true;
 }
 
-bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
+bool MediaParser::extractExtraMeta(pbnjson::JValue &meta)
 {
     try {
         std::lock_guard<std::mutex> lock(mediaItemLock_);
@@ -123,8 +123,7 @@ bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
             plg->extractMeta(*mi, true);
             mi->setParsed(true);
         }
-        LOG_DEBUG("Start mediaItem_->putAllMetaToJson");
-        if (!mediaItem_->putAllMetaToJson(meta)) {
+        if (!mediaItem_->putExtraMetaToJson(meta)) {
             LOG_ERROR(0, "Failed to put meta to json");
             return false;
         }

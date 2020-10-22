@@ -17,7 +17,7 @@
 #pragma once
 
 #include "mediaitem.h"
-#include "jsonparser.h"
+#include "jsonparser/jsonparser.h"
 
 #include <memory>
 
@@ -40,7 +40,7 @@ public:
      *
      * \param[in] mediaItem The media item.
      */
-    virtual bool extractMeta(MediaItem &mediaItem, bool expand = false) const = 0;
+    virtual bool extractMeta(MediaItem &mediaItem, bool extra = false) const = 0;
 
 
     /// Get base filename from mediaItem

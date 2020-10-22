@@ -59,25 +59,28 @@ public:
     };
     /// Meta data type specifiers.
     enum class Meta : int {
+        // Common Meta Data
         Title, ///< Media title, mandatory.
         Genre, ///< Media genre.
         Album, ///< Media album.
         Artist, ///< Media artist.
-        AlbumArtist, ///< The album artist, set to artist of not
-                     ///available.
+        Duration, ///< Media duration in seconds.
+        Thumbnail, ///< Attached Picture
+        LastModifiedDate, ///< Last modified date.(formatted)
+        LastModifiedDateRaw, ///< Last modified date.(not formatted)
+        FileSize, ///< File size.
+        Width, ///< Video width.
+        Height, ///< Video height.
+        // Extra Meta Data
         Track, ///< Track number in album.
+        AlbumArtist, ///< The album artist, set to artist of not available.
         TotalTracks, ///< Total number of tracks in album.
         DateOfCreation, ///< Date of creation.
-        Duration, ///< Media duration in seconds.
         Year, ///< Recoding time(Year).
-        Thumbnail, ///< Attached Picture
         GeoLocLongitude, ///< Location longitude.
         GeoLocLatitude, ///< Location latitude.
         GeoLocCountry, ///< Location country code.
         GeoLocCity, ///< Location city name.
-        LastModifiedDate, ///< Last modified date.(formatted)
-        LastModifiedDateRaw, ///< Last modified date.(not formatted)
-        FileSize, ///< File size.
         VideoCodec, ///< Video Codec Information.
         AudioCodec, ///< Audio Codec Information.
         SampleRate, ///< Audio sample rate.
@@ -85,8 +88,6 @@ public:
         BitRate, ///< Audio bitrate.
         BitPerSample, ///<Audio bit per sample.
         Lyric, ///< Audio Lyric.
-        Width, ///< Video width.
-        Height, ///< Video height.
         FrameRate, ///< Video framerate.
         EOL /// End of list marker.
     };
@@ -218,7 +219,7 @@ public:
     virtual ~MediaItem() {};
 
     /**
-     * \brief put all meta data of this media item to given json object.
+     * \brief put meta data of this media item to given json object.
      *
      * This will write all available meta data to json object
      * given as input parameter.
@@ -226,7 +227,7 @@ public:
      * \param[in] meta Json object that meta data of this item to be stored.
      * \return result(true or false).
      */
-    bool putAllMetaToJson(pbnjson::JValue &meta);
+    bool putExtraMetaToJson(pbnjson::JValue &meta);
 
     /**
      * \brief Get the identifier of this media item.

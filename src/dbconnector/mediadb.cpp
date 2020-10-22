@@ -21,6 +21,7 @@
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
 #include "mediaindexer.h"
+#include "mediaparser.h"
 
 #include <cstdio>
 #include <gio/gio.h>
@@ -275,6 +276,34 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
             dbQuery.put("page", page);
 
             ret = search(dbQuery, dbMethod, object);
+        }
+        break;
+    }
+    case MediaDbMethod::GetAudioMetaData:
+    case MediaDbMethod::GetVideoMetaData:
+    case MediaDbMethod::GetImageMetaData: {
+        auto response = pbnjson::Object();
+        auto metadata = results[0];
+        auto uri = metadata["uri"].asString();
+        auto mparser = MediaParser::instance();
+        if (mparser) {
+            bool rv = false;
+            rv = mparser->setMediaItem(uri);
+            rv = mparser->extractExtraMeta(metadata);
+            response.put("metadata", metadata);
+            if (!rv)
+                putRespObject(rv, response, -1, "Metadata extraction failure");
+            else
+                putRespObject(rv, response);
+        } else {
+            LOG_ERROR(0, "Failed to get instance of Media parser Object");
+            putRespObject(false, response, -1, "Invalid media parser object");
+        }
+        MediaIndexer *indexer = MediaIndexer::instance();
+        ret = indexer->sendMediaMetaDataNotification(dbMethod, response.stringify(),
+                static_cast<LSMessage*>(object));
+        if (!ret) {
+            LOG_ERROR(0, "Notification error!");
         }
         break;
     }
@@ -556,7 +585,7 @@ void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic, pbnjso
         roAccess(dbClients_, kindList_, nullptr, atomic);
 }
 
-bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg)
+bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg, bool expand)
 {
     LOG_DEBUG("%s Start for uri : %s, count : %d", __func__, uri.c_str(), count);
     auto selectArray = pbnjson::Array();
@@ -588,11 +617,11 @@ bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg)
     if (count != 0)
         query.put("limit", count);
 
-    std::string dbMethod = std::string("getAudioList");
+    std::string dbMethod = expand ? std::string("getAudioMetaData") : std::string("getAudioList");
     return search(query, dbMethod, msg);
 }
 
-bool MediaDb::getVideoList(const std::string &uri, int count, LSMessage *msg)
+bool MediaDb::getVideoList(const std::string &uri, int count, LSMessage *msg, bool expand)
 {
     LOG_DEBUG("%s Start for uri : %s, count : %d", __func__, uri.c_str(), count);
     auto selectArray = pbnjson::Array();
@@ -623,11 +652,11 @@ bool MediaDb::getVideoList(const std::string &uri, int count, LSMessage *msg)
     if (count != 0)
         query.put("limit", count);
 
-    std::string dbMethod = std::string("getVideoList");
+    std::string dbMethod = expand ? std::string("getVideoMetaData") : std::string("getVideoList");
     return search(query, dbMethod, msg);
 }
 
-bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg)
+bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg, bool expand)
 {
     LOG_DEBUG("%s Start for uri : %s, count : %d", __func__, uri.c_str(), count);
     auto selectArray = pbnjson::Array();
@@ -657,7 +686,7 @@ bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg)
     if (count != 0)
         query.put("limit", count);
 
-    std::string dbMethod = std::string("getImageList");
+    std::string dbMethod = expand ? std::string("getImageMetaData") : std::string("getImageList");
     return search(query, dbMethod, msg);
 }
 

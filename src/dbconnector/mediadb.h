@@ -35,6 +35,9 @@ public:
         GetAudioList,
         GetVideoList,
         GetImageList,
+        GetAudioMetaData,
+        GetVideoMetaData,
+        GetImageMetaData,
         RequestDelete,
         RemoveDirty,
         EOL
@@ -139,11 +142,11 @@ public:
 
     void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp);
 
-    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 
-    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 
-    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 
     void makeUriIndex();
 
@@ -196,6 +199,9 @@ private:
         { std::string("getAudioList"),   MediaDbMethod::GetAudioList  },
         { std::string("getVideoList"),   MediaDbMethod::GetVideoList  },
         { std::string("getImageList"),   MediaDbMethod::GetImageList  },
+        { std::string("getAudioMetaData"),   MediaDbMethod::GetAudioMetaData  },
+        { std::string("getVideoMetaData"),   MediaDbMethod::GetVideoMetaData  },
+        { std::string("getImageMetaData"),   MediaDbMethod::GetImageMetaData  },
         { std::string("requestDelete"),  MediaDbMethod::RequestDelete },
         { std::string("removeDirty"),    MediaDbMethod::RemoveDirty   }
     };

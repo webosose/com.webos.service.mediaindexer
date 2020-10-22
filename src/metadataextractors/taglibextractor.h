@@ -51,7 +51,7 @@ class TaglibExtractor : public IMetaDataExtractor
     virtual ~TaglibExtractor();
 
     /// From interface.
-    bool extractMeta(MediaItem &mediaItem, bool expand = false) const;
+    bool extractMeta(MediaItem &mediaItem, bool extra = false) const;
 
  private:
     /// Get message id.

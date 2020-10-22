@@ -53,7 +53,7 @@ public:
     virtual ~GStreamerExtractor();
 
     /// From interface.
-    bool extractMeta(MediaItem &mediaItem, bool expand = false) const;
+    bool extractMeta(MediaItem &mediaItem, bool extra = false) const;
 
 private:
     /// Get message id.
@@ -72,7 +72,7 @@ private:
     /// Set media item media per media type.
     void setMeta(MediaItem &mediaItem, const GstDiscovererInfo *metaInfo,
         const char *tag) const;
-    void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool expand = false) const;
+    void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool extra = false) const;
 
     static std::map<std::string, MediaItem::Meta> metaMap_;
     mutable std::mutex mutex_;

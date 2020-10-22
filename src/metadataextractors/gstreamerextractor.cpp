@@ -71,7 +71,7 @@ GStreamerExtractor::~GStreamerExtractor()
     // nothing to be done here
 }
 
-bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
+bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
 {
     bool ret = true;
     bool force_sw_decoders = false;
@@ -141,42 +141,44 @@ bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
 
     switch (mediaItem.type()) {
     case MediaItem::Type::Audio: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
-        setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM);
-        setMeta(mediaItem, discoverInfo, GST_TAG_ARTIST);
-        if (expand) {
+        if (!extra) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
+            setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM);
+            setMeta(mediaItem, discoverInfo, GST_TAG_ARTIST);
+        } else {
             setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
             setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM_ARTIST);
             setMeta(mediaItem, discoverInfo, GST_TAG_TRACK_NUMBER);
         }
-        setStreamMeta(mediaItem, streamInfo, expand);
+        setStreamMeta(mediaItem, streamInfo, extra);
         break;
     }
     case MediaItem::Type::Video: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
-        setMeta(mediaItem, discoverInfo, GST_TAG_THUMBNAIL);
-        if (expand) {
+        if (!extra) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
+            setMeta(mediaItem, discoverInfo, GST_TAG_THUMBNAIL);
+        } else {
             setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
-            setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
             setMeta(mediaItem, discoverInfo, GST_TAG_VIDEO_CODEC);
             setMeta(mediaItem, discoverInfo, GST_TAG_AUDIO_CODEC);
         }
-        setStreamMeta(mediaItem, streamInfo, expand);
+        setStreamMeta(mediaItem, streamInfo, extra);
         break;
     }
     case MediaItem::Type::Image: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        if (expand) {
+        if (!extra) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
+        } else {
             setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LONGITUDE);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LATITUDE);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_COUNTRY);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_CITY);
         }
-        setStreamMeta(mediaItem, streamInfo, expand);
+        setStreamMeta(mediaItem, streamInfo, extra);
         break;
     }
     case MediaItem::Type::EOL:
@@ -502,7 +504,7 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *
 }
 
 void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
-                                       GstDiscovererStreamInfo *streamInfo, bool expand) const
+                                       GstDiscovererStreamInfo *streamInfo, bool extra) const
 {
     MediaItem::MetaData data;
     MediaItem::Meta meta;
@@ -513,7 +515,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
 
     switch (mediaItem.type()) {
     case MediaItem::Type::Audio: {
-        if (expand) {
+        if (extra) {
             if (GST_IS_DISCOVERER_AUDIO_INFO(streamInfo)) {
                 /* let's get the audio meta data */
                 LOG_INFO(0, "<Audio stream info>");
@@ -547,22 +549,25 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
     }
     case MediaItem::Type::Video: {
         if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
-            /* let's get the video meta data */
-            LOG_INFO(0, "<Video stream info>");
-            GstDiscovererVideoInfo *video_info =
-                reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
-            // Width
-            data = {gst_discoverer_video_info_get_width(video_info)};
-            LOG_INFO(0, " -> Video Width : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Width;
-            mediaItem.setMeta(meta, data);
+            if (!extra) {
+                /* let's get the video meta data */
+                LOG_INFO(0, "<Video stream info>");
+                GstDiscovererVideoInfo *video_info =
+                    reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
+                // Width
+                data = {gst_discoverer_video_info_get_width(video_info)};
+                LOG_INFO(0, " -> Video Width : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Width;
+                mediaItem.setMeta(meta, data);
 
-            // Height
-            data = {gst_discoverer_video_info_get_height(video_info)};
-            LOG_INFO(0, " -> Video Height : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Height;
-            mediaItem.setMeta(meta, data);
-            if (expand) {
+                // Height
+                data = {gst_discoverer_video_info_get_height(video_info)};
+                LOG_INFO(0, " -> Video Height : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Height;
+                mediaItem.setMeta(meta, data);
+            } else {
+                GstDiscovererVideoInfo *video_info =
+                    reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
                 // Frame rate
                 uint32_t num = gst_discoverer_video_info_get_framerate_num(video_info);
                 uint32_t denom = gst_discoverer_video_info_get_framerate_denom(video_info);
@@ -577,21 +582,23 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
     }
     case MediaItem::Type::Image: {
         if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
-            /* let's get the image meta data */
-            LOG_INFO(0, "<Image stream info>");
-            GstDiscovererVideoInfo *video_info =
-                reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
-            // Width
-            data = {gst_discoverer_video_info_get_width(video_info)};
-            LOG_INFO(0, " -> Image Width : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Width;
-            mediaItem.setMeta(meta, data);
+            if (!extra) {
+                /* let's get the image meta data */
+                LOG_INFO(0, "<Image stream info>");
+                GstDiscovererVideoInfo *video_info =
+                    reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
+                // Width
+                data = {gst_discoverer_video_info_get_width(video_info)};
+                LOG_INFO(0, " -> Image Width : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Width;
+                mediaItem.setMeta(meta, data);
 
-            // Height
-            data = {gst_discoverer_video_info_get_height(video_info)};
-            LOG_INFO(0, " -> Image Height : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Height;
-            mediaItem.setMeta(meta, data);
+                // Height
+                data = {gst_discoverer_video_info_get_height(video_info)};
+                LOG_INFO(0, " -> Image Height : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Height;
+                mediaItem.setMeta(meta, data);
+            }
         }
         break;
     }
@@ -604,7 +611,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
         gst_discoverer_stream_info_get_next(streamInfo);
 
     if (nextStreamInfo) {
-        setStreamMeta(mediaItem, nextStreamInfo, expand);
+        setStreamMeta(mediaItem, nextStreamInfo, extra);
         gst_discoverer_stream_info_unref(nextStreamInfo);
     } else if (GST_IS_DISCOVERER_CONTAINER_INFO(streamInfo)) {
         GList *streams =
@@ -612,7 +619,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
         for (GList *stream = streams; stream; stream = stream->next) {
             GstDiscovererStreamInfo *strInfo =
                 reinterpret_cast<GstDiscovererStreamInfo*>(stream->data);
-            setStreamMeta(mediaItem, strInfo, expand);
+            setStreamMeta(mediaItem, strInfo, extra);
         }
         gst_discoverer_stream_info_list_free(streams);
     } else {

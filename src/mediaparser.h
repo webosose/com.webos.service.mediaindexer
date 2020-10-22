@@ -51,7 +51,7 @@ class MediaParser
     MediaParser();
 
     /// For the purpose of direct meta extraction from indexer service api
-    bool extractMetaDirect(pbnjson::JValue &meta);
+    bool extractExtraMeta(pbnjson::JValue &meta);
     virtual ~MediaParser();
 
  private:

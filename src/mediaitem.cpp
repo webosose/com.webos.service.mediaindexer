@@ -330,28 +330,11 @@ MediaItem::MediaItem(const std::string &uri) :
     }
 }
 
-bool MediaItem::putAllMetaToJson(pbnjson::JValue &meta)
+bool MediaItem::putExtraMetaToJson(pbnjson::JValue &meta)
 {
-    meta.put(metaToString(CommonType::URI), uri_);
-    meta.put(metaToString(CommonType::HASH), std::to_string(hash_));
-    meta.put(metaToString(CommonType::DIRTY), false);
-    meta.put(metaToString(CommonType::TYPE), mediaTypeToString(type_));
-    meta.put(metaToString(CommonType::MIME), mime_);
-    // check if the plugin is available and get it
-    LOG_DEBUG("Try to find plugin for uri_ : %s", uri_.c_str());
-    auto plg = PluginFactory().plugin(uri_);
-    if (!plg)
-        return false;
-
-    auto filepath = plg->getPlaybackUri(uri_);
-    LOG_DEBUG("filepath : %s", filepath.value().c_str());
-    meta.put(metaToString(CommonType::FILEPATH), filepath ? filepath.value() : "");
-
-
-    for (auto _meta = MediaItem::Meta::Title; _meta < MediaItem::Meta::EOL; ++_meta) {
+    for (auto _meta = MediaItem::Meta::Track; _meta < MediaItem::Meta::EOL; ++_meta) {
         auto metaStr = metaToString(_meta);
         auto data = this->meta(_meta);
-
         if ((type_ == MediaItem::Type::Audio && isAudioMeta(_meta))
             ||(type_ == MediaItem::Type::Video && isVideoMeta(_meta))
             ||(type_ == MediaItem::Type::Image && isImageMeta(_meta))) {
@@ -502,6 +485,7 @@ bool MediaItem::isAudioMeta(Meta meta){
         case MediaItem::Meta::BitPerSample:
         case MediaItem::Meta::Channels:
         case MediaItem::Meta::BitRate:
+        case MediaItem::Meta::AudioCodec:
         case MediaItem::Meta::Lyric:
         case MediaItem::Meta::DateOfCreation:
             return true;

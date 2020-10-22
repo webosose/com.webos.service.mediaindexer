@@ -294,12 +294,12 @@ private:
      */
     static bool onRequestMediaScan(LSHandle *lsHandle, LSMessage *msg, void *ctx);
 
-    static bool callbackSubscriptionCancel(LSHandle *lshandle, LSMessage *msg, 
+    static bool callbackSubscriptionCancel(LSHandle *lshandle, LSMessage *msg,
                                            void *ctx);
 
-    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr);
-    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
-    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
+    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
+    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 
     bool requestDelete(const std::string &uri, LSMessage *msg = nullptr);
 

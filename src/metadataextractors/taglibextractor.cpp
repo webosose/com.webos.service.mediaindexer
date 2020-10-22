@@ -111,7 +111,7 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
 }
 
 
-bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
+bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
 {
     std::string uri(mediaItem.path());
 
@@ -133,13 +133,14 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
             return true;
         }
         LOG_DEBUG("Setting Meta data for Mp3");
-        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Title);
-        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Genre);
-        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Album);
-        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Artist);
-        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Duration);
-        setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Thumbnail);
-        if (expand) {
+        if (!extra) {
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Title);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Genre);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Album);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Artist);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Duration);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Thumbnail);
+        } else {
             setMetaMp3(mediaItem, tag, f, MediaItem::Meta::DateOfCreation);
             setMetaMp3(mediaItem, tag, f, MediaItem::Meta::AlbumArtist);
             setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Track);
@@ -147,6 +148,7 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
             setMetaMp3(mediaItem, tag, f, MediaItem::Meta::SampleRate);
             setMetaMp3(mediaItem, tag, f, MediaItem::Meta::BitRate);
             setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Channels);
+            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::AudioCodec);
         }
         LOG_DEBUG("Setting Meta data for Mp3 Done");
     }
@@ -159,12 +161,13 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
             return true;
         }
         LOG_DEBUG("Setting Meta data for Ogg");
-        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Title);
-        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Genre);
-        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Album);
-        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Artist);
-        setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Duration);
-        if (expand) {
+        if (!extra) {
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Title);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Genre);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Album);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Artist);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Duration);
+        } else {
             setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::DateOfCreation);
             setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::AlbumArtist);
             setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Track);
@@ -172,6 +175,7 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
             setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::SampleRate);
             setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::BitRate);
             setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Channels);
+            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::AudioCodec);
         }
         LOG_DEBUG("Setting Meta data for Ogg Done");
     }
@@ -228,6 +232,9 @@ void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag,
             break;
         case MediaItem::Meta::Channels:
             data = {file.audioProperties()->channels()};
+            break;
+        case MediaItem::Meta::AudioCodec:
+            data = {"MPEG-1 Layer 3 (MP3)"};
             break;
         case MediaItem::Meta::Thumbnail:
         {
@@ -305,6 +312,9 @@ void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment 
             break;
         case MediaItem::Meta::Channels:
             data = {file.audioProperties()->channels()};
+            break;
+        case MediaItem::Meta::AudioCodec:
+            data = {"Vorbis"};
             break;
         case MediaItem::Meta::Thumbnail:
         default:
