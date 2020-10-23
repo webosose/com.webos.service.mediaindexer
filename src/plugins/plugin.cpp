@@ -284,71 +284,25 @@ void Plugin::scan(const std::string &uri)
                 continue;
 
             std::string path = file.path();
+            std::string mimeType;
             if (isHiddenfolder(path))
                 continue;
-
-            // get the file content type to decide if it can become a media
-            // item
-            std::string mimeType;
-            gchar *contentType = NULL;
-            gboolean uncertain;
-            bool mimeTypeSupported = false;
-            bool extTypeSupported = false;
-            contentType = g_content_type_guess(file.path().c_str(), NULL, 0,
-                &uncertain);
-
-            LOG_DEBUG("contentType : %s", contentType);
-
-            if (!contentType) {
-                LOG_INFO(0, "MIME type detection is failed for '%s'",
-                    file.path().c_str());
-                continue;
-            }
-            mimeType = contentType;
-            g_free(contentType);
-            std::string ext = path.substr(path.find_last_of('.') + 1);
-            extTypeSupported = MediaItem::extTypeSupported(ext);
-            if (!extTypeSupported) {
-                LOG_DEBUG("skip file scanning for %s", path.c_str());
-                continue;
-            }
-            mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
-            if (!mimeTypeSupported) {
-                // get the file extension for the ts or ps.
-                LOG_DEBUG("scan ext '%s'", ext.c_str());
-
-                //TODO: switch case
-                if (!ext.compare("ts"))
-                    mimeType = std::string("video/MP2T");
-                else if (!ext.compare("ps"))
-                    mimeType = std::string("video/MP2P");
-                else if (!ext.compare("asf"))
-                    mimeType = std::string("video/x-asf");
-                else {
-                    LOG_INFO(0, "it's NOT ts/ps/asf. need to check for '%s'", file.path().c_str());
-                    continue;
-                }
-                // again check the mimtType supported or not.
-                mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
-            }
-
-            if (uncertain && !mimeTypeSupported) {
-                LOG_INFO(0, "Invalid MIME type for '%s'", path.c_str());
-                continue;
-            }
 
             if (!dev->isValidFile(path)) {
                 LOG_WARNING(0, "file path : %s is already scanned before or path is invalid", path.c_str());
                 continue;
             }
 
-            if (mimeTypeSupported) {
+            if (MediaItem::mediaItemSupported(path, mimeType)) {
                 auto lastWrite = file.last_write_time();
                 auto fileSize = file.file_size();
                 auto hash = lastWrite.time_since_epoch().count();
                 MediaItemPtr mi(new MediaItem(dev,
-                        file.path(), mimeType, hash, fileSize));
+                        path, mimeType, hash, fileSize));
                 obs->newMediaItem(std::move(mi));
+            } else {
+                LOG_WARNING(0, "mediaItem : %s is not supported", path.c_str());
+                continue;
             }
         }
     } catch (const std::exception &ex) {

@@ -139,6 +139,14 @@ public:
     static bool extTypeSupported(const std::string &ext);
 
     /**
+     * \brief Check if given media item is supported.
+     *
+     * \param[in] ext extension type string.
+     * \return True if supported, else false.
+     */
+    static bool mediaItemSupported(const std::string &path, std::string &mimeType);
+
+    /**
      * \brief Get media type from mime type.
      *
      * \param[in] mime MIME type string.

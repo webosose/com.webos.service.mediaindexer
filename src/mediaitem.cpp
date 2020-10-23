@@ -103,6 +103,57 @@ bool MediaItem::extTypeSupported(const std::string &ext)
     return true;
 }
 
+bool MediaItem::mediaItemSupported(const std::string &path, std::string &mimeType)
+{
+
+    gchar *contentType = NULL;
+    gboolean uncertain;
+    bool _mimeTypeSupported = false;
+    contentType = g_content_type_guess(path.c_str(), NULL, 0,
+        &uncertain);
+
+    LOG_DEBUG("contentType : %s", contentType);
+
+    if (!contentType) {
+        LOG_INFO(0, "MIME type detection is failed for '%s'",
+            path.c_str());
+        return false;
+    }
+    mimeType = contentType;
+    g_free(contentType);
+    std::string ext = path.substr(path.find_last_of('.') + 1);
+    if (!extTypeSupported(ext)) {
+        LOG_DEBUG("skip file scanning for %s", path.c_str());
+        return false;
+    }
+    _mimeTypeSupported = mimeTypeSupported(mimeType);
+    if (!_mimeTypeSupported) {
+        // get the file extension for the ts or ps.
+        LOG_DEBUG("scan ext '%s'", ext.c_str());
+
+        //TODO: switch case
+        if (!ext.compare("ts"))
+            mimeType = std::string("video/MP2T");
+        else if (!ext.compare("ps"))
+            mimeType = std::string("video/MP2P");
+        else if (!ext.compare("asf"))
+            mimeType = std::string("video/x-asf");
+        else {
+            LOG_INFO(0, "it's NOT ts/ps/asf. need to check for '%s'", path.c_str());
+            return false;
+        }
+        // again check the mimtType supported or not.
+        _mimeTypeSupported = mimeTypeSupported(mimeType);
+    }
+
+    if (uncertain && !_mimeTypeSupported) {
+        LOG_INFO(0, "Invalid MIME type for '%s'", path.c_str());
+        return false;
+    }
+    return true;
+}
+
+
 MediaItem::Type MediaItem::typeFromMime(const std::string &mime)
 {
     for (auto type = MediaItem::Type::Audio;
@@ -308,8 +359,9 @@ MediaItem::MediaItem(const std::string &uri) :
         LOG_DEBUG("path_ : %s",path_.c_str());
         ext_ = path_.substr(path_.find_last_of('.') + 1);
         auto fpath = std::filesystem::path(path_);
-        gboolean uncertain;
-        mime_ = g_content_type_guess(path_.c_str(), NULL, 0, &uncertain);
+        if (!mediaItemSupported(path_, mime_)) {
+            LOG_ERROR(0, "Extension(%s) and Mime(%s) is not supported", ext_.c_str(), mime_.c_str());
+        }
         filesize_ = std::filesystem::file_size(fpath);
         hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
 
