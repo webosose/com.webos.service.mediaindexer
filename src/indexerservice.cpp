@@ -942,7 +942,7 @@ bool IndexerService::requestMediaScan(LSMessage *msg)
     for (auto const &[uri, plg] : indexer_->plugins_) {
         plg->lock();
         for (auto const &[uri, dev] : plg->devices()) {
-            if (plg->matchUri(dev->mountpoint(), path)) {
+            if ((dev->available()) && (plg->matchUri(dev->mountpoint(), path))) {
                 LOG_INFO(0, "Media Scan start for device %s", dev->uri().c_str());
                 dev->scan();
                 scanned = true;
