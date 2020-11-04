@@ -50,10 +50,9 @@ endif ()
 # a list of local storage pathes to observe, the list has the format
 # <path>,<name>,<desc>;...
 if (NOT STORAGE_DEVS)
-  add_definitions(-DSTORAGE_DEVS="/media/multimedia,Media,Local Media Storage")
-else ()
-  add_definitions(-DSTORAGE_DEVS="${STORAGE_DEVS}")
+  set(STORAGE_DEVS /media/multimedia)
 endif ()
+add_definitions(-DSTORAGE_DEVS="${STORAGE_DEVS},Media,Local Media Storage")
 
 # gio
 pkg_check_modules(GIO2 REQUIRED gio-2.0)
