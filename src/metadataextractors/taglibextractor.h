@@ -31,7 +31,8 @@
 #define TAGLIB_EXT_OGG "ogg"
 #define TAGLIB_BASE_DIRECTORY THUMBNAIL_DIRECTORY
 #define TAGLIB_FILE_NAME_SIZE 16
-
+namespace TagLib { class File; }
+namespace TagLib { class Tag; }
 namespace TagLib { namespace ID3v2 { class Tag; } }
 namespace TagLib { namespace MPEG { class File; } }
 namespace TagLib { namespace MPEG { class Properties; } }
@@ -50,6 +51,13 @@ class TaglibExtractor : public IMetaDataExtractor
     TaglibExtractor();
     virtual ~TaglibExtractor();
 
+    enum FileTypes {
+        NotDefined = 0x0000,
+        Mp3 = 0x0001,
+        Ogg = 0x0002,
+        AllTypes = 0xffff
+    };
+
     /// From interface.
     bool extractMeta(MediaItem &mediaItem, bool extra = false) const;
 
@@ -64,10 +72,16 @@ class TaglibExtractor : public IMetaDataExtractor
     std::string saveAttachedImage(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag, const std::string &fname) const;
 
     /// Set media item media per media type(for mp3 file format).
-    void setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag, TagLib::MPEG::File &file,
+    void setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag, TagLib::MPEG::File *file,
         MediaItem::Meta flag) const;
 
     /// Set media item media per media type(for ogg file format).
-    void setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag, TagLib::Ogg::File &file,
+    void setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag, TagLib::Ogg::File *file,
         MediaItem::Meta flag) const;
+
+    /// Extract meta data based on file information
+    bool setMetaFromFile(MediaItem &mediaItem, TagLib::File *file, FileTypes types, bool extra) const;
+
+    /// Extract meta data based on ID3 tag information
+    bool setMetaFromTag(MediaItem &mediaItem, TagLib::Tag *tag, FileTypes types, bool extra) const;
 };

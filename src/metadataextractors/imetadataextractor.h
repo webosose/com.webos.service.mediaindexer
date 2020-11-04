@@ -17,6 +17,7 @@
 #pragma once
 
 #include "mediaitem.h"
+#include "device.h"
 #include "jsonparser/jsonparser.h"
 
 #include <memory>

@@ -17,6 +17,7 @@
 #include "device.h"
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
+#include <filesystem>
 
 // Not part of Device class, this is defined at the bottom of device.h
 Device::Meta &operator++(Device::Meta &meta)
@@ -83,6 +84,9 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
 {
     lastSeen_ = std::chrono::system_clock::now();
     LOG_DEBUG("Device Ctor, URI : %s UUID : %s, object : %p", uri_.c_str(), uuid_.c_str(), this);
+    if (!createThumbnailDirectory()) {
+        LOG_ERROR(0, "Failed to create corresponding thumbnail directory for device UUID %s", uuid_.c_str());
+    }
     task_ = std::thread(&Device::scanLoop, this);
     task_.detach();
 
@@ -397,6 +401,26 @@ int Device::mediaItemCount(MediaItem::Type type)
         return 0;
     else
         return mediaItemCount_[type];
+}
+
+bool Device::createThumbnailDirectory()
+{
+    bool ret = true;
+    std::error_code err;
+    std::string thumbnailDir = THUMBNAIL_DIRECTORY + uuid_;
+    if (!std::filesystem::is_directory(thumbnailDir))
+    {
+        if (!std::filesystem::create_directory(thumbnailDir, err))
+        {
+            LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
+            LOG_DEBUG("Retry with create_directories");
+            if (!std::filesystem::create_directories(thumbnailDir, err)) {
+                LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+                ret = false;
+            }
+        }
+    }
+    return ret;
 }
 
 bool Device::checkAlive()

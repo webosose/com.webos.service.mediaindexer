@@ -211,7 +211,7 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
                 static_cast<LSMessage*>(object));
 
         if (!ret) {
-            LOG_ERROR(0, "Notification error!");
+            LOG_ERROR(0, "Notification error in GetAudioList!");
             break;
         }
 
@@ -222,6 +222,9 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
             dbQuery.put("page", page);
 
             ret = search(dbQuery, dbMethod, object);
+            if (!ret) {
+                LOG_ERROR(0, "Search error!");
+            }
         }
         break;
     }
@@ -238,7 +241,7 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
                 static_cast<LSMessage*>(object));
 
         if (!ret) {
-            LOG_ERROR(0, "Notification error!");
+            LOG_ERROR(0, "Notification error in GetVideoList!");
             break;
         }
 
@@ -249,6 +252,9 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
             dbQuery.put("page", page);
 
             ret = search(dbQuery, dbMethod, object);
+            if (!ret) {
+                LOG_ERROR(0, "Search error!");
+            }
         }
         break;
     }
@@ -265,7 +271,7 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
                 static_cast<LSMessage*>(object));
 
         if (!ret) {
-            LOG_ERROR(0, "Notification error!");
+            LOG_ERROR(0, "Notification error in GetImageList!");
             break;
         }
 
@@ -276,6 +282,9 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
             dbQuery.put("page", page);
 
             ret = search(dbQuery, dbMethod, object);
+            if (!ret) {
+                LOG_ERROR(0, "Search error!");
+            }
         }
         break;
     }
@@ -303,14 +312,17 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
         ret = indexer->sendMediaMetaDataNotification(dbMethod, response.stringify(),
                 static_cast<LSMessage*>(object));
         if (!ret) {
-            LOG_ERROR(0, "Notification error!");
+            LOG_ERROR(0, "Notification error in extra meta data extraction!");
         }
         break;
     }
     case MediaDbMethod::RequestDelete: {
         MediaIndexer *indexer = MediaIndexer::instance();
-        indexer->sendMediaMetaDataNotification(dbMethod, domTree.stringify(),
+        ret = indexer->sendMediaMetaDataNotification(dbMethod, domTree.stringify(),
                 static_cast<LSMessage*>(object));
+        if (!ret) {
+            LOG_ERROR(0, "Notification error in RequestDelete!");
+        }
         break;
     }
     case MediaDbMethod::RemoveDirty: {

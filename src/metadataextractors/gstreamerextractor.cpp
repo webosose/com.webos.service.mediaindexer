@@ -395,17 +395,13 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
         buffer = gst_sample_get_buffer (sample);
         gst_buffer_map (buffer, &map, GST_MAP_READ);
 
-        std::error_code err;
-        std::string thumbnailDir = THUMBNAIL_DIRECTORY + mediaItem.uuid();
-        if (!std::filesystem::is_directory(thumbnailDir))
-        {
-            if (!std::filesystem::create_directory(thumbnailDir, err))
-            {
-                LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
-                LOG_DEBUG("Retry with create_directories");
-                if (!std::filesystem::create_directories(thumbnailDir, err))
-                    LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+        auto device = mediaItem.device();
+        if (device.get()) {
+            if (!device->createThumbnailDirectory()) {
+                LOG_ERROR(0, "Failed to create Thumbnail directory for UUID %s", mediaItem.uuid().c_str());
             }
+        } else {
+            LOG_ERROR(0, "Invalid device for creating thumbnail directory for UUID %s", mediaItem.uuid().c_str());
         }
 
         if (!saveBufferToImage(map.data, width, height, filename, ext))

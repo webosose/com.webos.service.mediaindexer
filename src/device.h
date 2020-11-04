@@ -252,6 +252,13 @@ public:
     virtual int mediaItemCount(MediaItem::Type type);
 
     /**
+     * \brief Create directory dedicated to the device for thumbnails.
+     *
+     * \return creation success or failure.
+     */
+    virtual bool createThumbnailDirectory();
+
+    /**
      * \brief Thread loop for file scanning.
      *
      */

@@ -52,7 +52,7 @@ std::string TaglibExtractor::getTextFrame(TagLib::ID3v2::Tag *tag,  const TagLib
 {
     std::string ret;
     if (!tag) {
-        LOG_ERROR(0, "tag is invalid");
+        LOG_WARNING(0, "tag is empty");
         return "";
     }
     if (!tag->frameListMap()[flag].isEmpty())
@@ -81,17 +81,13 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
         else if (frame->mimeType().find(TAGLIB_EXT_PNG))
             ext = TAGLIB_EXT_PNG;
 
-        std::error_code err;
-        std::string thumbnailDir = TAGLIB_BASE_DIRECTORY + mediaItem.uuid();
-        if (!std::filesystem::is_directory(thumbnailDir))
-        {
-            if (!std::filesystem::create_directory(thumbnailDir, err))
-            {
-                LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
-                LOG_DEBUG("Retry with create_directories");
-                if (!std::filesystem::create_directories(thumbnailDir, err))
-                    LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+        auto device = mediaItem.device();
+        if (device.get()) {
+            if (!device->createThumbnailDirectory()) {
+                LOG_ERROR(0, "Failed to create Thumbnail directory for UUID %s", mediaItem.uuid().c_str());
             }
+        } else {
+            LOG_ERROR(0, "Invalid device for creating thumbnail directory for UUID %s", mediaItem.uuid().c_str());
         }
 
         of = TAGLIB_BASE_DIRECTORY + mediaItem.uuid() + "/" + fname + "." + ext;
@@ -123,60 +119,32 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
     LOG_DEBUG("Extract meta data from '%s' (%s) with TagLib",
         uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
 
+    setMetaCommon(mediaItem);
     if (uri.rfind(TAGLIB_EXT_MP3) != std::string::npos)
     {
         TagLib::MPEG::File f(uri.c_str());
         ID3v2::Tag *tag = f.ID3v2Tag();
+        LOG_DEBUG("Setting Meta data for Mp3");
+        setMetaFromFile(mediaItem, &f, Mp3, extra);
         if (!tag || tag->isEmpty())
         {
             LOG_DEBUG("tag for %s is empty", uri.c_str());
             return true;
         }
-        LOG_DEBUG("Setting Meta data for Mp3");
-        if (!extra) {
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Title);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Genre);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Album);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Artist);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Duration);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Thumbnail);
-        } else {
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::DateOfCreation);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::AlbumArtist);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Track);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Year);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::SampleRate);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::BitRate);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::Channels);
-            setMetaMp3(mediaItem, tag, f, MediaItem::Meta::AudioCodec);
-        }
+        setMetaFromTag(mediaItem, tag, Mp3, extra);
         LOG_DEBUG("Setting Meta data for Mp3 Done");
     }
     else if (uri.rfind(TAGLIB_EXT_OGG) != std::string::npos)
     {
         TagLib::Vorbis::File oggf(uri.c_str());
         Ogg::XiphComment *tag = oggf.tag();
+        LOG_DEBUG("Setting Meta data for Ogg");
+        setMetaFromFile(mediaItem, &oggf, Ogg, extra);
         if (!tag || tag->isEmpty()) {
             LOG_DEBUG("tag for %s is empty", uri.c_str());
             return true;
         }
-        LOG_DEBUG("Setting Meta data for Ogg");
-        if (!extra) {
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Title);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Genre);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Album);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Artist);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Duration);
-        } else {
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::DateOfCreation);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::AlbumArtist);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Track);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Year);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::SampleRate);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::BitRate);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::Channels);
-            setMetaOgg(mediaItem, tag, oggf, MediaItem::Meta::AudioCodec);
-        }
+        setMetaFromTag(mediaItem, tag, Ogg, extra);
         LOG_DEBUG("Setting Meta data for Ogg Done");
     }
     else
@@ -184,75 +152,165 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
         LOG_ERROR(0, "invalid file, file extension is not .mp3");
         return false;
     }
-
-    setMetaCommon(mediaItem);
     return true;
 }
 
-void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag,
-         TagLib::MPEG::File &file, MediaItem::Meta flag) const
-
+bool TaglibExtractor::setMetaFromFile(MediaItem &mediaItem, TagLib::File *file, FileTypes types, bool extra) const
 {
-    MediaItem::MetaData data;
-
-    switch(flag)
+    switch(types)
     {
-        case MediaItem::Meta::Title:
-            data = {getTextFrame(tag, "TIT2")};
-            break;
-        case MediaItem::Meta::DateOfCreation:
-            data = {getTextFrame(tag, "TDRC")};
-            break;
-        case MediaItem::Meta::Genre:
-            data = {getTextFrame(tag, "TCON")};
-            break;
-        case MediaItem::Meta::Album:
-            data = {getTextFrame(tag, "TALB")};
-            break;
-        case MediaItem::Meta::Artist:
-            data = {getTextFrame(tag, "TPE1")};
-            break;
-        case MediaItem::Meta::AlbumArtist:
-            data = {getTextFrame(tag, "TPE2")};
-            break;
-        case MediaItem::Meta::Year:
-            data = {static_cast<std::int32_t>(tag->year())};
-            break;
-        case MediaItem::Meta::Track:
-            data = {getTextFrame(tag, "TPOS")};
-            break;
-        case MediaItem::Meta::Duration:
-            data = {file.audioProperties()->lengthInSeconds()};
-            break;
-        case MediaItem::Meta::SampleRate:
-            data = {file.audioProperties()->sampleRate()};
-            break;
-        case MediaItem::Meta::BitRate:
-            data = {file.audioProperties()->bitrate()};
-            break;
-        case MediaItem::Meta::Channels:
-            data = {file.audioProperties()->channels()};
-            break;
-        case MediaItem::Meta::AudioCodec:
-            data = {"MPEG-1 Layer 3 (MP3)"};
-            break;
-        case MediaItem::Meta::Thumbnail:
+        case Mp3:
         {
-            std::string baseName = randFilename();//baseFilename(mediaItem, true);//
-            std::string outImagePath = saveAttachedImage(mediaItem, tag, baseName);
-            if (outImagePath.empty())
-            {
-                LOG_ERROR(0, "Extracting Image from %s is failed", baseName.c_str());
+            TagLib::MPEG::File *f = reinterpret_cast<TagLib::MPEG::File *>(file);
+            if (!extra) {
+                setMetaMp3(mediaItem, nullptr, f, MediaItem::Meta::Duration);
+            } else {
+                setMetaMp3(mediaItem, nullptr, f, MediaItem::Meta::SampleRate);
+                setMetaMp3(mediaItem, nullptr, f, MediaItem::Meta::BitRate);
+                setMetaMp3(mediaItem, nullptr, f, MediaItem::Meta::Channels);
+                setMetaMp3(mediaItem, nullptr, f, MediaItem::Meta::AudioCodec);
             }
-            else
-            {
-                LOG_DEBUG("Extracted Image has been saved in %s", outImagePath.c_str());
-                data = {outImagePath};
+            break;
+        }
+        case Ogg:
+        {
+            TagLib::Vorbis::File *f = reinterpret_cast<TagLib::Vorbis::File *>(file);
+            if (!extra) {
+                setMetaOgg(mediaItem, nullptr, f, MediaItem::Meta::Duration);
+            } else {
+                setMetaOgg(mediaItem, nullptr, f, MediaItem::Meta::SampleRate);
+                setMetaOgg(mediaItem, nullptr, f, MediaItem::Meta::BitRate);
+                setMetaOgg(mediaItem, nullptr, f, MediaItem::Meta::Channels);
+                setMetaOgg(mediaItem, nullptr, f, MediaItem::Meta::AudioCodec);
             }
             break;
         }
         default:
             break;
+    }
+    return true;
+}
+
+bool TaglibExtractor::setMetaFromTag(MediaItem &mediaItem, TagLib::Tag *tag, FileTypes types, bool extra) const
+{
+    switch(types)
+    {
+        case Mp3:
+        {
+            ID3v2::Tag *t = reinterpret_cast<ID3v2::Tag *>(tag);
+            if (!extra) {
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::Title);
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::Genre);
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::Album);
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::Artist);
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::Thumbnail);
+            } else {
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::DateOfCreation);
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::AlbumArtist);
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::Track);
+                setMetaMp3(mediaItem, t, nullptr, MediaItem::Meta::Year);
+            }
+            break;
+        }
+        case Ogg:
+        {
+            Ogg::XiphComment *t = reinterpret_cast<Ogg::XiphComment *>(tag);
+            if (!extra) {
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::Title);
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::Genre);
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::Album);
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::Artist);
+            } else {
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::DateOfCreation);
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::AlbumArtist);
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::Track);
+                setMetaOgg(mediaItem, t, nullptr, MediaItem::Meta::Year);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    return true;
+
+}
+
+void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag,
+         TagLib::MPEG::File *file, MediaItem::Meta flag) const
+
+{
+    MediaItem::MetaData data;
+
+    if (tag) {
+        switch(flag)
+        {
+            case MediaItem::Meta::Title:
+                data = {getTextFrame(tag, "TIT2")};
+                break;
+            case MediaItem::Meta::DateOfCreation:
+                data = {getTextFrame(tag, "TDRC")};
+                break;
+            case MediaItem::Meta::Genre:
+                data = {getTextFrame(tag, "TCON")};
+                break;
+            case MediaItem::Meta::Album:
+                data = {getTextFrame(tag, "TALB")};
+                break;
+            case MediaItem::Meta::Artist:
+                data = {getTextFrame(tag, "TPE1")};
+                break;
+            case MediaItem::Meta::AlbumArtist:
+                data = {getTextFrame(tag, "TPE2")};
+                break;
+            case MediaItem::Meta::Year:
+                data = {static_cast<std::int32_t>(tag->year())};
+                break;
+            case MediaItem::Meta::Track:
+                data = {getTextFrame(tag, "TPOS")};
+                break;
+            case MediaItem::Meta::Thumbnail:
+            {
+                if (tag) {
+                    std::string baseName = randFilename();//baseFilename(mediaItem, true);//
+                    std::string outImagePath = saveAttachedImage(mediaItem, tag, baseName);
+                    if (outImagePath.empty())
+                    {
+                        LOG_ERROR(0, "Extracting Image from %s is failed", baseName.c_str());
+                    }
+                    else
+                    {
+                        LOG_DEBUG("Extracted Image has been saved in %s", outImagePath.c_str());
+                        data = {outImagePath};
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    if (file) {
+        switch(flag)
+        {
+            case MediaItem::Meta::Duration:
+                data = {file->audioProperties()->lengthInSeconds()};
+                break;
+            case MediaItem::Meta::SampleRate:
+                data = {file->audioProperties()->sampleRate()};
+                break;
+            case MediaItem::Meta::BitRate:
+                data = {file->audioProperties()->bitrate()};
+                break;
+            case MediaItem::Meta::Channels:
+                data = {file->audioProperties()->channels()};
+                break;
+            case MediaItem::Meta::AudioCodec:
+                data = {"MPEG-1 Layer 3 (MP3)"};
+                break;
+            default:
+                break;
+        }
     }
 
     LOG_DEBUG("Found tag for '%s'", MediaItem::metaToString(flag).c_str());
@@ -260,67 +318,77 @@ void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag,
 }
 
 void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag,
-    TagLib::Ogg::File &file, MediaItem::Meta flag) const
+    TagLib::Ogg::File *file, MediaItem::Meta flag) const
 {
     MediaItem::MetaData data;
-    Ogg::FieldListMap fieldListMap = tag->fieldListMap();
 
-    switch(flag)
-    {
-        case MediaItem::Meta::Title:
+    if (tag) {
+        Ogg::FieldListMap fieldListMap = tag->fieldListMap();
+        switch(flag)
+        {
+            case MediaItem::Meta::Title:
             if (tag->contains("TITLE"))
                 data = {fieldListMap["TITLE"].toString().toCString(true)};
             break;
-        case MediaItem::Meta::DateOfCreation:
-            if (tag->contains("DATE"))
-                data = {fieldListMap["DATE"].toString().toCString(true)};
-            break;
-        case MediaItem::Meta::Genre:
-            if (tag->contains("GENRE"))
-                data = {fieldListMap["GENRE"].toString().toCString(true)};
-            break;
-        case MediaItem::Meta::Album:
-            if (tag->contains("ALBUM"))
-                data = {fieldListMap["ALBUM"].toString().toCString(true)};
-            break;
-        case MediaItem::Meta::Artist:
-            if (tag->contains("ARTIST"))
-                data = {fieldListMap["ARTIST"].toString().toCString(true)};
-            break;
-        case MediaItem::Meta::AlbumArtist:
-            if (tag->contains("PERFORMER"))
-                data = {fieldListMap["PERFORMER"].toString().toCString(true)};
-            break;
-        case MediaItem::Meta::Year:
-            if (tag->contains("YEAR"))
-                data = {fieldListMap["YEAR"].toString().toCString(true)};
-            break;
-        case MediaItem::Meta::Track:
-            if (!fieldListMap["TRACKNUMBER"].isEmpty())
-                data = {fieldListMap["TRACKNUMBER"].toString().toCString(true)};
-            else if (!fieldListMap["TRACKNUM"].isEmpty())
-                data = {fieldListMap["TRACKNUM"].toString().toCString(true)};
-            break;
-        case MediaItem::Meta::Duration:
-            data = {file.audioProperties()->lengthInSeconds()};
-            break;
-        case MediaItem::Meta::SampleRate:
-            data = {file.audioProperties()->sampleRate()};
-            break;
-        case MediaItem::Meta::BitRate:
-            data = {file.audioProperties()->bitrate()};
-            break;
-        case MediaItem::Meta::Channels:
-            data = {file.audioProperties()->channels()};
-            break;
-        case MediaItem::Meta::AudioCodec:
-            data = {"Vorbis"};
-            break;
-        case MediaItem::Meta::Thumbnail:
-        default:
-            break;
+            case MediaItem::Meta::DateOfCreation:
+                if (tag->contains("DATE"))
+                    data = {fieldListMap["DATE"].toString().toCString(true)};
+                break;
+            case MediaItem::Meta::Genre:
+                if (tag->contains("GENRE"))
+                    data = {fieldListMap["GENRE"].toString().toCString(true)};
+                break;
+            case MediaItem::Meta::Album:
+                if (tag->contains("ALBUM"))
+                    data = {fieldListMap["ALBUM"].toString().toCString(true)};
+                break;
+            case MediaItem::Meta::Artist:
+                if (tag->contains("ARTIST"))
+                    data = {fieldListMap["ARTIST"].toString().toCString(true)};
+                break;
+            case MediaItem::Meta::AlbumArtist:
+                if (tag->contains("PERFORMER"))
+                    data = {fieldListMap["PERFORMER"].toString().toCString(true)};
+                break;
+            case MediaItem::Meta::Year:
+                if (tag->contains("YEAR"))
+                    data = {fieldListMap["YEAR"].toString().toCString(true)};
+                break;
+            case MediaItem::Meta::Track:
+                if (!fieldListMap["TRACKNUMBER"].isEmpty())
+                    data = {fieldListMap["TRACKNUMBER"].toString().toCString(true)};
+                else if (!fieldListMap["TRACKNUM"].isEmpty())
+                    data = {fieldListMap["TRACKNUM"].toString().toCString(true)};
+                break;
+            case MediaItem::Meta::Thumbnail:
+            default:
+                break;
+        }
     }
 
+    if (file) {
+        switch(flag)
+        {
+            case MediaItem::Meta::Duration:
+                data = {file->audioProperties()->lengthInSeconds()};
+                break;
+            case MediaItem::Meta::SampleRate:
+                data = {file->audioProperties()->sampleRate()};
+                break;
+            case MediaItem::Meta::BitRate:
+                data = {file->audioProperties()->bitrate()};
+                break;
+            case MediaItem::Meta::Channels:
+                data = {file->audioProperties()->channels()};
+                break;
+            case MediaItem::Meta::AudioCodec:
+                data = {"Vorbis"};
+                break;
+            case MediaItem::Meta::Thumbnail:
+            default:
+                break;
+        }
+    }
 
     LOG_DEBUG("Found tag for '%s'", MediaItem::metaToString(flag).c_str());
     mediaItem.setMeta(flag, data);
