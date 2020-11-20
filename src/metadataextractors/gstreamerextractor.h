@@ -70,7 +70,7 @@ private:
                                   const std::string &filename, const std::string &ext = "jpg") const;
 
     /// Set media item media per media type.
-    void setMeta(MediaItem &mediaItem, const GstDiscovererInfo *metaInfo,
+    void setMeta(MediaItem &mediaItem, GstDiscovererInfo *metaInfo,
         const char *tag) const;
     void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool extra = false) const;
 

@@ -388,7 +388,7 @@ bool MediaItem::putExtraMetaToJson(pbnjson::JValue &meta)
         auto metaStr = metaToString(_meta);
         auto data = this->meta(_meta);
         if ((type_ == MediaItem::Type::Audio && isAudioMeta(_meta))
-            ||(type_ == MediaItem::Type::Video && isVideoMeta(_meta))
+            ||(type_ == MediaItem::Type::Video && (isVideoMeta(_meta) || isAudioMeta(_meta)))
             ||(type_ == MediaItem::Type::Image && isImageMeta(_meta))) {
             if (!putProperties(metaStr, data, meta)) {
                 LOG_ERROR(0, "Failed to meta data to json object, type : %s", metaStr.c_str());

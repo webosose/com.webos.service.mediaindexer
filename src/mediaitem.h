@@ -308,6 +308,13 @@ public:
     void setParsed(bool value) { parsed_ = value; }
 
     /**
+     * \brief Set media item type.
+     * \param[in] type The value to indicate media item type.
+     *
+     */
+    void setType(MediaItem::Type type) { type_ = type; }
+
+    /**
      * \brief Check if media item has been parsed.
      *
      * \return True if parsed, else false.
