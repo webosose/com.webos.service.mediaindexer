@@ -20,6 +20,10 @@
 #include "mediaitem.h"
 #include "task.h"
 
+#if PERFCHECK_ENABLE
+#include "performancechecker.h"    
+#endif
+
 #include <string>
 #include <chrono>
 #include <map>

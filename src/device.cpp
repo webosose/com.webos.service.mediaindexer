@@ -246,9 +246,16 @@ void Device::scanLoop()
             LOG_ERROR(0, "plugin for %s is not invalid",uri.c_str());
             break;
         }
+#if PERFCHECK_ENABLE
+        std::string perfuri = "SCAN-" + uuid();
+        PERF_START(perfuri.c_str());
+#endif        
         setState(Device::State::Scanning);
         plg->scan(uri);
         setState(Device::State::Idle);
+#if PERFCHECK_ENABLE
+        PERF_END(perfuri.c_str());
+#endif
         if (processingDone())
             activateCleanUpTask();
         queue_.pop_front();
@@ -272,6 +279,9 @@ bool Device::scan(IMediaItemObserver *observer)
     }
 
     LOG_INFO(0, "Plugin will scan '%s' for us", uri_.c_str());
+#if PERFCHECK_ENABLE
+    PERF_START("TOTAL");
+#endif
     resetMediaItemCount();
     queue_.push_back(uri_);
     cv_.notify_one();
@@ -340,6 +350,10 @@ bool Device::processingDone()
             auto obs = observer();
             if (obs)
                 obs->notifyDeviceScanned(this);
+#if PERFCHECK_ENABLE
+        PERF_END("TOTAL");
+        LOG_PERF("Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
+#endif
             return true;
         }
     }

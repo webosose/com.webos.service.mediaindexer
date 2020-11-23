@@ -113,6 +113,9 @@ PmLogContext getPmLogContext();
     } while (0);
 #endif
 
+#define LOG_PERF(fmt, ...)                                    \
+    PmLogCritical(logContext, "[PERF]", 0, "<%d> %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+
 /// Log critical message.
 #define LOG_CRITICAL(kvcount, fmt, ...)                       \
     PmLogCritical(logContext, __msgId(), kvcount,  "<%d> %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
