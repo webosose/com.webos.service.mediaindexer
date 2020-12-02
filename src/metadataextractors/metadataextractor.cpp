@@ -35,19 +35,19 @@
 #include <unistd.h>
 
 
-std::unique_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
+std::shared_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
     MediaItem::Type type, std::string &ext) {
 #if defined HAS_TAGLIB
     if (type == MediaItem::Type::Audio &&
         (ext.compare(TAGLIB_EXT_MP3) == 0 ||
          ext.compare(TAGLIB_EXT_OGG) == 0)) {
-        std::unique_ptr<IMetaDataExtractor>
+        std::shared_ptr<IMetaDataExtractor>
             extractor(static_cast<IMetaDataExtractor *>(new TaglibExtractor()));
         return extractor;
     }
 #endif
 #if defined HAS_GSTREAMER
-    std::unique_ptr<IMetaDataExtractor>
+    std::shared_ptr<IMetaDataExtractor>
         extractor(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
     return extractor;
 #endif

@@ -19,6 +19,7 @@
 #include "imetadataextractor.h"
 
 #if defined HAS_GSTREAMER
+#include <gst/gst.h>
 #include <gst/pbutils/gstdiscoverer.h>
 #include <gst/pbutils/pbutils.h>
 #include <gst/audio/audio.h>
@@ -75,7 +76,9 @@ private:
     void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool extra = false) const;
 
     static std::map<std::string, MediaItem::Meta> metaMap_;
+    bool supportedCodec_;
     mutable std::mutex mutex_;
+    mutable GstElement *thumbPipeline_ = nullptr;
 };
 
 /// Useful when iterating over enum.

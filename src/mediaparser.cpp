@@ -25,7 +25,7 @@
 
 
 std::queue<std::unique_ptr<MediaParser>> MediaParser::tasks_;
-std::map<std::pair<MediaItem::Type, std::string>, std::unique_ptr<IMetaDataExtractor>> MediaParser::extractor_;
+std::map<std::pair<MediaItem::Type, std::string>, std::shared_ptr<IMetaDataExtractor>> MediaParser::extractor_;
 int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
 std::unique_ptr<MediaParser> MediaParser::instance_;
@@ -40,7 +40,7 @@ void MediaParser::enqueueTask(MediaItemPtr mediaItem)
     std::pair<MediaItem::Type, std::string> p(type, ext);
     if (extractor_.find(p) == extractor_.end()) {
         LOG_DEBUG("Extractor is added for type = %d, ext = %s", static_cast<int>(type), ext.c_str());
-        extractor_[p] = std::move(IMetaDataExtractor::extractor(type, ext));
+        extractor_[p] = IMetaDataExtractor::extractor(type, ext);
     }
 
     MediaParser* mParser = MediaParser::instance();
@@ -114,7 +114,7 @@ bool MediaParser::extractExtraMeta(pbnjson::JValue &meta)
             } else {
                 LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mediaItem_->type()).c_str(), mi->ext().c_str());
                 LOG_DEBUG("Create new extractor");
-                extractor_[p] = std::move(IMetaDataExtractor::extractor(p.first, p.second));
+                extractor_[p] = IMetaDataExtractor::extractor(p.first, p.second);
                 extractor_[p]->extractMeta(*mi, true);
                 mi->setParsed(true);
             }
@@ -162,10 +162,10 @@ void MediaParser::extractMeta(void *data, void *user_data)
             if (extractor_.find(p) == extractor_.end()) {
                 LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mip->type()).c_str(), mip->ext().c_str());
                 LOG_DEBUG("Create new extractor");
-                extractor_[p] = std::move(IMetaDataExtractor::extractor(p.first, p.second));
+                extractor_[p] = IMetaDataExtractor::extractor(p.first, p.second);
             }
             uint32_t retry = 0;
-            /* FIXME : We should replace retry with another solution that is more safe and without 
+            /* FIXME : We should replace retry with another solution that is more safe and without
                        performance degradation. This is just workaround for prevent a media file extraction is failed
                        because gstreamer discoverInfo or streamInfo object acquisition is failed
             */

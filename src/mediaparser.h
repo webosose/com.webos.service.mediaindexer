@@ -71,7 +71,7 @@ class MediaParser
     static std::mutex lock_;
     /// Meta data extrator.
     static std::map<std::pair<MediaItem::Type, std::string>,
-           std::unique_ptr<IMetaDataExtractor>> extractor_;
+           std::shared_ptr<IMetaDataExtractor>> extractor_;
     GThreadPool *pool = nullptr;
     std::mutex mediaItemLock_;
     /// The media item this media parser works on - extractMeta will
