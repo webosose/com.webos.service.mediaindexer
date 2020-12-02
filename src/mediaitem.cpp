@@ -297,6 +297,8 @@ std::string MediaItem::metaToString(MediaItem::CommonType meta)
             return std::string("mime");
         case MediaItem::CommonType::FILEPATH:
             return std::string("file_path");
+        case MediaItem::CommonType::KIND:
+            return std::string("_kind");
         case MediaItem::CommonType::EOL:
             return "";
         default:

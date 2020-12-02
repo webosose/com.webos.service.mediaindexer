@@ -55,6 +55,7 @@ public:
         TYPE, ///< Media type, possible value : audio / video / image
         MIME, ///< Mime type of media item
         FILEPATH, ///< Accessible file path
+        KIND, ///< DB kind
         EOL
     };
     /// Meta data type specifiers.

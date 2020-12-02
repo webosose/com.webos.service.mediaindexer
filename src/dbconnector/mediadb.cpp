@@ -330,10 +330,10 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
             for (auto item : results.items()) {
                 auto uri = item["uri"].asString();
                 auto thumbnail = item["thumbnail"].asString();
+                auto kind = item["_kind"].asString();
 
                 if (!uri.empty()) {
                     auto where = prepareWhere(URI, uri, true);
-                    auto kind = dbQuery["from"].asString();
                     auto query = pbnjson::Object();
                     query.put("from", kind);
                     query.put("where", where);
@@ -558,6 +558,7 @@ void MediaDb::removeDirty(Device* device)
     std::string uri = device->uri();
 
     auto selectArray = pbnjson::Array();
+    selectArray.append(MediaItem::metaToString(MediaItem::CommonType::KIND));
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
