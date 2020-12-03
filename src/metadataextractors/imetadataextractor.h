@@ -56,12 +56,6 @@ public:
     typedef std::variant<std::int64_t, std::string> Date;
 
     /**
-     * \brief Gives us the last modified date value with unformatted numeric value.
-     * \param[in] mediaItem mediaitem.
-     */
-    virtual std::int64_t lastModifiedDate(MediaItem &mediaItem) const;
-
-    /**
      * \brief Gives us the last modified date value with formatted string value.
      * \param[in] mediaItem mediaitem.
      * \param[in] localtime specifies time zone of returns, default : false
