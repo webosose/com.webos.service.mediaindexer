@@ -95,19 +95,6 @@ std::string IMetaDataExtractor::extension(MediaItem &mediaItem) const
     return ret;
 }
 
-std::int64_t IMetaDataExtractor::lastModifiedDate(MediaItem &mediaItem) const
-{
-    std::string path = mediaItem.path();
-    if (path.empty())
-    {
-        LOG_ERROR(0, "Invalid media item path");
-        return -1;
-    }
-    std::filesystem::file_time_type ftime = std::filesystem::last_write_time(path);
-    LOG_DEBUG("Return time with unformatted value %zu", ftime.time_since_epoch().count());
-    return ftime.time_since_epoch().count();
-}
-
 std::string IMetaDataExtractor::lastModifiedDate(MediaItem &mediaItem, bool localTime) const
 {
     std::string path = mediaItem.path();
