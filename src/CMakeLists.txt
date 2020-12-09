@@ -125,7 +125,10 @@ include_directories(./perf)
 
 # definitions for thumbnail directory
 add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
+
+# TODO: get these definition from bitbake recipe
 add_definitions(-DPERFCHECK_ENABLE=1)
+add_definitions(-DLOGGING_THREAD_ID)
 
 # build and link the plugins
 add_subdirectory(plugins)
