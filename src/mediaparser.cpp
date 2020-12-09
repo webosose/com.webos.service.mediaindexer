@@ -30,7 +30,6 @@ int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
 std::unique_ptr<MediaParser> MediaParser::instance_;
 std::mutex MediaParser::ctorLock_;
-constexpr int retryCnt = 3;
 
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
@@ -164,17 +163,9 @@ void MediaParser::extractMeta(void *data, void *user_data)
                 LOG_DEBUG("Create new extractor");
                 extractor_[p] = IMetaDataExtractor::extractor(p.first, p.second);
             }
-            uint32_t retry = 0;
-            /* FIXME : We should replace retry with another solution that is more safe and without
-                       performance degradation. This is just workaround for prevent a media file extraction is failed
-                       because gstreamer discoverInfo or streamInfo object acquisition is failed
-            */
-            while(!extractor_[p]->extractMeta(*mip)) {
-                if (++retry >= retryCnt) {
-                    LOG_ERROR(0, "Failed to extract metadata for %s", mip->uri().c_str());
-                    break;
-                }
-                LOG_WARNING(0, "%s meta data extraction failed, retry with cnt = %d", mip->uri().c_str(), retry);
+
+            if (!extractor_[p]->extractMeta(*mip)) {
+                LOG_WARNING(0, "%s meta data extraction failed!", mip->uri().c_str());
             }
         } else {
             auto plg = PluginFactory().plugin(mip->uri());
