@@ -227,20 +227,6 @@ public:
     bool processingDone();
 
     /**
-     * \brief Add absolute file path for device.
-     *
-     * \param[in] fpath file path.
-     */
-    bool addFileList(std::string &fpath);
-
-    /**
-     * \brief Check input file path is already exist in fileList_.
-     *
-     * \param[in] fpath file path.
-     */
-    bool isValidFile(std::string &fpath);
-
-    /**
      * \brief If done, activate cleanup task to delete db not matched to
      *        media files.
      *
@@ -323,7 +309,6 @@ private:
     int totalItemCount_ = 0;
     /// Processed media item count per media type.
     std::map<MediaItem::Type, int> processedCount_;
-    std::vector<std::string> fileList_;
     int totalProcessedCount_ = 0;
 
     Task cleanUpTask_;

@@ -88,16 +88,6 @@ public:
     bool needUpdate(MediaItem *mediaItem);
 
     /**
-     * \brief Check whether db data of media item include enough information.
-     *
-     * If db data for media item have missing data, the observer will get notified.
-     *
-     * \param[in] mediaItem The media item to check.
-     * \param[in] val db data for media item(previously stored).
-     */
-    bool isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val);
-
-    /**
      * \brief Update the media item meta in the database.
      *
      * \param[in] mediaItem The media item to update.

@@ -360,30 +360,6 @@ bool Device::processingDone()
     return false;
 }
 
-bool Device::addFileList(std::string &fpath)
-{
-    if (fpath.empty()) {
-        LOG_ERROR(0, "Input fpath is invalid");
-        return false;
-    }
-    fileList_.push_back(fpath);
-    return true;
-}
-
-bool Device::isValidFile(std::string &fpath)
-{
-    if (fpath.empty()) {
-        LOG_ERROR(0, "Input fpath is invalid");
-        return false;
-    }
-    auto it = std::find(fileList_.begin(), fileList_.end(), fpath);
-    if (it != fileList_.end()) {
-        LOG_DEBUG("fpath %s is already exist", fpath.c_str());
-        return false;
-    }
-    return true;
-}
-
 void Device::activateCleanUpTask()
 {
     cleanUpTask_.sendMessage(this, nullptr);
@@ -394,7 +370,6 @@ void Device::resetMediaItemCount()
     mediaItemCount_.clear();
     processedCount_.clear();
     totalItemCount_ = totalProcessedCount_ = 0;
-    fileList_.clear();
 }
 
 void Device::setState(Device::State state, bool force)

@@ -288,11 +288,6 @@ void Plugin::scan(const std::string &uri)
             if (isHiddenfolder(path))
                 continue;
 
-            if (!dev->isValidFile(path)) {
-                LOG_WARNING(0, "file path : %s is already scanned before or path is invalid", path.c_str());
-                continue;
-            }
-
             if (MediaItem::mediaItemSupported(path, mimeType)) {
                 auto lastWrite = file.last_write_time();
                 auto fileSize = file.file_size();

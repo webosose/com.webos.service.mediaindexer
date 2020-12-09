@@ -340,7 +340,6 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
 
     if (type_ != Type::EOL) {
         device_->incrementMediaItemCount(type_);
-        device_->addFileList(path_);
     }
 }
 

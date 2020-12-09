@@ -431,41 +431,10 @@ bool MediaDb::needUpdate(MediaItem *mediaItem)
         LOG_DEBUG("Media item '%s' hash changed, request meta data update",
             mediaItem->uri().c_str());
         return true;
-    } else if (!isEnoughInfo(mediaItem, match)) {
-        LOG_DEBUG("Media item '%s' has some missing information, need to be updated", mediaItem->uri().c_str());
-        return true;
-    } else {
-        LOG_DEBUG("Media item '%s' unchanged", mediaItem->uri().c_str());
     }
 
     LOG_DEBUG("Media item '%s' doesn't need to be changed", mediaItem->uri().c_str());
     return false;
-}
-
-bool MediaDb::isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val)
-{
-    bool enough = false;
-    if (!mediaItem) {
-        LOG_ERROR(0, "Invalid input");
-        return false;
-    }
-    MediaItem::Type type = mediaItem->type();
-
-    switch (type) {
-        case MediaItem::Type::Audio:
-        case MediaItem::Type::Video:
-            if (val.hasKey("thumbnail") && !val["thumbnail"].asString().empty())
-                enough = true;
-            break;
-        case MediaItem::Type::Image:
-            if (val.hasKey("width") && val.hasKey("height") &&
-                !val["width"].asString().empty() && !val["height"].asString().empty())
-                enough = true;
-            break;
-        default:
-            break;
-    }
-    return enough;
 }
 
 void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
