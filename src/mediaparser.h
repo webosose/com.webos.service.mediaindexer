@@ -62,7 +62,6 @@ class MediaParser
     static void runTask();
 
     static std::unique_ptr<MediaParser> instance_;
-    static std::mutex ctorLock_;
     /// Queue of meta data extraction tasks.
     static std::queue<std::unique_ptr<MediaParser>> tasks_;
     /// Number of currently running threads.

@@ -29,7 +29,6 @@ std::map<std::pair<MediaItem::Type, std::string>, std::shared_ptr<IMetaDataExtra
 int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
 std::unique_ptr<MediaParser> MediaParser::instance_;
-std::mutex MediaParser::ctorLock_;
 
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
@@ -57,7 +56,6 @@ void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 
 MediaParser *MediaParser::instance()
 {
-    std::lock_guard<std::mutex> lk(ctorLock_);
     if (!instance_.get()) {
         instance_.reset(new MediaParser());
     }
