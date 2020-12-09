@@ -73,7 +73,6 @@ GStreamerExtractor::~GStreamerExtractor()
 bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
 {
     bool ret = true;
-    bool force_sw_decoders = false;
     GstDiscoverer *discoverer = gst_discoverer_new(GST_SECOND, NULL);
     GError *error = nullptr;
 
@@ -88,16 +87,7 @@ bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
     LOG_DEBUG("Extract meta data from '%s' (%s) with GstDiscoverer",
         uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
 
-    pbnjson::JValue root = pbnjson::JDomParser::fromFile(JSON_CONFIGURATION_FILE);
-    if (!root.isObject()) {
-        LOG_DEBUG("configulation parsing error! set force-sw-decoders property!");
-        force_sw_decoders = true;
-    } else {
-        JSonParser parser(root.stringify().c_str());
-        force_sw_decoders = parser.get<bool>("force-sw-decoders");
-    }
-
-    g_object_set(discoverer, "force-sw-decoders", force_sw_decoders, NULL);
+    g_object_set(discoverer, "force-sw-decoders", true, NULL);
 
     GstDiscovererInfo *discoverInfo =
         gst_discoverer_discover_uri(discoverer, uri.c_str(), &error);
@@ -213,93 +203,28 @@ bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t he
         ofs.close();
         return true;
     };
-    if (ext == "jpg")
-    {
-        tjhandle tjInstance = NULL;
-        uint8_t *outData = NULL;
-        unsigned long outDataSize = 0;
-        int32_t outSubSample = TJSAMP_420;
-        int32_t flag = TJFLAG_FASTDCT;
-        int32_t format = TJPF_RGBA;
-        int32_t quality = 75;
-        if ((tjInstance = tjInitCompress()) == NULL)
-        {
-            LOG_ERROR(0, "instance initialization failed");
-            return false;
-        }
 
-        if (tjCompress2(tjInstance, static_cast<uint8_t *>(data), width, 0, height, format,
-                    &outData, &outDataSize, outSubSample, quality, flag) < 0)
-        {
-            LOG_ERROR(0, "Image compression failed");
-            return false;
-        }
-        tjDestroy(tjInstance);  tjInstance = NULL;
-        return writeData(outData, outDataSize);
-    }
-    else if (ext == "png")
-    {
-        unsigned char *pdata = static_cast<unsigned char *>(data);
-        std::ofstream ofile(filename, std::ios_base::out | std::ios_base::binary);
-        png_structp p = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-        if (!p)
-        {
-            LOG_ERROR(0, "Failed to create png struct");
-            return false;
-        }
-        png_infop pinfo = png_create_info_struct(p);
-        if (!pinfo)
-        {
-            LOG_ERROR(0, "Failed to create png info struct");
-            return false;
-        }
-        if (setjmp(png_jmpbuf(p)))
-        {
-            LOG_ERROR(0, "Error during write header");
-            return false;
-        }
-        png_set_IHDR(p, pinfo, width, height, 8,
-                    PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
-                    PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-
-        std::vector<unsigned char*> prows(height);
-        for (int32_t row = 0; row < height; ++row)
-            prows[row] = pdata + row * (width * 4);
-        png_set_rows(p, pinfo, &prows[0]);
-        png_set_write_fn(p, &ofile,
-            [](png_structp png_ptr, png_bytep png_data, size_t length)->void {
-                std::ofstream *ofs = (std::ofstream *)png_get_io_ptr(png_ptr);
-                ofs->write(reinterpret_cast<char *>(png_data), length);
-                if (ofs->fail())
-                {
-                    LOG_ERROR(0, "Failed to write attached image to device");
-                    return;
-                }
-            },
-        NULL);
-        png_write_png(p, pinfo, PNG_TRANSFORM_IDENTITY, NULL);
-        ofile.flush();
-        ofile.close();
-    }
-    else if (ext == "bmp")
-    {
-        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data (static_cast<uint8_t *>(data),
-            GDK_COLORSPACE_RGB, TRUE, 8, width, height,
-            GST_ROUND_UP_4 (width * 4), NULL, NULL);
-        GError *error = nullptr;
-
-        if (!gdk_pixbuf_save (pixbuf, filename.c_str(), ext.c_str(), &error, NULL)) {
-            LOG_ERROR(0, "Failed to save thumbnail image, Error Message : %s", error->message);
-        }
-    }
-    else
-    {
-        LOG_ERROR(0, "Invalid format is requested, supported format : jpg, png, bmp");
+    tjhandle tjInstance = NULL;
+    uint8_t *outData = NULL;
+    unsigned long outDataSize = 0;
+    int32_t outSubSample = TJSAMP_420;
+    int32_t flag = TJFLAG_FASTDCT;
+    int32_t format = TJPF_RGBA;
+    int32_t quality = 75;
+    if ((tjInstance = tjInitCompress()) == NULL) {
+        LOG_ERROR(0, "instance initialization failed");
         return false;
     }
 
-
-    return true;
+    // ext in this function parameter is always jpg.
+    if (tjCompress2(tjInstance, static_cast<uint8_t *>(data), width, 
+                    0, height, format, &outData, &outDataSize, outSubSample,
+                    quality, flag) < 0) {
+        LOG_ERROR(0, "Image compression failed");
+        return false;
+    }
+    tjDestroy(tjInstance);  tjInstance = NULL;
+    return writeData(outData, outDataSize);
 }
 
 bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filename, const std::string &ext) const
