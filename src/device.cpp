@@ -427,3 +427,15 @@ void Device::resetAlive()
 {
     alive_ = maxAlive_;
 }
+
+bool Device::isNewMountedDevice() const
+{
+    std::shared_lock lock(lock_);
+    return newMountedDevice_;
+}
+
+void Device::setNewMountedDevice(bool isNew)
+{
+    std::unique_lock lock(lock_);
+    newMountedDevice_ = isNew;
+}

@@ -360,9 +360,6 @@ MediaItem::MediaItem(const std::string &uri) :
         LOG_DEBUG("path_ : %s",path_.c_str());
         ext_ = path_.substr(path_.find_last_of('.') + 1);
         auto fpath = std::filesystem::path(path_);
-        if (!mediaItemSupported(path_, mime_)) {
-            LOG_ERROR(0, "Extension(%s) and Mime(%s) is not supported", ext_.c_str(), mime_.c_str());
-        }
         filesize_ = std::filesystem::file_size(fpath);
         hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
 

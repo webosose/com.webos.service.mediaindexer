@@ -235,6 +235,7 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 {
     // this helps us for logging
     auto dev = mediaItem->device();
+
     // if the media item has not yet been parsed we first check if
     // parsing is necessary at all
     if (!mediaItem->parsed()) {
@@ -246,10 +247,13 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 #if defined HAS_LUNA
         auto mdb = MediaDb::instance();
         //mdb->checkForChange(std::move(mediaItem));
-        if (mdb->needUpdate(mediaItem.get()))
+
+        if (dev->isNewMountedDevice()) {
             metaDataUpdateRequired(std::move(mediaItem));
-        else
+        } else {
+            //TODO: needUpdate and dirtry
             mdb->unflagDirty(std::move(mediaItem));
+        }
 
         // the device media item count has changed - notify
         // subscribers

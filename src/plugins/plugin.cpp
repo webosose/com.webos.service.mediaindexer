@@ -99,6 +99,7 @@ bool Plugin::injectDevice(std::shared_ptr<Device> device)
 
 bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::string uuid)
 {
+    LOG_INFO(0, "uri = [%s], uuid[%s]", uri.c_str(), uuid.c_str());
     bool isNew = false;
 
     if (!hasDevice(uri)) {
@@ -106,6 +107,9 @@ bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::st
         LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());
         devices_[uri] = std::make_shared<Device>(uri, alive, avail, uuid);
         isNew = true;
+    } else {
+        auto dev = device(uri);
+        dev->setNewMountedDevice(isNew);
     }
 
     if (isNew)
@@ -169,6 +173,7 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::strin
         auto changed = dev->setAvailable(true);
         dev->setMountpoint(mp);
         dev->setUuid(uuid);
+        dev->setNewMountedDevice(isNew);
         // now tell the observers if availability changed
         if (changed)
             notifyObserversStateChange(dev);
@@ -263,7 +268,6 @@ void Plugin::scan(const std::string &uri)
         return;
 
     auto obs = dev->observer();
-
     if (!obs) {
         LOG_ERROR(0, "device %s has no observer, observer is manadatory", dev->uri().c_str());
         return;
@@ -277,11 +281,14 @@ void Plugin::scan(const std::string &uri)
     }
     LOG_DEBUG("file scan start for mountpoint : %s!", mp.c_str());
     // do the file-tree-walk
-    std::error_code err;
     try {
         for (auto &file : fs::recursive_directory_iterator(mp)) {
-            if (!file.is_regular_file(err))
+            std::error_code err;
+            if (!file.is_regular_file(err)) {
+                LOG_WARNING(0, "'%s' is not regular file. error message : '%s'", 
+                        file.path().c_str(), err.message().c_str());
                 continue;
+            }
 
             std::string path = file.path();
             std::string mimeType;
@@ -297,7 +304,6 @@ void Plugin::scan(const std::string &uri)
                 obs->newMediaItem(std::move(mi));
             } else {
                 LOG_WARNING(0, "mediaItem : %s is not supported", path.c_str());
-                continue;
             }
         }
     } catch (const std::exception &ex) {

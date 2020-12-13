@@ -162,6 +162,21 @@ public:
      */
     virtual void setState(Device::State state);
 
+
+    /**
+     * \brief Get the device mount state that whether it's new device or not
+     *
+     * \return True if device is first mounted on target, else false.
+     */
+    virtual bool isNewMountedDevice() const;
+
+    /**
+     * \brief Set the device mount state that whether it's new device or not
+     *
+     * \param[in] isNew device mount state.
+     */
+    virtual void setNewMountedDevice(bool isNew);
+
     /**
      * \brief Tell the timestamp when the device was available last
      * time.
@@ -294,6 +309,7 @@ private:
     int alive_;
     /// Alive reset value.
     int maxAlive_;
+    bool newMountedDevice_ = true;
 
     std::thread task_;
     std::mutex mutex_;
