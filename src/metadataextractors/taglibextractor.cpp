@@ -76,10 +76,10 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
         std::string ext = "";
         ID3v2::AttachedPictureFrame *frame
             = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(tag->frameListMap()["APIC"].front());
-        if (frame->mimeType().find(TAGLIB_EXT_JPG) || frame->mimeType().find(TAGLIB_EXT_JPG))
-            ext = TAGLIB_EXT_JPG;
-        else if (frame->mimeType().find(TAGLIB_EXT_PNG))
-            ext = TAGLIB_EXT_PNG;
+        if (frame->mimeType().find(EXT_JPG) || frame->mimeType().find(EXT_JPG))
+            ext = EXT_JPG;
+        else if (frame->mimeType().find(EXT_PNG))
+            ext = EXT_PNG;
 
         auto device = mediaItem.device();
         if (device.get()) {
@@ -120,7 +120,7 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
         uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
 
     setMetaCommon(mediaItem);
-    if (uri.rfind(TAGLIB_EXT_MP3) != std::string::npos)
+    if (uri.rfind(EXT_MP3) != std::string::npos)
     {
         TagLib::MPEG::File f(uri.c_str());
         ID3v2::Tag *tag = f.ID3v2Tag();
@@ -134,7 +134,7 @@ bool TaglibExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
         setMetaFromTag(mediaItem, tag, Mp3, extra);
         LOG_DEBUG("Setting Meta data for Mp3 Done");
     }
-    else if (uri.rfind(TAGLIB_EXT_OGG) != std::string::npos)
+    else if (uri.rfind(EXT_OGG) != std::string::npos)
     {
         TagLib::Vorbis::File oggf(uri.c_str());
         Ogg::XiphComment *tag = oggf.tag();

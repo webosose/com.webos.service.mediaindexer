@@ -24,11 +24,6 @@
 
 #include <string.h>
 
-#define TAGLIB_EXT_JPG "jpg"
-#define TAGLIB_EXT_JPEG "jpeg"
-#define TAGLIB_EXT_PNG "png"
-#define TAGLIB_EXT_MP3 "mp3"
-#define TAGLIB_EXT_OGG "ogg"
 #define TAGLIB_BASE_DIRECTORY THUMBNAIL_DIRECTORY
 #define TAGLIB_FILE_NAME_SIZE 16
 namespace TagLib { class File; }

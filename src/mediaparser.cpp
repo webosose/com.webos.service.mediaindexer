@@ -25,7 +25,7 @@
 
 
 std::queue<std::unique_ptr<MediaParser>> MediaParser::tasks_;
-std::map<std::pair<MediaItem::Type, std::string>, std::shared_ptr<IMetaDataExtractor>> MediaParser::extractor_;
+std::map<MediaItem::ParserType, std::shared_ptr<IMetaDataExtractor>> MediaParser::extractor_;
 int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
 std::unique_ptr<MediaParser> MediaParser::instance_;
@@ -35,10 +35,10 @@ void MediaParser::enqueueTask(MediaItemPtr mediaItem)
     std::lock_guard<std::mutex> lock(lock_);
     auto ext = mediaItem->ext();
     auto type = mediaItem->type();
-    std::pair<MediaItem::Type, std::string> p(type, ext);
+    MediaItem::ParserType p = getType(type, ext);
     if (extractor_.find(p) == extractor_.end()) {
         LOG_DEBUG("Extractor is added for type = %d, ext = %s", static_cast<int>(type), ext.c_str());
-        extractor_[p] = IMetaDataExtractor::extractor(type, ext);
+        extractor_[p] = IMetaDataExtractor::extractor(p);
     }
 
     MediaParser* mParser = MediaParser::instance();
@@ -77,6 +77,29 @@ MediaParser::MediaParser()
     g_thread_pool_set_max_unused_threads(PARALLEL_META_EXTRACTION);
 }
 
+MediaItem::ParserType MediaParser::getType(MediaItem::Type type, const std::string &ext)
+{
+    MediaItem::ParserType ret = MediaItem::ParserType::EOL;
+    switch(type) {
+        case MediaItem::Type::Audio:
+            if (ext.compare(EXT_MP3) == 0 || ext.compare(EXT_OGG) == 0)
+                ret = MediaItem::ParserType::AudioTagLib;
+            else
+                ret = MediaItem::ParserType::AudioGstreamer;
+            break;
+        case MediaItem::Type::Video:
+            ret = MediaItem::ParserType::VideoGstreamer;
+            break;
+        case MediaItem::Type::Image:
+            ret = MediaItem::ParserType::Image;
+            break;
+        default:
+            break;
+    }
+    return ret;
+}
+
+
 bool MediaParser::setMediaItem(std::string & uri)
 {
     std::lock_guard<std::mutex> lock(mediaItemLock_);
@@ -103,7 +126,7 @@ bool MediaParser::extractExtraMeta(pbnjson::JValue &meta)
         auto path = mediaItem_->path();
 
         if (*path.begin() == '/') {
-            std::pair<MediaItem::Type, std::string> p(mediaItem_->type(), mi->ext());
+            MediaItem::ParserType p = getType(mediaItem_->type(), mi->ext());
 
             if (extractor_.find(p) != extractor_.end()) {
                 extractor_[p]->extractMeta(*mi, true);
@@ -111,7 +134,7 @@ bool MediaParser::extractExtraMeta(pbnjson::JValue &meta)
             } else {
                 LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mediaItem_->type()).c_str(), mi->ext().c_str());
                 LOG_DEBUG("Create new extractor");
-                extractor_[p] = IMetaDataExtractor::extractor(p.first, p.second);
+                extractor_[p] = IMetaDataExtractor::extractor(p);
                 extractor_[p]->extractMeta(*mi, true);
                 mi->setParsed(true);
             }
@@ -154,12 +177,12 @@ void MediaParser::extractMeta(void *data, void *user_data)
 
         auto path = mip->path();
         if (*path.begin() == '/') {
-            std::pair<MediaItem::Type, std::string> p(mip->type(), mip->ext());
+            MediaItem::ParserType p = getType(mip->type(), mip->ext());
 
             if (extractor_.find(p) == extractor_.end()) {
                 LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mip->type()).c_str(), mip->ext().c_str());
                 LOG_DEBUG("Create new extractor");
-                extractor_[p] = IMetaDataExtractor::extractor(p.first, p.second);
+                extractor_[p] = IMetaDataExtractor::extractor(p);
             }
 
             if (!extractor_[p]->extractMeta(*mip)) {

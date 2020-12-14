@@ -22,6 +22,13 @@
 
 #include <memory>
 
+#define EXT_JPG "jpg"
+#define EXT_JPEG "jpeg"
+#define EXT_PNG "png"
+#define EXT_MP3 "mp3"
+#define EXT_OGG "ogg"
+
+
 /// Interface definition for device observers.
 class IMetaDataExtractor
 {
@@ -33,7 +40,7 @@ public:
      * all media items and that they are extracted from concurrent
      * threads so be careful with member variables.
      */
-    static std::shared_ptr<IMetaDataExtractor> extractor(MediaItem::Type type, std::string &ext);
+    static std::shared_ptr<IMetaDataExtractor> extractor(MediaItem::ParserType type);
     virtual ~IMetaDataExtractor() {};
 
     /**

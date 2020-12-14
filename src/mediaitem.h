@@ -123,6 +123,14 @@ public:
         EOL ///< End of list marker.
     };
 
+    enum class ParserType : int {
+        AudioTagLib,
+        AudioGstreamer,
+        VideoGstreamer,
+        Image,
+        EOL
+    };
+
     /**
      * \brief Check if given MIME type is supported.
      *

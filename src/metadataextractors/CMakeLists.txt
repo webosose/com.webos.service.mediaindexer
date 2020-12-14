@@ -18,6 +18,7 @@ include_directories(./)
 include_directories(../)
 include_directories(../jsonparser)
 include_directories(../log)
+include_directories(../perf)
 
 if (GSTREAMER_FOUND)
   list(APPEND EXTRACTORS gstreamerextractor.cpp)
@@ -26,6 +27,8 @@ endif ()
 if (TAGLIB_FOUND)
   list(APPEND EXTRACTORS taglibextractor.cpp)
 endif ()
+
+list(APPEND EXTRACTORS imageextractor.cpp)
 
 pkg_check_modules(LIBPNG REQUIRED libpng)
 if (LIBPNG_FOUND)
@@ -55,4 +58,21 @@ if (libjpeg_FOUND)
   link_libraries(${libjpeg_LIBRARIES})
 endif()
 
+pkg_check_modules(libexif REQUIRED libexif)
+if (libexif_FOUND)
+  include_directories(${libexif_INCLUDE_DIRS})
+  link_directories(${libexif_LIBRARY_DIRS})
+  link_libraries(${libexif_LIBRARIES})
+endif()
+
+find_library(
+  LIBGIF
+  NAMES libgif.so
+  HINTS /usr/lib
+  REQUIRED
+)
+
+link_libraries(${LIBGIF})
+
 add_library(metadataextractor STATIC metadataextractor.cpp ${EXTRACTORS} ../jsonparser/jsonparser.cpp)
+

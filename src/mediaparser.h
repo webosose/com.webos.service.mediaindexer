@@ -45,6 +45,8 @@ class MediaParser
      */
     static MediaParser *instance();
 
+    static MediaItem::ParserType getType(MediaItem::Type type, const std::string &ext);
+
     bool setMediaItem(std::string & uri);
 
     /// Construction is only allowed with media item.
@@ -69,7 +71,7 @@ class MediaParser
     /// Make class static data thread safe.
     static std::mutex lock_;
     /// Meta data extrator.
-    static std::map<std::pair<MediaItem::Type, std::string>,
+    static std::map<MediaItem::ParserType,
            std::shared_ptr<IMetaDataExtractor>> extractor_;
     GThreadPool *pool = nullptr;
     std::mutex mediaItemLock_;

@@ -15,15 +15,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "imetadataextractor.h"
-#include "logging.h"
-
-#if defined HAS_GSTREAMER
 #include "gstreamerextractor.h"
-#endif
-
-#if defined HAS_TAGLIB
 #include "taglibextractor.h"
-#endif
+#include "imageextractor.h"
+#include "logging.h"
 
 #include <cinttypes>
 #include <fstream>
@@ -35,22 +30,24 @@
 #include <unistd.h>
 
 
-std::shared_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
-    MediaItem::Type type, std::string &ext) {
-#if defined HAS_TAGLIB
-    if (type == MediaItem::Type::Audio &&
-        (ext.compare(TAGLIB_EXT_MP3) == 0 ||
-         ext.compare(TAGLIB_EXT_OGG) == 0)) {
-        std::shared_ptr<IMetaDataExtractor>
-            extractor(static_cast<IMetaDataExtractor *>(new TaglibExtractor()));
-        return extractor;
+std::shared_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(MediaItem::ParserType type) {
+    std::shared_ptr<IMetaDataExtractor> extractor = nullptr;
+    switch(type) {
+        case MediaItem::ParserType::AudioTagLib:
+            extractor.reset(static_cast<IMetaDataExtractor *>(new TaglibExtractor()));
+            break;
+        case MediaItem::ParserType::AudioGstreamer:
+        case MediaItem::ParserType::VideoGstreamer:
+            extractor.reset(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
+            break;
+        case MediaItem::ParserType::Image:
+            extractor.reset(static_cast<IMetaDataExtractor *>(new ImageExtractor()));
+            //extractor.reset(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
+            break;
+        default:
+            break;
     }
-#endif
-#if defined HAS_GSTREAMER
-    std::shared_ptr<IMetaDataExtractor>
-        extractor(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
     return extractor;
-#endif
 }
 
 /// Get base filename from mediaItem
