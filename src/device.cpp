@@ -327,7 +327,7 @@ void Device::incrementMediaItemCount(MediaItem::Type type)
     totalItemCount_++;
 }
 
-void Device::incrementProcessedItemCount(MediaItem::Type type)
+void Device::incrementProcessedItemCount(MediaItem::Type type, int count)
 {
     if (type == MediaItem::Type::EOL)
         return;
@@ -336,10 +336,10 @@ void Device::incrementProcessedItemCount(MediaItem::Type type)
 
     auto cntIter = processedCount_.find(type);
     if (cntIter == processedCount_.end())
-        processedCount_[type] = 1;
+        processedCount_[type] = count;
     else
-        processedCount_[type]++;
-    totalProcessedCount_++;
+        processedCount_[type] += count;
+    totalProcessedCount_ += count;
 }
 
 bool Device::processingDone()
@@ -355,6 +355,10 @@ bool Device::processingDone()
         LOG_PERF("Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
 #endif
             return true;
+        } else if (!isNewMountedDevice() && totalItemCount_ > totalProcessedCount_) {
+            auto obs = observer();
+            if (obs)
+                obs->flushUnflagDirty(this);
         }
     }
     return false;

@@ -155,6 +155,19 @@ public:
      */
     MediaItem::Type guessType(const std::string &uri);
 
+    /**
+     * \brief flush dirty flag handling.
+     *
+     * \param[in] device The device to unflag dirty.
+     */
+    void flushUnflagDirty(DevicePtr device);
+
+    /**
+     * \brief clear data of batch operation.
+     *
+     */
+     void clearUnflagDirtyBatchData();
+
 protected:
     /// Get message id.
     LOG_MSGID;
@@ -213,4 +226,8 @@ private:
     static constexpr char MIME[] = "mime";
     static constexpr char FILE_PATH[] = "file_path";
 
+    pbnjson::JValue batchOperations_ = pbnjson::Array();
+    int unflagDirtyAudioCount_ = 0;
+    int unflagDirtyVideoCount_ = 0;
+    int unflagDirtyImageCount_ = 0;
 };

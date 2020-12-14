@@ -129,6 +129,9 @@ protected:
     void cleanupDevice(Device* device);
 
     /// MediaItemObserver interface.
+    void flushUnflagDirty(Device* device);
+
+    /// MediaItemObserver interface.
     void notifyDeviceScanned(Device* device);
 
 private:

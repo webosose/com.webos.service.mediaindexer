@@ -34,6 +34,14 @@
 #include <deque>
 #include <vector>
 
+typedef struct DeviceWrapper
+{
+    DevicePtr device;
+    int audioCount_;
+    int videoCount_;
+    int imageCount_;
+} DeviceWrapper_t;
+
 class Plugin;
 
 /// Base class for devices like MTP or UPnP servers.
@@ -232,8 +240,9 @@ public:
      * \brief Increase processed media item count by one for given media type.
      *
      * \param[in] type Media item type.
+     * \param[in] count increment Processed Item Count.
      */
-    void incrementProcessedItemCount(MediaItem::Type type);
+    void incrementProcessedItemCount(MediaItem::Type type, int count = 1);
 
     /**
      * \brief check if processing of media items inside device is done.

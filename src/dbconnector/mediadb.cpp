@@ -110,8 +110,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
             reply->put("results", array);
 
         LOG_DEBUG("search response payload : %s",payload);
-    } else if (method == std::string("unflagDirty") ||
-                                              method == std::string("mergePut")) {
+    } else if (method == std::string("mergePut")) {
         LOG_DEBUG("method : %s", method.c_str());
         if (sd.object) {
             MediaItemWrapper_t *miw = static_cast<MediaItemWrapper_t *>(sd.object);
@@ -129,6 +128,49 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
                 }
             }
             free(miw);
+        }
+    } else if (method == std::string("unflagDirty")) {
+        LOG_INFO(0, "method : %s", method.c_str());
+
+        if (sd.object) {
+            pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
+            const char *payload = LSMessageGetPayload(msg);
+
+            if (!parser.parse(payload)) {
+                LOG_ERROR(0, "Invalid JSON message: %s", payload);
+                return false;
+            }
+
+            pbnjson::JValue domTree(parser.getDom());
+            if (domTree.hasKey("responses")){
+                auto matches = domTree["responses"];
+                if (matches.isArray() && matches.isValid() && !matches.isNull()) {
+                    DeviceWrapper_t *devw = static_cast<DeviceWrapper_t *>(sd.object);
+                    if (!devw || !devw->device) {
+                        LOG_DEBUG("No device Found");
+                        return true;
+                    }
+
+                    DevicePtr device = devw->device;
+
+                    if (device) {
+                        if(devw->audioCount_ > 0) {
+                            device->incrementProcessedItemCount(MediaItem::Type::Audio, devw->audioCount_);
+                        }
+                        if(devw->videoCount_ > 0) {
+                            device->incrementProcessedItemCount(MediaItem::Type::Video, devw->videoCount_);
+                        }
+                        if(devw->imageCount_ > 0) {
+                            device->incrementProcessedItemCount(MediaItem::Type::Image, devw->imageCount_);
+                        }
+                        if (device->processingDone()) {
+                            LOG_DEBUG("Activate cleanup task");
+                            device->activateCleanUpTask();
+                        }
+                    }
+                    free(devw);
+                }
+            }
         }
     } else if (method == std::string("del")) {
         if (!sd.object) {
@@ -505,20 +547,70 @@ void MediaDb::markDirty(std::shared_ptr<Device> device, MediaItem::Type type)
 
 void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 {
-    // update or create the device in the database
-    auto props = pbnjson::Object();
-    props.put(DIRTY, false);
-    std::string uri = mediaItem->uri();
+     std::string uri = mediaItem->uri();
     MediaItem::Type type = mediaItem->type();
 
-    //mergePut(uri, true, props);
     if (type != MediaItem::Type::EOL) {
-        MediaItemWrapper_t *mi = new MediaItemWrapper_t;
-        mi->mediaItem_ = std::move(mediaItem);
-        merge(kindMap_[type], props, URI, uri, true, mi, false, "unflagDirty");
+
+        auto query = pbnjson::Object();
+        query.put("from", kindMap_[type]);
+
+        auto wheres = pbnjson::Array();
+        wheres << prepareWhere(URI, uri, true, wheres);
+        query.put("where", wheres);
+
+        auto props = pbnjson::Object();
+        props.put(DIRTY, false);
+
+        auto param = pbnjson::Object();
+        param.put("query", query);
+        param.put("props", props);
+
+        switch (type) {
+            case MediaItem::Type::Audio:
+                unflagDirtyAudioCount_++;
+                break;
+            case MediaItem::Type::Video:
+                unflagDirtyVideoCount_++;
+                break;
+            case MediaItem::Type::Image:
+                unflagDirtyImageCount_++;
+                break;
+            default:
+                break;
+        }
+
+        batchOperations_ << prepareOperation("merge", param, batchOperations_);
+        auto dev = mediaItem->device();
+
+        if(batchOperations_.arraySize() >= BATCH_FLUSH_COUNT)
+        {
+            flushUnflagDirty(std::move(dev));
+        }
     } else {
         LOG_ERROR(0, "ERROR : Media Item type for uri %s should not be EOL", uri.c_str());
     }
+}
+
+void MediaDb::flushUnflagDirty(DevicePtr device) {
+    if (batchOperations_.arraySize() > 0) {
+        DeviceWrapper_t *dev = new DeviceWrapper_t;
+        dev->device = device;
+        dev->audioCount_=unflagDirtyAudioCount_;
+        dev->videoCount_=unflagDirtyVideoCount_;
+        dev->imageCount_=unflagDirtyImageCount_;
+
+        batch(batchOperations_, "unflagDirty", dev);
+        clearUnflagDirtyBatchData();
+    }
+}
+
+void MediaDb::clearUnflagDirtyBatchData()
+{
+    batchOperations_ = pbnjson::Array();
+    unflagDirtyAudioCount_ = 0;
+    unflagDirtyVideoCount_ = 0;
+    unflagDirtyImageCount_ = 0;
 }
 
 void MediaDb::removeDirty(Device* device)

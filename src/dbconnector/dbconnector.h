@@ -28,6 +28,8 @@
 #include <map>
 #include <list>
 
+#define BATCH_FLUSH_COUNT 100
+
 /// Connector to com.webos.mediadb.
 class DbConnector
 {

@@ -251,8 +251,10 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
         if (dev->isNewMountedDevice()) {
             metaDataUpdateRequired(std::move(mediaItem));
         } else {
-            //TODO: needUpdate and dirtry
-            mdb->unflagDirty(std::move(mediaItem));
+            if (mdb->needUpdate(mediaItem.get()))
+                metaDataUpdateRequired(std::move(mediaItem));
+            else
+                mdb->unflagDirty(std::move(mediaItem));
         }
 
         // the device media item count has changed - notify
@@ -292,6 +294,12 @@ void MediaIndexer::cleanupDevice(Device* device)
 {
     auto mdb = MediaDb::instance();
     mdb->removeDirty(device);
+}
+
+void MediaIndexer::flushUnflagDirty(Device* device)
+{
+    auto mdb = MediaDb::instance();
+    mdb->flushUnflagDirty(std::shared_ptr<Device>(device));
 }
 
 void MediaIndexer::notifyDeviceScanned(Device* device)

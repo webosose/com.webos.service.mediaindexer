@@ -218,28 +218,22 @@ bool DbConnector::find(const std::string &uri, bool precise,
 
 bool DbConnector::batch(pbnjson::JValue &operations, const std::string &dbMethod, void *obj, bool atomic)
 {
-    LSError lsError;
-    LSErrorInit(&lsError);
-    LSMessageToken sessionToken;
 
+    LSMessageToken sessionToken;
+    bool async = !atomic;
     std::string url = dbUrl_;
-    std::string dbServiceMethod = std::string("batch");
-    url += dbServiceMethod;
+    url += "batch";
 
     auto request = pbnjson::Object();
     request.put("operations", operations);
 
     LOG_INFO(0, "Send batch for '%s'", dbMethod.c_str());
 
-    if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
-        DbConnector::onLunaResponseMetaData, this, &sessionToken, &lsError)) {
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj, dbMethod)) {
         LOG_ERROR(0, "Db service batch error");
-        LSErrorPrint(&lsError, stderr);
-        LSErrorFree(&lsError);
         return false;
     }
-
-    rememberSessionData(sessionToken, dbServiceMethod, dbMethod, operations, obj);
 
     return true;
 }
@@ -358,6 +352,7 @@ bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::stri
             auto oper = pbnjson::Object();
             oper.put("read", "allow");
             oper.put("delete", "allow");
+            oper.put("update", "allow");
             perm.put("operations", oper);
             perm.put("object", k);
             perm.put("type", "db.kind");
