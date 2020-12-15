@@ -115,7 +115,9 @@ add_executable(com.webos.service.mediaindexer
   localeobserver.cpp
   task.cpp
   mediaindexer.cpp
-  indexerserviceclientsmgrimpl.cpp)
+  indexerserviceclientsmgrimpl.cpp
+  configurator.cpp
+  )
 
 include_directories(./)
 include_directories(./jsonparser)

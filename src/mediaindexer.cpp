@@ -48,7 +48,7 @@ MediaIndexer::MediaIndexer() :
 #endif
     plugins_()
 {
-
+    Configurator::instance();
 }
 
 MediaIndexer::~MediaIndexer()

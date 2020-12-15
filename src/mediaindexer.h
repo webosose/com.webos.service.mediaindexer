@@ -20,6 +20,7 @@
 #include "imediaitemobserver.h"
 #include "plugins/plugin.h"
 #include "logging.h"
+#include "configurator.h"
 #if defined HAS_LUNA
 #include "indexerservice.h"
 #endif
@@ -164,4 +165,7 @@ private:
 
     /// For locking internal structures.
     mutable std::shared_mutex lock_;
+
+    /// media indexer configurator from json configuration file
+    std::unique_ptr<Configurator> configurator_;
 };

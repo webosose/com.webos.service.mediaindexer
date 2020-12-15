@@ -16,6 +16,7 @@
 
 #include "plugin.h"
 #include "ideviceobserver.h"
+#include "configurator.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -294,6 +295,13 @@ void Plugin::scan(const std::string &uri)
             std::string mimeType;
             if (isHiddenfolder(path))
                 continue;
+
+            auto configurator = Configurator::instance();
+            std::string ext = path.substr(path.find_last_of('.') + 1);
+            if (!configurator->isSupportedExtension(ext)) {
+                LOG_WARNING(0, "'%s' is NOT supported!", ext.c_str());
+                continue;
+            }
 
             if (MediaItem::mediaItemSupported(path, mimeType)) {
                 auto lastWrite = file.last_write_time();
