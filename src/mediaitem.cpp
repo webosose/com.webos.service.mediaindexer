@@ -20,6 +20,8 @@
 #include "plugins/plugin.h"
 #include <cinttypes>
 #include <gio/gio.h>
+#include <exception>
+#include <stdexcept>
 
 std::vector<std::string> MediaItem::notSupportedExt_ = {
     "rv",
@@ -362,6 +364,11 @@ MediaItem::MediaItem(const std::string &uri) :
         auto fpath = std::filesystem::path(path_);
         filesize_ = std::filesystem::file_size(fpath);
         hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
+
+        if (!MediaItem::mediaItemSupported(path_, mime_)) {
+            LOG_ERROR(0, "Media Item %s is not supported by this system", path_.c_str());
+            throw std::runtime_error("error");
+        }
 
         // set the type
         for (auto type = MediaItem::Type::Audio;

@@ -116,7 +116,7 @@ PmLogContext getPmLogContext();
 /// print thread ID.
 #ifdef LOGGING_THREAD_ID
 #define LOG_PERF(fmt, ...)                                    \
-    PmLogCritical(logContext, "[PERF]", 0, "<%d> %s:%s() " fmt, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogCritical(logContext, "[PERF]", 0, COLOR_GREEN  "<%d> %s:%s() " fmt COLOR_NC, (pid_t) syscall(__NR_gettid), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log critical message.
 #define LOG_CRITICAL(kvcount, fmt, ...)                       \
@@ -141,7 +141,7 @@ PmLogContext getPmLogContext();
 #else
 
 #define LOG_PERF(fmt, ...)                                    \
-    PmLogCritical(logContext, "[PERF]", 0, "%s:%s() " fmt, __FILE__, __FUNCTION__, ##__VA_ARGS__)
+    PmLogCritical(logContext, COLOR_GREEN "[PERF]", 0, "%s:%s() " fmt COLOR_NC, __FILE__, __FUNCTION__, ##__VA_ARGS__)
 
 /// Log critical message.
 #define LOG_CRITICAL(kvcount, fmt, ...)                       \
@@ -163,3 +163,4 @@ PmLogContext getPmLogContext();
 #define LOG_DEBUG(fmt, ...)                                             \
     PmLogDebug(logContext, COLOR_BLUE "%s %s:%s() " fmt COLOR_NC, __msgId(), __FILE__, __FUNCTION__, ##__VA_ARGS__)
 #endif
+

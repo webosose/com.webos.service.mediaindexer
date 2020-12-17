@@ -52,7 +52,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     struct SessionData sd;
     LSMessageToken token = LSMessageGetResponseToken(msg);
 
-    if (!sessionDataFromToken(token, &sd)) {
+    if (!sessionDataFromToken(token, &sd, HDL_LUNA_CONN)) {
         LOG_ERROR(0, "Failed to find session data from message token %ld", (long)token);
         return false;
     }
@@ -498,7 +498,7 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
 
     std::string kind_type = kindMap_[mediaItem->type()];
 
-    for (auto meta = MediaItem::Meta::Title; meta < MediaItem::Meta::EOL; ++meta) {
+    for (auto meta = MediaItem::Meta::Title; meta < MediaItem::Meta::Track; ++meta) {
         auto metaStr = mediaItem->metaToString(meta);
         auto data = mediaItem->meta(meta);
 
@@ -647,16 +647,17 @@ void MediaDb::grantAccess(const std::string &serviceName)
     roAccess(dbClients_);
 }
 
-void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp)
+void MediaDb::grantAccessAll(const std::string &serviceName, bool atomic,
+                                pbnjson::JValue &resp,  const std::string &methodName)
 {
     LOG_INFO(0, "Add read-only access to media db for '%s'",
         serviceName.c_str());
     dbClients_.push_back(serviceName);
     std::list<std::string> kindList_ = {AUDIO_KIND, VIDEO_KIND, IMAGE_KIND};
     if (atomic)
-        roAccess(dbClients_, kindList_, &resp, atomic);
+        roAccess(dbClients_, kindList_, &resp, atomic, methodName);
     else
-        roAccess(dbClients_, kindList_, nullptr, atomic);
+        roAccess(dbClients_, kindList_, nullptr, atomic, methodName);
 }
 
 bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg, bool expand)

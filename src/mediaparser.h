@@ -70,6 +70,7 @@ class MediaParser
     static int runningThreads_;
     /// Make class static data thread safe.
     static std::mutex lock_;
+    static std::mutex ctorLock_;
     /// Meta data extrator.
     static std::map<MediaItem::ParserType,
            std::shared_ptr<IMetaDataExtractor>> extractor_;

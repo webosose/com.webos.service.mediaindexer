@@ -43,12 +43,12 @@ DbConnector::DbConnector(const char *serviceName, bool async) :
         [this](LSMessageToken & token, const std::string &dbServiceMethod,
                const std::string &dbMethod, void *obj) -> void {
             auto query = pbnjson::Object();
-            rememberSessionData(token, dbServiceMethod, dbMethod, query, obj);
+            rememberSessionData(token, dbServiceMethod, dbMethod, query, obj, HDL_LUNA_CONN);
         });
 
     connector_->registerTokenCancelCallback(
         [this](LSMessageToken & token, void *obj) -> void {
-            if (!sessionDataFromToken(token, static_cast<SessionData*>(obj))) {
+            if (!sessionDataFromToken(token, static_cast<SessionData*>(obj), HDL_LUNA_CONN)) {
                 LOG_ERROR(0, "Failed in sessionDataFromToken for token %ld", (long)token);
             }
         });
@@ -275,7 +275,6 @@ bool DbConnector::del(pbnjson::JValue &query, const std::string &dbMethod, void 
 
     auto request = pbnjson::Object();
     request.put("query", query);
-
     if (!LSCall(lsHandle_, url.c_str(), request.stringify().c_str(),
                 DbConnector::onLunaResponseMetaData, this, &sessionToken, &lsError)) {
         LOG_ERROR(0, "Db service del error");
@@ -331,7 +330,8 @@ bool DbConnector::roAccess(std::list<std::string> &services)
     return true;
 }
 
-bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::string> &kinds, void *obj, bool atomic)
+bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::string> &kinds, 
+                                void *obj, bool atomic, const std::string &forcemethod)
 {
     if (!lsHandle_) {
         LOG_CRITICAL(0, "Luna bus handle not set");
@@ -369,7 +369,7 @@ bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::stri
     LOG_DEBUG("Request : %s", request.stringify().c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj, forcemethod)) {
         LOG_ERROR(0, "Db service permissions error");
         return false;
     }
@@ -395,12 +395,13 @@ bool DbConnector::sendResponse(LSHandle *sender, LSMessage* message, const std::
     return connector_->sendResponse(sender, message, object);
 }
 
-bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd)
+bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd,
+                                SessionHdlType hdlType)
 {
     std::lock_guard<std::mutex> lock(lock_);
 
-    auto match = messageMap_.find(token);
-    if (match == messageMap_.end())
+    auto match = messageMap_[hdlType].find(token);
+    if (match == messageMap_[hdlType].end())
         return false;
     if (sd)
         *sd = match->second;
@@ -408,7 +409,7 @@ bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd)
         LOG_ERROR(0, "Invalid SessionData");
         return false;
     }
-    messageMap_.erase(match);
+    messageMap_[hdlType].erase(match);
     return true;
 }
 
@@ -429,7 +430,8 @@ void DbConnector::rememberSessionData(LSMessageToken token,
                                       const std::string &dbServiceMethod,
                                       const std::string &dbMethod,
                                       pbnjson::JValue &query,
-                                      void *object)
+                                      void *object,
+                                      SessionHdlType hdlType)
 {
     // remember token for response - we could do that after the
     // request has been issued because the response will happen
@@ -438,5 +440,5 @@ void DbConnector::rememberSessionData(LSMessageToken token,
     SessionData sd = {dbServiceMethod, dbMethod, query, object};
     auto p = std::make_pair(token, sd);
     std::lock_guard<std::mutex> lock(lock_);
-    messageMap_.emplace(p);
+    messageMap_[hdlType].emplace(p);
 }

@@ -51,7 +51,7 @@ void SettingsDb::setEnable(const std::string &uri, bool enable)
 bool SettingsDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
-    if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
+    if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd, HDL_LUNA_CONN))
     {
         LOG_ERROR(0, "sessionDataFromToken failed");
         return false;

@@ -48,7 +48,7 @@ void DeviceDb::injectKnownDevices(const std::string &uri)
 bool DeviceDb::handleLunaResponse(LSMessage *msg)
 {
     struct SessionData sd;
-    if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd))
+    if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd, HDL_LUNA_CONN))
         return false;
 
     auto dbServiceMethod = sd.dbServiceMethod;

@@ -310,6 +310,13 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
             break;
     }
 
+    ret = gst_element_get_state (thumbPipeline_, NULL, NULL, 5 * GST_SECOND);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        if (supportedCodec_)
+            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "failed to play the file");
+        else
+            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "Not supported Codec");
+    }
     gst_element_query_duration (thumbPipeline_, GST_FORMAT_TIME, &duration);
 
     if (duration != -1)

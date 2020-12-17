@@ -30,6 +30,12 @@
 
 #define BATCH_FLUSH_COUNT 100
 
+enum SessionHdlType {
+    HDL_DEFAULT = 0,
+    HDL_LUNA_CONN,
+    HDL_MAX
+};
+
 /// Connector to com.webos.mediadb.
 class DbConnector
 {
@@ -173,7 +179,7 @@ protected:
      */
     virtual bool roAccess(std::list<std::string> &services,
                           std::list<std::string> &kinds, void *obj = nullptr,
-                          bool atomic = false);
+                          bool atomic = false, const std::string &forcemethod = "");
 
     /// Get message id.
     LOG_MSGID;
@@ -197,7 +203,7 @@ protected:
     pbnjson::JArray uriIndexes_;
 
     /// Get message token to classify response and get attached data.
-    bool sessionDataFromToken(LSMessageToken token, SessionData *sd);
+    bool sessionDataFromToken(LSMessageToken token, SessionData *sd, SessionHdlType hdlType = HDL_DEFAULT);
 
 private:
 
@@ -217,7 +223,9 @@ private:
 
     /// Map of luna service message tokens and the method along with
     /// some call specific user data.
-    std::map<LSMessageToken, DbConnector::SessionData> messageMap_;
+    /// messageMap_[0] : for handler using luna connector(SessionHdrType : HDL_DEFAULT)
+    /// messageMap_[1] : for handler not using luna connector(SessionHdrType : HDL_LUNA_CONN)
+    std::map<LSMessageToken, DbConnector::SessionData> messageMap_[HDL_MAX];
 
     /// Callback for luna responses.
     static bool onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx);
@@ -234,7 +242,6 @@ private:
                              const std::string &dbServiceMethod,
                              const std::string &dbMethod,
                              pbnjson::JValue &query,
-                             void *object);
-
-
+                             void *object,
+                             SessionHdlType hdlType = HDL_DEFAULT);
 };

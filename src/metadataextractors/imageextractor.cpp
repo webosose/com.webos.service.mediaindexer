@@ -14,7 +14,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 #include "imageextractor.h"
-
 #define PNG_BYTES_TO_CHECK 8
 #define MSGID "IMAGEEXTRACTOR"
 LOG_MSGID
@@ -356,7 +355,6 @@ void ImageExtractor::setMeta(MediaItem &mediaItem, bool extra) const
 bool ImageExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
 {
     std::string uri(mediaItem.path());
-
     if (mediaItem.type() != MediaItem::Type::Image) {
         LOG_ERROR(0, "mediaitem type is not image");
         return false;

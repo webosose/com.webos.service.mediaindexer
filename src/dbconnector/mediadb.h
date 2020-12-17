@@ -130,7 +130,7 @@ public:
      */
     void grantAccess(const std::string &serviceName);
 
-    void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp);
+    void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp, const std::string &methodName = std::string());
 
     bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 

@@ -178,7 +178,7 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
         // get the permission for the com.webos.service.mediaindexer
         // TODO: reply doesn't used in grantAccessAll function.
         auto reply = pbnjson::Object();
-        mdb->grantAccessAll(std::string(lunaServiceId), false, reply);
+        mdb->grantAccessAll(std::string(lunaServiceId), false, reply, "putPermissions-async");
         SettingsDb::instance();
         DeviceDb::instance();
         MediaParser::instance();
