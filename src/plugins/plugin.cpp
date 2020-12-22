@@ -281,6 +281,7 @@ void Plugin::scan(const std::string &uri)
         return;
     }
     LOG_DEBUG("file scan start for mountpoint : %s!", mp.c_str());
+    auto configurator = Configurator::instance();
     // do the file-tree-walk
     try {
         for (auto &file : fs::recursive_directory_iterator(mp)) {
@@ -296,13 +297,24 @@ void Plugin::scan(const std::string &uri)
             if (isHiddenfolder(path))
                 continue;
 
-            auto configurator = Configurator::instance();
             std::string ext = path.substr(path.find_last_of('.') + 1);
             if (!configurator->isSupportedExtension(ext)) {
                 LOG_WARNING(0, "'%s' is NOT supported!", ext.c_str());
                 continue;
             }
+            
+            // let's get the media item type and extractor type
+            auto typeInfo = configurator->getTypeInfo(ext);
+            auto lastWrite = file.last_write_time();
+            auto fileSize = file.file_size();
+            auto hash = lastWrite.time_since_epoch().count();
+            auto type = typeInfo.first;
+            auto extractorType = typeInfo.second;
+            MediaItemPtr mi = std::make_unique<MediaItem>(dev, path, mimeType, hash,
+                    fileSize, ext, type, extractorType);
+            obs->newMediaItem(std::move(mi));
 
+            /*
             if (MediaItem::mediaItemSupported(path, mimeType)) {
                 auto lastWrite = file.last_write_time();
                 auto fileSize = file.file_size();
@@ -313,6 +325,7 @@ void Plugin::scan(const std::string &uri)
             } else {
                 LOG_WARNING(0, "mediaItem : %s is not supported", path.c_str());
             }
+            */
         }
     } catch (const std::exception &ex) {
         LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",

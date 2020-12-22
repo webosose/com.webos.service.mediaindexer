@@ -45,7 +45,7 @@ class MediaParser
      */
     static MediaParser *instance();
 
-    static MediaItem::ParserType getType(MediaItem::Type type, const std::string &ext);
+    static MediaItem::ExtractorType getType(MediaItem::Type type, const std::string &ext);
 
     bool setMediaItem(std::string & uri);
 
@@ -72,7 +72,7 @@ class MediaParser
     static std::mutex lock_;
     static std::mutex ctorLock_;
     /// Meta data extrator.
-    static std::map<MediaItem::ParserType,
+    static std::map<MediaItem::ExtractorType,
            std::shared_ptr<IMetaDataExtractor>> extractor_;
     GThreadPool *pool = nullptr;
     std::mutex mediaItemLock_;
@@ -82,4 +82,8 @@ class MediaParser
     mutable MediaItemPtr mediaItem_;
     /// Set if the default extractor shall be used.
     bool useDefaultExtractor_;
+
+    /// The media item queue
+    /// This media item queue will use task thread
+    std::queue<MediaItemPtr> mediaItemQueue_;
 };

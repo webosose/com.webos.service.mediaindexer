@@ -113,12 +113,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
     } else if (method == std::string("mergePut")) {
         LOG_DEBUG("method : %s", method.c_str());
         if (sd.object) {
-            MediaItemWrapper_t *miw = static_cast<MediaItemWrapper_t *>(sd.object);
-            if (!miw || !miw->mediaItem_) {
-                LOG_DEBUG("No MediaItemPtr Found");
-                return true;
-            }
-            MediaItemPtr mi = std::move(miw->mediaItem_);
+            MediaItemPtr mi(static_cast<MediaItem *>(sd.object));
             DevicePtr device = mi->device();
             if (device) {
                 device->incrementProcessedItemCount(mi->type());
@@ -127,7 +122,6 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
                     device->activateCleanUpTask();
                 }
             }
-            free(miw);
         }
     } else if (method == std::string("unflagDirty")) {
         LOG_INFO(0, "method : %s", method.c_str());
@@ -514,8 +508,9 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
     }
     //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
     auto uri = mediaItem->uri();
-    MediaItemWrapper_t *mi = new MediaItemWrapper_t;
-    mi->mediaItem_ = std::move(mediaItem);
+    
+    // release ownership for this mediaItem.
+    auto mi = mediaItem.release();
     mergePut(uri, true, typeProps, mi, kind_type);
 }
 

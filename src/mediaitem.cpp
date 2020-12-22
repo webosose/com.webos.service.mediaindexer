@@ -40,6 +40,15 @@ MediaItem::Type &operator++(MediaItem::Type &type)
     return type;
 }
 
+// Not part of Device class, this is defined at the bottom of device.h
+MediaItem::ExtractorType &operator++(MediaItem::ExtractorType &type)
+{
+    if (type == MediaItem::ExtractorType::EOL)
+        return type;
+    type = static_cast<MediaItem::ExtractorType>(static_cast<int>(type) + 1);
+    return type;
+}
+
 // TODO: need to change as template
 // Not part of Device class, this is defined at the bottom of device.h
 MediaItem::Meta &operator++(MediaItem::Meta &meta)
@@ -309,18 +318,18 @@ std::string MediaItem::metaToString(MediaItem::CommonType meta)
 }
 
 MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
-    const std::string &mime, unsigned long hash, unsigned long filesize) :
-    device_(device),
-    type_(Type::EOL),
-    hash_(hash),
-    filesize_(filesize),
-    parsed_(false),
-    uri_(""),
-    mime_(mime),
-    path_(""),
-    ext_("")
+                     const std::string &mime, unsigned long hash, unsigned long filesize)
+    : device_(device)
+    , type_(Type::EOL)
+    , hash_(hash)
+    , filesize_(filesize)
+    , parsed_(false)
+    , uri_("")
+    , mime_(mime)
+    , path_("")
+    , ext_("")
 {
-    LOG_INFO(0, "path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
+    LOG_DEBUG("path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
     // create uri
     uri_ = device->uri();
     if (uri_.back() != '/' && path.front() != '/')
@@ -339,10 +348,35 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
         type_ = type;
         break;
     }
-
-    if (type_ != Type::EOL) {
+    
+    if (type_ != Type::EOL)
         device_->incrementMediaItemCount(type_);
-    }
+}
+
+MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
+                     const std::string &mime, unsigned long hash, unsigned long filesize,
+                     const std::string &ext, const MediaItem::Type &type,
+                     const MediaItem::ExtractorType &extType)
+    : device_(device)
+    , type_(type)
+    , hash_(hash)
+    , filesize_(filesize)
+    , parsed_(false)
+    , uri_("")
+    , mime_(mime)
+    , path_(path)
+    , ext_(ext)
+    , extractorType_(extType)
+{
+    LOG_DEBUG("path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
+    // create uri
+    uri_ = device->uri();
+    if (uri_.back() != '/' && path.front() != '/')
+        uri_.append("/");
+    uri_.append(path);
+
+    if (type_ != Type::EOL)
+        device_->incrementMediaItemCount(type_);
 }
 
 MediaItem::MediaItem(const std::string &uri) :
@@ -506,6 +540,11 @@ const std::string &MediaItem::mime() const
 MediaItem::Type MediaItem::type() const
 {
     return type_;
+}
+
+MediaItem::ExtractorType MediaItem::extractorType() const
+{
+    return extractorType_;
 }
 
 IMediaItemObserver *MediaItem::observer() const

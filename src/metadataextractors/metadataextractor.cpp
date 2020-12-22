@@ -30,21 +30,21 @@
 #include <unistd.h>
 
 
-std::shared_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(MediaItem::ParserType type) {
+std::shared_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(const MediaItem::ExtractorType& type) {
     std::shared_ptr<IMetaDataExtractor> extractor = nullptr;
     switch(type) {
-        case MediaItem::ParserType::AudioTagLib:
-            extractor.reset(static_cast<IMetaDataExtractor *>(new TaglibExtractor()));
+        case MediaItem::ExtractorType::TagLibExtractor:
+            extractor = std::make_shared<TaglibExtractor>();
             break;
-        case MediaItem::ParserType::AudioGstreamer:
-        case MediaItem::ParserType::VideoGstreamer:
-            extractor.reset(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
+        case MediaItem::ExtractorType::GStreamerExtractor:
+            extractor = std::make_shared<GStreamerExtractor>();
             break;
-        case MediaItem::ParserType::Image:
-            extractor.reset(static_cast<IMetaDataExtractor *>(new ImageExtractor()));
-            //extractor.reset(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
+        case MediaItem::ExtractorType::ImageExtractor:
+            extractor = std::make_shared<ImageExtractor>();
+            //extractor = std::make_shared<GStreamerExtractor>();
             break;
         default:
+            LOG_ERROR(0, "Invalid extractor type : %d", type);
             break;
     }
     return extractor;

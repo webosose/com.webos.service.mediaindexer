@@ -46,11 +46,13 @@ void Configurator::init()
         return;
     }
 
+    // check force-sw-decoders field
     if (!root.hasKey("force-sw-decoders"))
-        LOG_WARNING(0, "GStreamer S/W decoder property is false! use H/W decoder!");
+        LOG_WARNING(0, "Can't find force-sw-decoders property. use H/W decoder instead by default!");
+    else
+        force_sw_decoders_ = root["force-sw-decoders"].asBool();
 
-    force_sw_decoders_ = root["force-sw-decoders"].asBool();
-
+    // check supportedMediaExtension field
     if (!root.hasKey("supportedMediaExtension")) {
         LOG_WARNING(0, "Can't find supportedMediaExtension field. need to check it!");
         return;
@@ -62,30 +64,44 @@ void Configurator::init()
     // for audio extension
     if (supportedExtensions.hasKey("audio")) {
         pbnjson::JValue audioExtension = supportedExtensions["audio"];
-        for (int idx = 0; idx < audioExtension.arraySize(); idx++)
-            extensions_.insert(audioExtension[idx].asString());
+        for (int idx = 0; idx < audioExtension.arraySize(); idx++) {
+            auto ext = audioExtension[idx].asString();
+            // check extension for setting extractor type.
+            // mp3 and ogg extension uses taglib extractor others GStreamer use instead.
+            if (ext.compare("mp3") == 0 || ext.compare("ogg") == 0)
+                extensions_.insert(std::make_pair(ext,
+                            std::make_pair(MediaItem::Type::Audio,
+                                MediaItem::ExtractorType::TagLibExtractor)));
+            else
+                extensions_.insert(std::make_pair(ext,
+                            std::make_pair(MediaItem::Type::Audio,
+                                MediaItem::ExtractorType::GStreamerExtractor)));
+        }
     }
 
     // for video extension
     if (supportedExtensions.hasKey("video")) {
         pbnjson::JValue videoExtension = supportedExtensions["video"];
         for (int idx = 0; idx < videoExtension.arraySize(); idx++)
-            extensions_.insert(videoExtension[idx].asString());
+            extensions_.insert(std::make_pair(videoExtension[idx].asString(),
+                        std::make_pair(MediaItem::Type::Video,
+                            MediaItem::ExtractorType::GStreamerExtractor)));
     }
 
     // for image extension
     if (supportedExtensions.hasKey("image")) {
         pbnjson::JValue imageExtension = supportedExtensions["image"];
         for (int idx = 0; idx < imageExtension.arraySize(); idx++)
-            extensions_.insert(imageExtension[idx].asString());
+            extensions_.insert(std::make_pair(imageExtension[idx].asString(),
+                        std::make_pair(MediaItem::Type::Image,
+                            MediaItem::ExtractorType::ImageExtractor)));
     }
 
     printSupportedExtension();
 }
   
-bool Configurator::isSupportedExtension(std::string& ext) const
+bool Configurator::isSupportedExtension(const std::string& ext) const
 {
-    printSupportedExtension();
     auto ret = extensions_.find(ext);
     if (ret != extensions_.end())
         return true;
@@ -93,7 +109,18 @@ bool Configurator::isSupportedExtension(std::string& ext) const
         return false;
 }
 
-std::set<std::string> Configurator::getSupportedExtensions() const
+MediaItemTypeInfo Configurator::getTypeInfo(const std::string& ext) const
+{
+    auto ret = extensions_.find(ext);
+    if (ret != extensions_.end()) {
+        return ret->second;
+    }
+    else {
+        return std::make_pair(MediaItem::Type::EOL, MediaItem::ExtractorType::EOL);
+    }
+}
+
+ExtensionMap Configurator::getSupportedExtensions() const
 {
     return extensions_;
 }
@@ -108,14 +135,14 @@ std::string Configurator::getConfigurationPath() const
     return confPath_;
 }
 
-bool Configurator::insertExtension(std::string& ext)
+bool Configurator::insertExtension(const std::string& ext, const MediaItem::Type& type,
+        const MediaItem::ExtractorType& exType)
 {
-    std::pair<std::set<std::string>::iterator, bool> ret;
-    ret = extensions_.insert(ext);
+    auto ret = extensions_.insert(std::make_pair(ext, std::make_pair(type, exType)));
     return ret.second;
 }
 
-bool Configurator::removeExtension(std::string& ext)
+bool Configurator::removeExtension(const std::string& ext)
 {
     extensions_.erase(ext);
     return true;
@@ -124,6 +151,7 @@ bool Configurator::removeExtension(std::string& ext)
 void Configurator::printSupportedExtension() const
 {
     LOG_DEBUG("--------------Supported extensions--------------");
-    for (auto &ext : extensions_)
-        LOG_DEBUG("%s", ext.c_str());
+    for (const auto &ext : extensions_)
+        LOG_DEBUG("%s", ext.first.c_str());
+    LOG_DEBUG("------------------------------------------------");
 }
