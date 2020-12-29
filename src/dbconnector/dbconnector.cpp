@@ -179,6 +179,28 @@ bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
     return true;
 }
 
+bool DbConnector::put(pbnjson::JValue &props, void *obj, bool atomic)
+{
+    LSMessageToken sessionToken;
+    bool async = !atomic;
+    std::string url = dbUrl_;
+    url += "put";
+
+    auto request = pbnjson::Object();//props;
+    request.put("objects", props);
+
+    //LOG_DEBUG("Send put for '%s', request : '%s'", uri.c_str(), request.stringify().c_str());
+
+    if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
+        LOG_ERROR(0, "Db service put error");
+        return false;
+    }
+
+    return true;
+}
+
+
 bool DbConnector::find(const std::string &uri, bool precise,
     void *obj, const std::string &kind_name, bool atomic)
 {

@@ -342,6 +342,25 @@ void Device::incrementProcessedItemCount(MediaItem::Type type, int count)
     totalProcessedCount_ += count;
 }
 
+void Device::incrementTotalProcessedItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    totalProcessedCount_ += count;
+}
+
+void Device::incrementPutItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    putCount_ += count;
+};
+
+bool Device::needFlushed()
+{
+    if ((state_ == Device::State::Idle) && (totalItemCount_ == putCount_))
+        return true;
+    return false;
+}
+
 bool Device::processingDone()
 {
     if (state_ == Device::State::Idle) {
@@ -374,6 +393,7 @@ void Device::resetMediaItemCount()
     mediaItemCount_.clear();
     processedCount_.clear();
     totalItemCount_ = totalProcessedCount_ = 0;
+    putCount_ = 0;
 }
 
 void Device::setState(Device::State state, bool force)

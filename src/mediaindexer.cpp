@@ -302,6 +302,12 @@ void MediaIndexer::flushUnflagDirty(Device* device)
     mdb->flushUnflagDirty(std::shared_ptr<Device>(device));
 }
 
+void MediaIndexer::flushPut(Device* device)
+{
+    auto mdb = MediaDb::instance();
+    mdb->flushPut(device);
+}
+
 void MediaIndexer::notifyDeviceScanned(Device* device)
 {
     indexerService_->notifyScanDone();
@@ -314,3 +320,16 @@ bool MediaIndexer::sendMediaMetaDataNotification(const std::string &method,
     LOG_INFO(0, "MediaIndexer::sendMediaListNotification");
     return indexerService_->notifyMediaMetaData(method, metaData, msg);
 }
+
+Device *MediaIndexer::findDevice(const std::string &uri)
+{
+    Device *ret = nullptr;
+    for (auto const &[puri, plg] : plugins_) {
+        for (auto const &[duri, dev] : plg->devices()) {
+            if (duri == uri)
+                return dev.get();
+        }
+    }
+    return ret;
+}
+

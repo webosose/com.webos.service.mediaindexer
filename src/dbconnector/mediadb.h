@@ -166,7 +166,24 @@ public:
      * \brief clear data of batch operation.
      *
      */
-     void clearUnflagDirtyBatchData();
+    void clearUnflagDirtyBatchData();
+
+    /**
+     * \brief put meta data of media item to buffer.
+     *        If more than a certain number is accumulated,
+     *        it is flushed.
+     * \param[in] params Meta data formatted with json format.
+     * \param[in] device The device contains the media item.
+     * \return true if the operation is sucessful.
+     */
+    bool putMeta(pbnjson::JValue &params, DevicePtr device);
+
+    /**
+     * \brief flush meta data from buffer to db8 service.
+     * \param[in] device The device contains the media item related to meta data to be flushed.
+     * \return true if the operation is sucessful.
+     */
+    bool flushPut(Device* device);
 
 protected:
     /// Get message id.
@@ -213,6 +230,8 @@ private:
     /// database.
     std::list<std::string> dbClients_;
     std::map<std::string, unsigned long> mediaItemMap_;
+    std::mutex mutex_;
+    std::mutex fmutex_;
 
     //static constexpr char MEDIA_KIND[]  = "com.webos.service.mediaindexer.media:1";
     static constexpr char AUDIO_KIND[] = "com.webos.service.mediaindexer.audio:1";
@@ -227,6 +246,7 @@ private:
     static constexpr char FILE_PATH[] = "file_path";
 
     pbnjson::JValue batchOperations_ = pbnjson::Array();
+    std::map<std::string, pbnjson::JValue> metaDataBuf_;
     int unflagDirtyAudioCount_ = 0;
     int unflagDirtyVideoCount_ = 0;
     int unflagDirtyImageCount_ = 0;

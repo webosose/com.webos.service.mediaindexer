@@ -99,9 +99,10 @@ void Configurator::init()
 
     printSupportedExtension();
 }
-  
+
 bool Configurator::isSupportedExtension(const std::string& ext) const
 {
+    //printSupportedExtension();
     auto ret = extensions_.find(ext);
     if (ret != extensions_.end())
         return true;

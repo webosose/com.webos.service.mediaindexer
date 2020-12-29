@@ -110,7 +110,12 @@ public:
 
     bool sendMediaMetaDataNotification(const std::string &method,
                                        const std::string &metaData,
-                                       LSMessage *msg); 
+                                       LSMessage *msg);
+    /**
+     * \brief find registered device.
+     * \param[in] uri The uri of corresponding device.
+     */
+    Device *findDevice(const std::string &uri);
 protected:
     /// Activate plugins and detection
     static gboolean _activate(gpointer data);
@@ -131,6 +136,9 @@ protected:
 
     /// MediaItemObserver interface.
     void flushUnflagDirty(Device* device);
+
+    /// MediaItemObserver interface.
+    void flushPut(Device* device);
 
     /// MediaItemObserver interface.
     void notifyDeviceScanned(Device* device);

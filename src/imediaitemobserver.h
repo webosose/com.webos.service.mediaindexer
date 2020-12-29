@@ -65,6 +65,12 @@ public:
      */
     virtual void flushUnflagDirty(Device* dev) = 0;
 
+    /**
+     * \brief Called when dirty flag handling remains on the device.
+     *
+     */
+    virtual void flushPut(Device* dev) = 0;
+
      /**
      * \brief notify after specified device has been scanned.
      *

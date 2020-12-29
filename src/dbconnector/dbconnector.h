@@ -17,6 +17,7 @@
 #pragma once
 
 #include "logging.h"
+#include "performancechecker.h"
 #include "lunaconnector.h"
 #include <luna-service2/lunaservice.h>
 #include <pbnjson.hpp>
@@ -28,7 +29,7 @@
 #include <map>
 #include <list>
 
-#define BATCH_FLUSH_COUNT 100
+#define FLUSH_COUNT 100
 
 enum SessionHdlType {
     HDL_DEFAULT = 0,
@@ -107,8 +108,9 @@ protected:
         pbnjson::JValue &props, void *obj = nullptr, const std::string &kind_name = "", bool atomic = false);
 
     virtual bool merge(const std::string &kind_name, pbnjson::JValue &props,
-		const std::string &whereProp, const std::string &whereVal, bool precise = true, void *obj = nullptr, bool atomic = false, std::string method = std::string());
+        const std::string &whereProp, const std::string &whereVal, bool precise = true, void *obj = nullptr, bool atomic = false, std::string method = std::string());
 
+    virtual bool put(pbnjson::JValue &props, void *obj = nullptr, bool atomic = false);
     /**
      * \brief Send find request with uri.
      *

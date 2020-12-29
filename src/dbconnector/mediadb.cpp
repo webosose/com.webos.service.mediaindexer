@@ -22,6 +22,7 @@
 #include "plugins/plugin.h"
 #include "mediaindexer.h"
 #include "mediaparser.h"
+#include "performancechecker.h"
 
 #include <cstdio>
 #include <gio/gio.h>
@@ -29,6 +30,12 @@
 #include <cstring>
 #include <unistd.h>
 std::unique_ptr<MediaDb> MediaDb::instance_;
+
+typedef struct PutRespData
+{
+    Device *dev;
+    size_t cnt;
+} PutRespData;
 
 MediaDb *MediaDb::instance()
 {
@@ -122,6 +129,25 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
                     device->activateCleanUpTask();
                 }
             }
+        }
+    } else if (method == std::string("put")) {
+        LOG_DEBUG("method : %s", method.c_str());
+        if (!sd.object) {
+            LOG_ERROR(0, "Search should include SessionData");
+            return false;
+        }
+
+        PutRespData *resp = static_cast<PutRespData *>(sd.object);
+        if (resp) {
+            Device *device = resp->dev;
+            if (device) {
+                device->incrementTotalProcessedItemCount(resp->cnt);
+                if (device->processingDone()) {
+                    LOG_DEBUG("Activate cleanup task");
+                    device->activateCleanUpTask();
+                }
+            }
+            delete resp;
         }
     } else if (method == std::string("unflagDirty")) {
         LOG_INFO(0, "method : %s", method.c_str());
@@ -481,14 +507,14 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
         LOG_ERROR(0, "Invalid media type");
         return;
     }
-    auto typeProps = pbnjson::Object();
-    typeProps.put(URI, mediaItem->uri());
-    typeProps.put(HASH, std::to_string(mediaItem->hash()));
-    typeProps.put(DIRTY, false);
+    auto props = pbnjson::Object();
+    props.put(URI, mediaItem->uri());
+    props.put(HASH, std::to_string(mediaItem->hash()));
+    props.put(DIRTY, false);
     //typeProps.put(TYPE, mediaItem->mediaTypeToString(mediaItem->type()));
     //typeProps.put(MIME, mediaItem->mime());
     auto filepath = getFilePath(mediaItem->uri());
-    typeProps.put(FILE_PATH, filepath ? filepath.value() : "");
+    props.put(FILE_PATH, filepath ? filepath.value() : "");
 
     std::string kind_type = kindMap_[mediaItem->type()];
 
@@ -503,15 +529,20 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
         if ((mediaItem->type() == MediaItem::Type::Audio && mediaItem->isAudioMeta(meta))
             ||(mediaItem->type() == MediaItem::Type::Video && mediaItem->isVideoMeta(meta))
             ||(mediaItem->type() == MediaItem::Type::Image && mediaItem->isImageMeta(meta))) {
-            mediaItem->putProperties(metaStr, data, typeProps);
+            mediaItem->putProperties(metaStr, data, props);
         }
     }
     //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
     auto uri = mediaItem->uri();
-    
+    auto dev = mediaItem->device();
     // release ownership for this mediaItem.
     auto mi = mediaItem.release();
-    mergePut(uri, true, typeProps, mi, kind_type);
+    if (dev->isNewMountedDevice()) {
+        props.put("_kind", kind_type);
+        putMeta(props, dev);
+    } else {
+        mergePut(uri, true, props, mi, kind_type);
+    }
 }
 
 std::optional<std::string> MediaDb::getFilePath(
@@ -523,6 +554,42 @@ std::optional<std::string> MediaDb::getFilePath(
         return std::nullopt;
 
     return plg->getPlaybackUri(uri);
+}
+
+bool MediaDb::putMeta(pbnjson::JValue &params, DevicePtr device)
+{
+    auto uri = device->uri();
+    std::unique_lock<std::mutex> lk(mutex_);
+    if (metaDataBuf_.find(uri) == metaDataBuf_.end()) {
+        metaDataBuf_.emplace(uri, pbnjson::Array());
+    }
+    metaDataBuf_[uri] << params;
+    device->incrementPutItemCount();
+    //LOG_PERF("array size : %d", metaDataBuf_[uri].arraySize());
+    if(metaDataBuf_[uri].arraySize() >= FLUSH_COUNT || device->needFlushed())
+        flushPut(device.get());
+    return true;
+}
+
+bool MediaDb::flushPut(Device* device)
+{
+    std::unique_lock<std::mutex> lk(fmutex_);
+    if (device) {
+        auto uri = device->uri();
+        if (metaDataBuf_.find(uri) != metaDataBuf_.end()) {
+            if (metaDataBuf_[uri].arraySize() > 0) {
+                PutRespData *obj = new PutRespData {device, metaDataBuf_[uri].arraySize()};
+                put(metaDataBuf_[uri], (void *)obj);
+                ssize_t arrSize = metaDataBuf_[uri].arraySize();
+                while (metaDataBuf_[uri].arraySize() > 0)
+                    metaDataBuf_[uri].remove(ssize_t(0));
+            }
+        }
+    } else {
+        LOG_ERROR(0, "Invalid input device");
+        return false;
+    }
+    return true;
 }
 
 void MediaDb::markDirty(std::shared_ptr<Device> device, MediaItem::Type type)
@@ -578,7 +645,7 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
         batchOperations_ << prepareOperation("merge", param, batchOperations_);
         auto dev = mediaItem->device();
 
-        if(batchOperations_.arraySize() >= BATCH_FLUSH_COUNT)
+        if(batchOperations_.arraySize() >= FLUSH_COUNT)
         {
             flushUnflagDirty(std::move(dev));
         }

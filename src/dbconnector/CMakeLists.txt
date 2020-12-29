@@ -17,6 +17,7 @@
 include_directories(./)
 include_directories(../)
 include_directories(../log)
+include_directories(../perf)
 
 set(SRC_LIST dbconnector.cpp
     devicedb.cpp

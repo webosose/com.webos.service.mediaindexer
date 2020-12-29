@@ -245,6 +245,26 @@ public:
     void incrementProcessedItemCount(MediaItem::Type type, int count = 1);
 
     /**
+     * \brief Increase total processed media item count.
+     *
+     * \param[in] count increment Processed Item Count.
+     */
+    void incrementTotalProcessedItemCount(int count = 1);
+
+    /**
+     * \brief Increase media item count by putMeta method.
+     *
+     * \param[in] count increment Processed Item Count.
+     */
+    void incrementPutItemCount(int count = 1);
+
+    /**
+     * \brief check whether the buffered data should be flushed or not.
+     *
+     */
+    bool needFlushed();
+
+    /**
      * \brief check if processing of media items inside device is done.
      *
      */
@@ -335,7 +355,7 @@ private:
     /// Processed media item count per media type.
     std::map<MediaItem::Type, int> processedCount_;
     int totalProcessedCount_ = 0;
-
+    int putCount_ = 0;
     Task cleanUpTask_;
 };
 
