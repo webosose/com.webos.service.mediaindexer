@@ -77,8 +77,6 @@ private:
 
     static std::map<std::string, MediaItem::Meta> metaMap_;
     bool supportedCodec_;
-    mutable std::mutex mutex_;
-    mutable GstElement *thumbPipeline_ = nullptr;
 };
 
 /// Useful when iterating over enum.
