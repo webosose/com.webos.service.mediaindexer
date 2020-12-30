@@ -26,11 +26,12 @@
 
 #define CAPS "video/x-raw,format=RGBA,width=160,height=160,pixel-aspect-ratio=1/1"
 
-#define RETURN_IF_FAILED(object, state, message) \
+#define RETURN_IF_FAILED(pipeline, uridecodebin, state, message) \
 do { \
     LOG_ERROR(0, message); \
-    gst_element_set_state (object, state); \
-    gst_object_unref (object); \
+    gst_element_set_state (pipeline, state); \
+    gst_object_unref (uridecodebin); \
+    gst_object_unref (pipeline); \
     return false; \
 } while(0)
 
@@ -201,6 +202,7 @@ bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t he
         }
         ofs.flush();
         ofs.close();
+        tjFree(_data);
         return true;
     };
 
@@ -244,13 +246,13 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     uri.append(mediaItem.path());
     GstElement *videoSink = nullptr;
     gint width, height;
+    gulong unknownTypeId;
     GstSample *sample;
     gchar *pipelineStr = nullptr;
     GError *error = nullptr;
     gint64 duration, position;
     GstStateChangeReturn ret;
     GstMapInfo map;
-
     gboolean res;
     LOG_DEBUG("uri : \"%s\"", uri.c_str());
     pipelineStr = g_strdup_printf("uridecodebin uri=\"%s\" name=uridecodebin force-sw-decoders=true ! queue ! videoconvert n-threads=4 ! videoscale ! "" appsink name=video-sink caps=\"" CAPS "\"", uri.c_str());
@@ -274,48 +276,62 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
     auto unknownTypeCB = +[] (GstElement *element, GstPad *pad, GstCaps *caps, gpointer *userdata) -> void {
         GStreamerExtractor *_extractor = reinterpret_cast<GStreamerExtractor *>(userdata);
         if (_extractor) {
+            gchar *caps_str = gst_caps_to_string(caps);
             LOG_WARNING(0, "The codec of media file is not supported by system");
-            LOG_WARNING(0, "CAPS : %s", gst_caps_to_string(caps));
+            LOG_WARNING(0, "CAPS : %s", caps);
             _extractor->supportedCodec_ = false;
             if (_extractor->thumbPipeline_)
                 gst_element_set_state (_extractor->thumbPipeline_, GST_STATE_NULL);
             else
                 LOG_ERROR(0, "No pipeline exist");
+            g_free(caps_str);
         }
     };
 
     if (uridecodebin) {
-        g_signal_connect(G_OBJECT(uridecodebin), "unknown-type", G_CALLBACK(unknownTypeCB), (void *)(this));
+        unknownTypeId = g_signal_connect(uridecodebin, "unknown-type",
+                G_CALLBACK(unknownTypeCB), (void *)(this));
     } else {
-        RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "Failed to get decodebin");
+        RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "Failed to get decodebin");
     }
 
     videoSink = gst_bin_get_by_name (GST_BIN (thumbPipeline_), "video-sink");
     if (videoSink == nullptr)
-        RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "Failed to get video sink");
+        RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "Failed to get video sink");
 
     ret = gst_element_set_state (thumbPipeline_, GST_STATE_PAUSED);
     switch (ret)
     {
         case GST_STATE_CHANGE_FAILURE:
         {
-            if (supportedCodec_)
-                RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "failed to play the file");
-            else
-                RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "Not supported Codec");
+            if (supportedCodec_) {
+                gst_object_unref (videoSink);
+                RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "failed to play the file");
+            }
+            else {
+                gst_object_unref (videoSink);
+                RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "Not supported Codec");
+            }
         }
         case GST_STATE_CHANGE_NO_PREROLL:
-            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "live sources not supported");
+        {
+            gst_object_unref (videoSink);
+            RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "live sources not supported");
+        }
         default:
             break;
     }
 
     ret = gst_element_get_state (thumbPipeline_, NULL, NULL, 5 * GST_SECOND);
     if (ret == GST_STATE_CHANGE_FAILURE) {
-        if (supportedCodec_)
-            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "failed to play the file");
-        else
-            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "Not supported Codec");
+        if (supportedCodec_) {
+            gst_object_unref (videoSink);
+            RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "failed to play the file");
+        }
+        else {
+            gst_object_unref (videoSink);
+            RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "Not supported Codec");
+        }
     }
     gst_element_query_duration (thumbPipeline_, GST_FORMAT_TIME, &duration);
 
@@ -329,21 +345,21 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
                    GST_SEEK_TYPE_NONE, 0);
     g_signal_emit_by_name (videoSink, "pull-preroll", &sample, NULL);
     gst_object_unref (videoSink);
-    if (sample)
-    {
+    if (sample) {
         GstBuffer *buffer;
         GstCaps *caps;
         GstStructure *s;
 
         caps = gst_sample_get_caps (sample);
         if (!caps)
-            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "could not get snapshot format");
+            RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "could not get snapshot format");
+
         s = gst_caps_get_structure (caps, 0);
 
         res = gst_structure_get_int (s, "width", &width);
         res |= gst_structure_get_int (s, "height", &height);
         if (!res)
-            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "could not get resolution information");
+            RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "could not get resolution information");
 
         buffer = gst_sample_get_buffer (sample);
         gst_buffer_map (buffer, &map, GST_MAP_READ);
@@ -351,17 +367,19 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
         filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + randFilename() + "." + ext;
         if (!saveBufferToImage(map.data, width, height, filename, ext))
         {
-            RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "could not save thumbnail image");
+            RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "could not save thumbnail image");
         }
 
+        gst_sample_unref (sample);
         gst_buffer_unmap (buffer, &map);
-
     }
     else
     {
-         RETURN_IF_FAILED(thumbPipeline_, GST_STATE_NULL, "could not make snapshot");
+         RETURN_IF_FAILED(thumbPipeline_, uridecodebin, GST_STATE_NULL, "could not make snapshot");
     }
     gst_element_set_state (thumbPipeline_, GST_STATE_NULL);
+    g_signal_handler_disconnect(uridecodebin, unknownTypeId);
+    gst_object_unref (uridecodebin);
     gst_object_unref (thumbPipeline_);
 
     auto end = std::chrono::high_resolution_clock::now();
