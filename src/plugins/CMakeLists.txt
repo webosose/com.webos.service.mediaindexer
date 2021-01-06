@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 LG Electronics, Inc.
+# Copyright (c) 2019-2021 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 
 include_directories(../log)
-
 # libmtp
 pkg_check_modules(LIBMTP libmtp>=1.0)
 if (LIBMTP_FOUND AND STANDALONE)

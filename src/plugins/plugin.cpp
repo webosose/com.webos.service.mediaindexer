@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,14 +17,12 @@
 #include "plugin.h"
 #include "ideviceobserver.h"
 #include "configurator.h"
-
 #include <algorithm>
 #include <filesystem>
 
 #include <gio/gio.h>
 
 namespace fs = std::filesystem;
-
 bool Plugin::matchUri(const std::string &refUri, const std::string &testUri)
 {
     return !testUri.compare(0, refUri.size(), refUri);

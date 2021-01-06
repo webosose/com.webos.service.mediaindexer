@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -110,7 +110,7 @@ protected:
     virtual bool merge(const std::string &kind_name, pbnjson::JValue &props,
         const std::string &whereProp, const std::string &whereVal, bool precise = true, void *obj = nullptr, bool atomic = false, std::string method = std::string());
 
-    virtual bool put(pbnjson::JValue &props, void *obj = nullptr, bool atomic = false);
+    virtual bool put(pbnjson::JValue &props, void *obj = nullptr, bool atomic = false, std::string method = std::string());
     /**
      * \brief Send find request with uri.
      *

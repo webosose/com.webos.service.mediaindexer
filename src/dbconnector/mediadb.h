@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -160,13 +160,7 @@ public:
      *
      * \param[in] device The device to unflag dirty.
      */
-    void flushUnflagDirty(DevicePtr device);
-
-    /**
-     * \brief clear data of batch operation.
-     *
-     */
-    void clearUnflagDirtyBatchData();
+    void flushUnflagDirty(Device* device);
 
     /**
      * \brief put meta data of media item to buffer.
@@ -185,6 +179,20 @@ public:
      */
     bool flushPut(Device* device);
 
+    /**
+     * \brief reset temporary buffer used in first scanning procedure
+     * \param[in] uri The uri of corresponding device.
+     * \return true if the operation is sucessful.
+     */
+    bool resetFirstScanTempBuf(const std::string &uri);
+
+    /**
+     * \brief reset temporary buffer used in rescanning procedure
+     * \param[in] uri The uri of corresponding device.
+     * \return true if the operation is sucessful.
+     */
+    bool resetReScanTempBuf(const std::string &uri);
+
 protected:
     /// Get message id.
     LOG_MSGID;
@@ -193,19 +201,19 @@ protected:
     MediaDb();
 
 private:
-    pbnjson::JValue prepareWhere(const std::string &key,
+    bool prepareWhere(const std::string &key,
                                  const std::string &value,
                                  bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+                                 pbnjson::JValue &whereClause) const;
 
-    pbnjson::JValue prepareWhere(const std::string &key,
+    bool prepareWhere(const std::string &key,
                                  bool value,
                                  bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+                                 pbnjson::JValue &whereClause) const;
 
-    pbnjson::JValue prepareOperation(const std::string &method,
+    bool prepareOperation(const std::string &method,
                                  pbnjson::JValue &param,
-                                 pbnjson::JValue operationClause = pbnjson::Array()) const;
+                                 pbnjson::JValue &operationClause) const;
 
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
@@ -231,7 +239,6 @@ private:
     std::list<std::string> dbClients_;
     std::map<std::string, unsigned long> mediaItemMap_;
     std::mutex mutex_;
-    std::mutex fmutex_;
 
     //static constexpr char MEDIA_KIND[]  = "com.webos.service.mediaindexer.media:1";
     static constexpr char AUDIO_KIND[] = "com.webos.service.mediaindexer.audio:1";
@@ -246,8 +253,6 @@ private:
     static constexpr char FILE_PATH[] = "file_path";
 
     pbnjson::JValue batchOperations_ = pbnjson::Array();
-    std::map<std::string, pbnjson::JValue> metaDataBuf_;
-    int unflagDirtyAudioCount_ = 0;
-    int unflagDirtyVideoCount_ = 0;
-    int unflagDirtyImageCount_ = 0;
+    std::map<std::string, pbnjson::JValue> firstScanTempBuf_;
+    std::map<std::string, pbnjson::JValue> reScanTempBuf_;
 };

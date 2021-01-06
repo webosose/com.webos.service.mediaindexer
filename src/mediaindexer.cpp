@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@
 #endif
 
 #include <iostream>
-
 std::unique_ptr<MediaIndexer> MediaIndexer::instance_;
 GMainLoop *MediaIndexer::mainLoop_ = nullptr;
 
@@ -247,19 +246,19 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 #if defined HAS_LUNA
         auto mdb = MediaDb::instance();
         //mdb->checkForChange(std::move(mediaItem));
-
         if (dev->isNewMountedDevice()) {
             metaDataUpdateRequired(std::move(mediaItem));
         } else {
-            if (mdb->needUpdate(mediaItem.get()))
+            if (mdb->needUpdate(mediaItem.get())) {
                 metaDataUpdateRequired(std::move(mediaItem));
-            else
+            } else
                 mdb->unflagDirty(std::move(mediaItem));
         }
 
         // the device media item count has changed - notify
         // subscribers
         indexerService_->pushDeviceList();
+
 #else
         LOG_INFO(0, "Device '%s' media item count (audio/video/images): %i/%i/%i",
             dev->uri().c_str(), dev->mediaItemCount(MediaItem::Type::Audio),
@@ -299,13 +298,7 @@ void MediaIndexer::cleanupDevice(Device* device)
 void MediaIndexer::flushUnflagDirty(Device* device)
 {
     auto mdb = MediaDb::instance();
-    mdb->flushUnflagDirty(std::shared_ptr<Device>(device));
-}
-
-void MediaIndexer::flushPut(Device* device)
-{
-    auto mdb = MediaDb::instance();
-    mdb->flushPut(device);
+    mdb->flushUnflagDirty(device);
 }
 
 void MediaIndexer::notifyDeviceScanned(Device* device)

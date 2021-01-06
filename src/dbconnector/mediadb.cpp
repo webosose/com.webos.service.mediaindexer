@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,11 +31,11 @@
 #include <unistd.h>
 std::unique_ptr<MediaDb> MediaDb::instance_;
 
-typedef struct PutRespData
+typedef struct RespData
 {
     Device *dev;
     size_t cnt;
-} PutRespData;
+} RespData;
 
 MediaDb *MediaDb::instance()
 {
@@ -85,10 +85,10 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         LOG_DEBUG("payload : %s",payload);
 
         pbnjson::JValue domTree(parser.getDom());
+
         // response message
         auto reply = static_cast<pbnjson::JValue *>(sd.object);
         *reply = domTree;
-
     } else if (method == std::string("search")) {
         if (!sd.object) {
             LOG_ERROR(0, "Search should include SessionData");
@@ -130,14 +130,14 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
                 }
             }
         }
-    } else if (method == std::string("put")) {
+    } else if (method == std::string("put") || method == std::string("unflagDirty")) {
         LOG_DEBUG("method : %s", method.c_str());
         if (!sd.object) {
             LOG_ERROR(0, "Search should include SessionData");
             return false;
         }
 
-        PutRespData *resp = static_cast<PutRespData *>(sd.object);
+        RespData *resp = static_cast<RespData *>(sd.object);
         if (resp) {
             Device *device = resp->dev;
             if (device) {
@@ -148,49 +148,6 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
                 }
             }
             delete resp;
-        }
-    } else if (method == std::string("unflagDirty")) {
-        LOG_INFO(0, "method : %s", method.c_str());
-
-        if (sd.object) {
-            pbnjson::JDomParser parser(pbnjson::JSchema::AllSchema());
-            const char *payload = LSMessageGetPayload(msg);
-
-            if (!parser.parse(payload)) {
-                LOG_ERROR(0, "Invalid JSON message: %s", payload);
-                return false;
-            }
-
-            pbnjson::JValue domTree(parser.getDom());
-            if (domTree.hasKey("responses")){
-                auto matches = domTree["responses"];
-                if (matches.isArray() && matches.isValid() && !matches.isNull()) {
-                    DeviceWrapper_t *devw = static_cast<DeviceWrapper_t *>(sd.object);
-                    if (!devw || !devw->device) {
-                        LOG_DEBUG("No device Found");
-                        return true;
-                    }
-
-                    DevicePtr device = devw->device;
-
-                    if (device) {
-                        if(devw->audioCount_ > 0) {
-                            device->incrementProcessedItemCount(MediaItem::Type::Audio, devw->audioCount_);
-                        }
-                        if(devw->videoCount_ > 0) {
-                            device->incrementProcessedItemCount(MediaItem::Type::Video, devw->videoCount_);
-                        }
-                        if(devw->imageCount_ > 0) {
-                            device->incrementProcessedItemCount(MediaItem::Type::Image, devw->imageCount_);
-                        }
-                        if (device->processingDone()) {
-                            LOG_DEBUG("Activate cleanup task");
-                            device->activateCleanUpTask();
-                        }
-                    }
-                    free(devw);
-                }
-            }
         }
     } else if (method == std::string("del")) {
         if (!sd.object) {
@@ -395,7 +352,8 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
                 auto kind = item["_kind"].asString();
 
                 if (!uri.empty()) {
-                    auto where = prepareWhere(URI, uri, true);
+                    auto where = pbnjson::Array();
+                    prepareWhere(URI, uri, true, where);
                     auto query = pbnjson::Object();
                     query.put("from", kind);
                     query.put("where", where);
@@ -560,29 +518,27 @@ bool MediaDb::putMeta(pbnjson::JValue &params, DevicePtr device)
 {
     auto uri = device->uri();
     std::unique_lock<std::mutex> lk(mutex_);
-    if (metaDataBuf_.find(uri) == metaDataBuf_.end()) {
-        metaDataBuf_.emplace(uri, pbnjson::Array());
+    if (firstScanTempBuf_.find(uri) == firstScanTempBuf_.end()) {
+        firstScanTempBuf_.emplace(uri, pbnjson::Array());
     }
-    metaDataBuf_[uri] << params;
+    firstScanTempBuf_[uri] << params;
     device->incrementPutItemCount();
-    //LOG_PERF("array size : %d", metaDataBuf_[uri].arraySize());
-    if(metaDataBuf_[uri].arraySize() >= FLUSH_COUNT || device->needFlushed())
+    //LOG_PERF("array size : %d", firstScanTempBuf_[uri].arraySize());
+    if(firstScanTempBuf_[uri].arraySize() >= FLUSH_COUNT || device->needFlushed())
         flushPut(device.get());
     return true;
 }
 
 bool MediaDb::flushPut(Device* device)
 {
-    std::unique_lock<std::mutex> lk(fmutex_);
     if (device) {
         auto uri = device->uri();
-        if (metaDataBuf_.find(uri) != metaDataBuf_.end()) {
-            if (metaDataBuf_[uri].arraySize() > 0) {
-                PutRespData *obj = new PutRespData {device, metaDataBuf_[uri].arraySize()};
-                put(metaDataBuf_[uri], (void *)obj);
-                ssize_t arrSize = metaDataBuf_[uri].arraySize();
-                while (metaDataBuf_[uri].arraySize() > 0)
-                    metaDataBuf_[uri].remove(ssize_t(0));
+        if (firstScanTempBuf_.find(uri) != firstScanTempBuf_.end()) {
+            if (firstScanTempBuf_[uri].arraySize() > 0) {
+                RespData *obj = new RespData {device, firstScanTempBuf_[uri].arraySize()};
+                put(firstScanTempBuf_[uri], (void *)obj);
+                while (firstScanTempBuf_[uri].arraySize() > 0)
+                    firstScanTempBuf_[uri].remove(ssize_t(0));
             }
         }
     } else {
@@ -618,7 +574,7 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
         query.put("from", kindMap_[type]);
 
         auto wheres = pbnjson::Array();
-        wheres << prepareWhere(URI, uri, true, wheres);
+        prepareWhere(URI, uri, true, wheres);
         query.put("where", wheres);
 
         auto props = pbnjson::Object();
@@ -628,51 +584,69 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
         param.put("query", query);
         param.put("props", props);
 
-        switch (type) {
-            case MediaItem::Type::Audio:
-                unflagDirtyAudioCount_++;
-                break;
-            case MediaItem::Type::Video:
-                unflagDirtyVideoCount_++;
-                break;
-            case MediaItem::Type::Image:
-                unflagDirtyImageCount_++;
-                break;
-            default:
-                break;
+        auto device = mediaItem->device();
+        auto duri = device->uri();
+        if (reScanTempBuf_.find(duri) == reScanTempBuf_.end()) {
+            reScanTempBuf_.emplace(duri, pbnjson::Array());
         }
-
-        batchOperations_ << prepareOperation("merge", param, batchOperations_);
-        auto dev = mediaItem->device();
-
-        if(batchOperations_.arraySize() >= FLUSH_COUNT)
-        {
-            flushUnflagDirty(std::move(dev));
+        prepareOperation("merge", param, reScanTempBuf_[duri]);
+        device->incrementDirtyItemCount();
+        if(reScanTempBuf_[duri].arraySize() >= FLUSH_COUNT) {
+            flushUnflagDirty(device.get());
         }
     } else {
         LOG_ERROR(0, "ERROR : Media Item type for uri %s should not be EOL", uri.c_str());
     }
 }
 
-void MediaDb::flushUnflagDirty(DevicePtr device) {
-    if (batchOperations_.arraySize() > 0) {
-        DeviceWrapper_t *dev = new DeviceWrapper_t;
-        dev->device = device;
-        dev->audioCount_=unflagDirtyAudioCount_;
-        dev->videoCount_=unflagDirtyVideoCount_;
-        dev->imageCount_=unflagDirtyImageCount_;
+void MediaDb::flushUnflagDirty(Device *device)
+{
+    std::unique_lock<std::mutex> lk(mutex_);
+    if (device) {
+        auto uri = device->uri();
+        if (reScanTempBuf_.find(uri) != reScanTempBuf_.end()) {
+            if (reScanTempBuf_[uri].arraySize() > 0) {
 
-        batch(batchOperations_, "unflagDirty", dev);
-        clearUnflagDirtyBatchData();
+                RespData *obj = new RespData {device, reScanTempBuf_[uri].arraySize()};
+                batch(reScanTempBuf_[uri], "unflagDirty", (void *)obj);
+
+                while (reScanTempBuf_[uri].arraySize() > 0)
+                    reScanTempBuf_[uri].remove(ssize_t(0));
+            }
+        }
+    } else {
+        LOG_ERROR(0, "Invalid input device");
     }
 }
 
-void MediaDb::clearUnflagDirtyBatchData()
+bool MediaDb::resetFirstScanTempBuf(const std::string &uri)
 {
-    batchOperations_ = pbnjson::Array();
-    unflagDirtyAudioCount_ = 0;
-    unflagDirtyVideoCount_ = 0;
-    unflagDirtyImageCount_ = 0;
+    if (uri.empty()) {
+        LOG_ERROR(0, "Invalid uri of device");
+        return false;
+    }
+
+    if (firstScanTempBuf_.find(uri) != firstScanTempBuf_.end()) {
+        while (firstScanTempBuf_[uri].arraySize() > 0)
+            firstScanTempBuf_[uri].remove(ssize_t(0));
+    }
+
+    return true;
+}
+
+bool MediaDb::resetReScanTempBuf(const std::string &uri)
+{
+    if (uri.empty()) {
+        LOG_ERROR(0, "Invalid uri of device");
+        return false;
+    }
+
+    if (reScanTempBuf_.find(uri) != reScanTempBuf_.end()) {
+        while (reScanTempBuf_[uri].arraySize() > 0)
+            reScanTempBuf_[uri].remove(ssize_t(0));
+    }
+
+    return true;
 }
 
 void MediaDb::removeDirty(Device* device)
@@ -685,8 +659,10 @@ void MediaDb::removeDirty(Device* device)
     selectArray.append(MediaItem::metaToString(MediaItem::CommonType::URI));
     selectArray.append(MediaItem::metaToString(MediaItem::Meta::Thumbnail));
 
-    auto where = prepareWhere(URI, uri, false);
-    auto filter = prepareWhere(DIRTY, true, true);
+    auto where = pbnjson::Array();
+    auto filter = pbnjson::Array();
+    prepareWhere(URI, uri, false, where);
+    prepareWhere(DIRTY, true, true, filter);
 
     auto query = pbnjson::Object();
     query.put("select", selectArray);
@@ -740,10 +716,10 @@ bool MediaDb::getAudioList(const std::string &uri, int count, LSMessage *msg, bo
 
     auto wheres = pbnjson::Array();
     if (uri.empty()) {
-        wheres << prepareWhere(DIRTY, false, true, wheres);
+        prepareWhere(DIRTY, false, true, wheres);
     } else {
-        wheres << prepareWhere(URI, uri, false, wheres);
-        wheres << prepareWhere(DIRTY, false, true, wheres);
+        prepareWhere(URI, uri, false, wheres);
+        prepareWhere(DIRTY, false, true, wheres);
     }
 
     auto query = pbnjson::Object();
@@ -775,10 +751,10 @@ bool MediaDb::getVideoList(const std::string &uri, int count, LSMessage *msg, bo
 
     auto wheres = pbnjson::Array();
     if (uri.empty()) {
-        wheres << prepareWhere(DIRTY, false, true, wheres);
+        prepareWhere(DIRTY, false, true, wheres);
     } else {
-        wheres << prepareWhere(URI, uri, false, wheres);
-        wheres << prepareWhere(DIRTY, false, true, wheres);
+        prepareWhere(URI, uri, false, wheres);
+        prepareWhere(DIRTY, false, true, wheres);
     }
 
     auto query = pbnjson::Object();
@@ -809,10 +785,10 @@ bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg, bo
 
     auto wheres = pbnjson::Array();
     if (uri.empty()) {
-        wheres << prepareWhere(DIRTY, false, true, wheres);
+        prepareWhere(DIRTY, false, true, wheres);
     } else {
-        wheres << prepareWhere(URI, uri, false, wheres);
-        wheres << prepareWhere(DIRTY, false, true, wheres);
+        prepareWhere(URI, uri, false, wheres);
+        prepareWhere(DIRTY, false, true, wheres);
     }
 
     auto query = pbnjson::Object();
@@ -830,7 +806,8 @@ bool MediaDb::getImageList(const std::string &uri, int count, LSMessage *msg, bo
 bool MediaDb::requestDelete(const std::string &uri, LSMessage *msg)
 {
     LOG_DEBUG("%s Start for uri : %s", __func__, uri.c_str());
-    auto where = prepareWhere(URI, uri, true);
+    auto where = pbnjson::Array();
+    prepareWhere(URI, uri, true, where);
     MediaItem::Type type =guessType(uri);
     auto query = pbnjson::Object();
     query.put("from", kindMap_[type]);
@@ -877,41 +854,41 @@ MediaItem::Type MediaDb::guessType(const std::string &uri)
     return type;
 }
 
-pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
+bool MediaDb::prepareWhere(const std::string &key,
                                                  const std::string &value,
                                                  bool precise,
-                                                 pbnjson::JValue whereClause) const
+                                                 pbnjson::JValue &whereClause) const
 {
     auto cond = pbnjson::Object();
     cond.put("prop", key);
     cond.put("op", precise ? "=" : "%");
     cond.put("val", value);
     whereClause << cond;
-    return whereClause;
+    return true;
 }
 
-pbnjson::JValue MediaDb::prepareWhere(const std::string &key,
+bool MediaDb::prepareWhere(const std::string &key,
                                                  bool value,
                                                  bool precise,
-                                                 pbnjson::JValue whereClause) const
+                                                 pbnjson::JValue &whereClause) const
 {
     auto cond = pbnjson::Object();
     cond.put("prop", key);
     cond.put("op", precise ? "=" : "%");
     cond.put("val", value);
     whereClause << cond;
-    return whereClause;
+    return true;
 }
 
-pbnjson::JValue MediaDb::prepareOperation(const std::string &method,
+bool MediaDb::prepareOperation(const std::string &method,
                                                  pbnjson::JValue &param,
-                                                 pbnjson::JValue operationClause) const
+                                                 pbnjson::JValue &operationClause) const
 {
     auto operation = pbnjson::Object();
     operation.put("method", method);
     operation.put("params", param);
     operationClause << operation;
-    return operationClause;
+    return true;
 }
 
 MediaDb::MediaDb() :

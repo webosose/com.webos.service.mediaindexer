@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include "device.h"
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
+#include "dbconnector/mediadb.h"
 #include <filesystem>
 
 // Not part of Device class, this is defined at the bottom of device.h
@@ -352,7 +353,14 @@ void Device::incrementPutItemCount(int count)
 {
     std::unique_lock lock(lock_);
     putCount_ += count;
-};
+}
+
+void Device::incrementDirtyItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    dirtyCount_ += count;
+    LOG_PERF("dirtyCount_ = %d", dirtyCount_);
+}
 
 bool Device::needFlushed()
 {
@@ -361,11 +369,17 @@ bool Device::needFlushed()
     return false;
 }
 
+bool Device::needDirtyFlushed()
+{
+    return totalItemCount_ == dirtyCount_;
+}
+
 bool Device::processingDone()
 {
+    std::unique_lock<std::mutex> lock(pmtx_);
     if (state_ == Device::State::Idle) {
         LOG_INFO(0, "Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
-        if (totalItemCount_ == totalProcessedCount_) {
+         if (totalItemCount_ == totalProcessedCount_) {
             auto obs = observer();
             if (obs)
                 obs->notifyDeviceScanned(this);
@@ -374,7 +388,7 @@ bool Device::processingDone()
         LOG_PERF("Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
 #endif
             return true;
-        } else if (!isNewMountedDevice() && totalItemCount_ > totalProcessedCount_) {
+        } else if (needDirtyFlushed()) {
             auto obs = observer();
             if (obs)
                 obs->flushUnflagDirty(this);
@@ -394,6 +408,10 @@ void Device::resetMediaItemCount()
     processedCount_.clear();
     totalItemCount_ = totalProcessedCount_ = 0;
     putCount_ = 0;
+    dirtyCount_ = 0;
+    auto mdb = MediaDb::instance();
+    mdb->resetFirstScanTempBuf(uri_);
+    mdb->resetReScanTempBuf(uri_);
 }
 
 void Device::setState(Device::State state, bool force)
@@ -408,7 +426,6 @@ void Device::setState(Device::State state, bool force)
 int Device::mediaItemCount(MediaItem::Type type)
 {
     std::shared_lock lock(lock_);
-
     auto cntIter = mediaItemCount_.find(type);
     if (cntIter == mediaItemCount_.end())
         return 0;

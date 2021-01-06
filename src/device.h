@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,14 +33,6 @@
 #include <condition_variable>
 #include <deque>
 #include <vector>
-
-typedef struct DeviceWrapper
-{
-    DevicePtr device;
-    int audioCount_;
-    int videoCount_;
-    int imageCount_;
-} DeviceWrapper_t;
 
 class Plugin;
 
@@ -259,10 +251,23 @@ public:
     void incrementPutItemCount(int count = 1);
 
     /**
-     * \brief check whether the buffered data should be flushed or not.
+     * \brief Increase media item count by unflagDirty method.
+     *
+     * \param[in] count increment Processed Item Count.
+     */
+    void incrementDirtyItemCount(int count = 1);
+
+    /**
+     * \brief check whether the buffered data for put should be flushed or not.
      *
      */
     bool needFlushed();
+
+    /**
+     * \brief check whether the buffered data for unflagDirty should be flushed or not.
+     *
+     */
+    bool needDirtyFlushed();
 
     /**
      * \brief check if processing of media items inside device is done.
@@ -342,6 +347,7 @@ private:
 
     std::thread task_;
     std::mutex mutex_;
+    std::mutex pmtx_;
     std::condition_variable cv_;
     std::deque<std::string> queue_;
     bool exit_ = false;
@@ -356,6 +362,7 @@ private:
     std::map<MediaItem::Type, int> processedCount_;
     int totalProcessedCount_ = 0;
     int putCount_ = 0;
+    int dirtyCount_ = 0;
     Task cleanUpTask_;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 LG Electronics, Inc.
+// Copyright (c) 2020-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -213,10 +213,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto query = pbnjson::Object();
             auto wheres = pbnjson::Array();
             if (uri.empty()) {
-                wheres << prepareWhere("dirty", false, true, wheres);
+                prepareWhere("dirty", false, true, wheres);
             } else {
-                wheres << prepareWhere("dirty", false, true, wheres);
-                wheres << prepareWhere("uri", uri, false, wheres);
+                prepareWhere("dirty", false, true, wheres);
+                prepareWhere("uri", uri, false, wheres);
             }
             query = prepareQuery(selectArray, audioKind_, wheres);
             request.put("query", query);
@@ -236,10 +236,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto query = pbnjson::Object();
             auto wheres = pbnjson::Array();
             if (uri.empty()) {
-                wheres << prepareWhere("dirty", false, true, wheres);
+                prepareWhere("dirty", false, true, wheres);
             } else {
-                wheres << prepareWhere("dirty", false, true, wheres);
-                wheres << prepareWhere("uri", uri, false, wheres);
+                prepareWhere("dirty", false, true, wheres);
+                prepareWhere("uri", uri, false, wheres);
             }
             query = prepareQuery(selectArray, videoKind_, wheres);
             request.put("query", query);
@@ -259,10 +259,10 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto query = pbnjson::Object();
             auto wheres = pbnjson::Array();
             if (uri.empty()) {
-                wheres << prepareWhere("dirty", false, true, wheres);
+                prepareWhere("dirty", false, true, wheres);
             } else {
-                wheres << prepareWhere("dirty", false, true, wheres);
-                wheres << prepareWhere("uri", uri, false, wheres);
+                prepareWhere("dirty", false, true, wheres);
+                prepareWhere("uri", uri, false, wheres);
             }
             query = prepareQuery(selectArray, imageKind_, wheres);
             request.put("query", query);
@@ -293,8 +293,8 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("lyric"));
 
             auto wheres = pbnjson::Array();
-            wheres << prepareWhere("uri", uri, false, wheres);
-            wheres << prepareWhere("dirty", false, true, wheres);
+            prepareWhere("uri", uri, false, wheres);
+            prepareWhere("dirty", false, true, wheres);
             auto query = prepareQuery(selectArray, audioKind_, wheres);
             request.put("query", query);
             break;
@@ -316,8 +316,8 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("frame_rate"));
 
             auto wheres = pbnjson::Array();
-            wheres << prepareWhere("uri", uri, false, wheres);
-            wheres << prepareWhere("dirty", false, true, wheres);
+            prepareWhere("uri", uri, false, wheres);
+            prepareWhere("dirty", false, true, wheres);
             auto query = prepareQuery(selectArray, videoKind_, wheres);
             request.put("query", query);
             break;
@@ -340,14 +340,15 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             selectArray.append(std::string("geo_location_longitude"));
 
             auto wheres = pbnjson::Array();
-            wheres << prepareWhere("uri", uri, false, wheres);
-            wheres << prepareWhere("dirty", false, true, wheres);
+            prepareWhere("uri", uri, false, wheres);
+            prepareWhere("dirty", false, true, wheres);
             auto query = prepareQuery(selectArray, imageKind_, wheres);
             request.put("query", query);
             break;
         }
         case MediaIndexerClientAPI::RequestDelete: {
-            auto where = prepareWhere("uri", uri, false);
+            auto where = pbnjson::Array();
+            prepareWhere("uri", uri, false, where);
             std::string kindId = getKindID(uri);
             auto query = prepareQuery(kindId, where);
             request.put("query", query);
@@ -406,30 +407,30 @@ std::string MediaIndexerClient::typeFromMime(const std::string &mime) const
     return "";
 }
 
-pbnjson::JValue MediaIndexerClient::prepareWhere(const std::string &key,
+bool MediaIndexerClient::prepareWhere(const std::string &key,
                                                  const std::string &value,
                                                  bool precise,
-                                                 pbnjson::JValue whereClause) const
+                                                 pbnjson::JValue &whereClause) const
 {
     auto cond = pbnjson::Object();
     cond.put("prop", key);
     cond.put("op", precise ? "=" : "%");
     cond.put("val", value);
     whereClause << cond;
-    return whereClause;
+    return true;
 }
 
-pbnjson::JValue MediaIndexerClient::prepareWhere(const std::string &key,
+bool MediaIndexerClient::prepareWhere(const std::string &key,
                                                  bool value,
                                                  bool precise,
-                                                 pbnjson::JValue whereClause) const
+                                                 pbnjson::JValue &whereClause) const
 {
     auto cond = pbnjson::Object();
     cond.put("prop", key);
     cond.put("op", precise ? "=" : "%");
     cond.put("val", value);
     whereClause << cond;
-    return whereClause;
+    return true;
 }
 
 pbnjson::JValue MediaIndexerClient::prepareQuery(   const std::string& kindId,

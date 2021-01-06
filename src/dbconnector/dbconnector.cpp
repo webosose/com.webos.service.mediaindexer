@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -179,7 +179,7 @@ bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
     return true;
 }
 
-bool DbConnector::put(pbnjson::JValue &props, void *obj, bool atomic)
+bool DbConnector::put(pbnjson::JValue &props, void *obj, bool atomic, std::string method)
 {
     LSMessageToken sessionToken;
     bool async = !atomic;
@@ -192,7 +192,7 @@ bool DbConnector::put(pbnjson::JValue &props, void *obj, bool atomic)
     //LOG_DEBUG("Send put for '%s', request : '%s'", uri.c_str(), request.stringify().c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, async, &sessionToken, obj)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj, method)) {
         LOG_ERROR(0, "Db service put error");
         return false;
     }
