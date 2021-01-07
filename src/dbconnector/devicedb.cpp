@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ void DeviceDb::injectKnownDevices(const std::string &uri)
     // request all devices from the database that start with the given
     // uri
     LOG_INFO(0, "Search for already known devices in database");
-    find(uri, false);
+    find(uri, false, nullptr, "", true);
 }
 
 bool DeviceDb::handleLunaResponse(LSMessage *msg)
@@ -110,7 +110,7 @@ bool DeviceDb::handleLunaResponseMetaData(LSMessage *msg)
 }
 
 DeviceDb::DeviceDb() :
-    DbConnector("com.webos.service.mediaindexer.devices")
+    DbConnector("com.webos.service.mediaindexer.devices", true)
 {
     std::list<std::string> indexes = {"uri", "available"}; // add index : available
     for (auto idx : indexes) {
