@@ -45,13 +45,15 @@ class MediaParser
      */
     static MediaParser *instance();
 
+    static MediaItem::ExtractorType getType(MediaItem::Type type, const std::string &ext);
+
     bool setMediaItem(std::string & uri);
 
     /// Construction is only allowed with media item.
     MediaParser();
 
     /// For the purpose of direct meta extraction from indexer service api
-    bool extractMetaDirect(pbnjson::JValue &meta);
+    bool extractExtraMeta(pbnjson::JValue &meta);
     virtual ~MediaParser();
 
  private:
@@ -62,16 +64,16 @@ class MediaParser
     static void runTask();
 
     static std::unique_ptr<MediaParser> instance_;
-    static std::mutex ctorLock_;
     /// Queue of meta data extraction tasks.
     static std::queue<std::unique_ptr<MediaParser>> tasks_;
     /// Number of currently running threads.
     static int runningThreads_;
     /// Make class static data thread safe.
     static std::mutex lock_;
+    static std::mutex ctorLock_;
     /// Meta data extrator.
-    static std::map<std::pair<MediaItem::Type, std::string>,
-           std::unique_ptr<IMetaDataExtractor>> extractor_;
+    static std::map<MediaItem::ExtractorType,
+           std::shared_ptr<IMetaDataExtractor>> extractor_;
     GThreadPool *pool = nullptr;
     std::mutex mediaItemLock_;
     /// The media item this media parser works on - extractMeta will
@@ -80,4 +82,8 @@ class MediaParser
     mutable MediaItemPtr mediaItem_;
     /// Set if the default extractor shall be used.
     bool useDefaultExtractor_;
+
+    /// The media item queue
+    /// This media item queue will use task thread
+    std::queue<MediaItemPtr> mediaItemQueue_;
 };

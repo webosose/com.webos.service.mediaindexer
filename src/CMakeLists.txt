@@ -115,23 +115,31 @@ add_executable(com.webos.service.mediaindexer
   localeobserver.cpp
   task.cpp
   mediaindexer.cpp
-  indexerserviceclientsmgrimpl.cpp)
+  indexerserviceclientsmgrimpl.cpp
+  configurator.cpp
+  )
 
 include_directories(./)
 include_directories(./jsonparser)
 include_directories(./log)
 include_directories(./mediaindexerclient)
+include_directories(./perf)
 
 # definitions for thumbnail directory
 add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
+
+# TODO: get these definition from bitbake recipe
+add_definitions(-DPERFCHECK_ENABLE=1)
+add_definitions(-DLOGGING_THREAD_ID)
 
 # build and link the plugins
 add_subdirectory(plugins)
 # choose a meta data extractor
 add_subdirectory(metadataextractors)
 add_subdirectory(mediaindexerclient)
+add_subdirectory(perf)
 
-list(APPEND LOCAL_LIBS plugins metadataextractor pthread)
+list(APPEND LOCAL_LIBS plugins metadataextractor pthread perf)
 target_link_libraries(com.webos.service.mediaindexer ${LOCAL_LIBS})
 
 webos_build_program(ADMIN)

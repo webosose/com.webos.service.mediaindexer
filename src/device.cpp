@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 #include "device.h"
 #include "plugins/pluginfactory.h"
 #include "plugins/plugin.h"
+#include "dbconnector/mediadb.h"
+#include <filesystem>
 
 // Not part of Device class, this is defined at the bottom of device.h
 Device::Meta &operator++(Device::Meta &meta)
@@ -83,6 +85,9 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
 {
     lastSeen_ = std::chrono::system_clock::now();
     LOG_DEBUG("Device Ctor, URI : %s UUID : %s, object : %p", uri_.c_str(), uuid_.c_str(), this);
+    if (!createThumbnailDirectory()) {
+        LOG_ERROR(0, "Failed to create corresponding thumbnail directory for device UUID %s", uuid_.c_str());
+    }
     task_ = std::thread(&Device::scanLoop, this);
     task_.detach();
 
@@ -242,9 +247,16 @@ void Device::scanLoop()
             LOG_ERROR(0, "plugin for %s is not invalid",uri.c_str());
             break;
         }
+#if PERFCHECK_ENABLE
+        std::string perfuri = "SCAN-" + uuid();
+        PERF_START(perfuri.c_str());
+#endif
         setState(Device::State::Scanning);
         plg->scan(uri);
         setState(Device::State::Idle);
+#if PERFCHECK_ENABLE
+        PERF_END(perfuri.c_str());
+#endif
         if (processingDone())
             activateCleanUpTask();
         queue_.pop_front();
@@ -268,6 +280,9 @@ bool Device::scan(IMediaItemObserver *observer)
     }
 
     LOG_INFO(0, "Plugin will scan '%s' for us", uri_.c_str());
+#if PERFCHECK_ENABLE
+    PERF_START("TOTAL");
+#endif
     resetMediaItemCount();
     queue_.push_back(uri_);
     cv_.notify_one();
@@ -313,7 +328,7 @@ void Device::incrementMediaItemCount(MediaItem::Type type)
     totalItemCount_++;
 }
 
-void Device::incrementProcessedItemCount(MediaItem::Type type)
+void Device::incrementProcessedItemCount(MediaItem::Type type, int count)
 {
     if (type == MediaItem::Type::EOL)
         return;
@@ -322,48 +337,64 @@ void Device::incrementProcessedItemCount(MediaItem::Type type)
 
     auto cntIter = processedCount_.find(type);
     if (cntIter == processedCount_.end())
-        processedCount_[type] = 1;
+        processedCount_[type] = count;
     else
-        processedCount_[type]++;
-    totalProcessedCount_++;
+        processedCount_[type] += count;
+    totalProcessedCount_ += count;
+}
+
+void Device::incrementTotalProcessedItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    totalProcessedCount_ += count;
+}
+
+void Device::incrementPutItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    putCount_ += count;
+}
+
+void Device::incrementDirtyItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    dirtyCount_ += count;
+    LOG_PERF("dirtyCount_ = %d", dirtyCount_);
+}
+
+bool Device::needFlushed()
+{
+    if ((state_ == Device::State::Idle) && (totalItemCount_ == putCount_))
+        return true;
+    return false;
+}
+
+bool Device::needDirtyFlushed()
+{
+    return totalItemCount_ == dirtyCount_;
 }
 
 bool Device::processingDone()
 {
+    std::unique_lock<std::mutex> lock(pmtx_);
     if (state_ == Device::State::Idle) {
         LOG_INFO(0, "Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
-        if (totalItemCount_ == totalProcessedCount_) {
+         if (totalItemCount_ == totalProcessedCount_) {
             auto obs = observer();
             if (obs)
                 obs->notifyDeviceScanned(this);
+#if PERFCHECK_ENABLE
+        PERF_END("TOTAL");
+        LOG_PERF("Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
+#endif
             return true;
+        } else if (needDirtyFlushed()) {
+            auto obs = observer();
+            if (obs)
+                obs->flushUnflagDirty(this);
         }
     }
     return false;
-}
-
-bool Device::addFileList(std::string &fpath)
-{
-    if (fpath.empty()) {
-        LOG_ERROR(0, "Input fpath is invalid");
-        return false;
-    }
-    fileList_.push_back(fpath);
-    return true;
-}
-
-bool Device::isValidFile(std::string &fpath)
-{
-    if (fpath.empty()) {
-        LOG_ERROR(0, "Input fpath is invalid");
-        return false;
-    }
-    auto it = std::find(fileList_.begin(), fileList_.end(), fpath);
-    if (it != fileList_.end()) {
-        LOG_DEBUG("fpath %s is already exist", fpath.c_str());
-        return false;
-    }
-    return true;
 }
 
 void Device::activateCleanUpTask()
@@ -376,7 +407,11 @@ void Device::resetMediaItemCount()
     mediaItemCount_.clear();
     processedCount_.clear();
     totalItemCount_ = totalProcessedCount_ = 0;
-    fileList_.clear();
+    putCount_ = 0;
+    dirtyCount_ = 0;
+    auto mdb = MediaDb::instance();
+    mdb->resetFirstScanTempBuf(uri_);
+    mdb->resetReScanTempBuf(uri_);
 }
 
 void Device::setState(Device::State state, bool force)
@@ -391,12 +426,31 @@ void Device::setState(Device::State state, bool force)
 int Device::mediaItemCount(MediaItem::Type type)
 {
     std::shared_lock lock(lock_);
-
     auto cntIter = mediaItemCount_.find(type);
     if (cntIter == mediaItemCount_.end())
         return 0;
     else
         return mediaItemCount_[type];
+}
+
+bool Device::createThumbnailDirectory()
+{
+    bool ret = true;
+    std::error_code err;
+    std::string thumbnailDir = THUMBNAIL_DIRECTORY + uuid_;
+    if (!std::filesystem::is_directory(thumbnailDir))
+    {
+        if (!std::filesystem::create_directory(thumbnailDir, err))
+        {
+            LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
+            LOG_DEBUG("Retry with create_directories");
+            if (!std::filesystem::create_directories(thumbnailDir, err)) {
+                LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+                ret = false;
+            }
+        }
+    }
+    return ret;
 }
 
 bool Device::checkAlive()
@@ -413,4 +467,16 @@ bool Device::checkAlive()
 void Device::resetAlive()
 {
     alive_ = maxAlive_;
+}
+
+bool Device::isNewMountedDevice() const
+{
+    std::shared_lock lock(lock_);
+    return newMountedDevice_;
+}
+
+void Device::setNewMountedDevice(bool isNew)
+{
+    std::unique_lock lock(lock_);
+    newMountedDevice_ = isNew;
 }

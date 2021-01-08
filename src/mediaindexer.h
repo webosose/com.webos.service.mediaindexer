@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include "imediaitemobserver.h"
 #include "plugins/plugin.h"
 #include "logging.h"
+#include "configurator.h"
 #if defined HAS_LUNA
 #include "indexerservice.h"
 #endif
@@ -109,7 +110,12 @@ public:
 
     bool sendMediaMetaDataNotification(const std::string &method,
                                        const std::string &metaData,
-                                       LSMessage *msg); 
+                                       LSMessage *msg);
+    /**
+     * \brief find registered device.
+     * \param[in] uri The uri of corresponding device.
+     */
+    Device *findDevice(const std::string &uri);
 protected:
     /// Activate plugins and detection
     static gboolean _activate(gpointer data);
@@ -127,6 +133,9 @@ protected:
 
     /// MediaItemObserver interface.
     void cleanupDevice(Device* device);
+
+    /// MediaItemObserver interface.
+    void flushUnflagDirty(Device* device);
 
     /// MediaItemObserver interface.
     void notifyDeviceScanned(Device* device);
@@ -161,4 +170,7 @@ private:
 
     /// For locking internal structures.
     mutable std::shared_mutex lock_;
+
+    /// media indexer configurator from json configuration file
+    std::unique_ptr<Configurator> configurator_;
 };

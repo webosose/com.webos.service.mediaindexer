@@ -15,7 +15,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gstreamerextractor.h"
-
+#include <glib.h>
 #include <gst/gst.h>
 #include <png.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
@@ -26,11 +26,13 @@
 
 #define CAPS "video/x-raw,format=RGBA,width=160,height=160,pixel-aspect-ratio=1/1"
 
-#define RETURN_IF_FAILED(object, state, message) \
+#define RETURN_AFTER_RELEASE(pipeline, uridecodebin, videosink, state, message) \
 do { \
     LOG_ERROR(0, message); \
-    gst_element_set_state (object, state); \
-    gst_object_unref (object); \
+    gst_element_set_state (pipeline, state); \
+    gst_object_unref (videosink); \
+    gst_object_unref (uridecodebin); \
+    gst_object_unref (pipeline); \
     return false; \
 } while(0)
 
@@ -52,7 +54,6 @@ std::map<std::string, MediaItem::Meta> GStreamerExtractor::metaMap_ = {
     {GST_TAG_AUDIO_CODEC,               MediaItem::Meta::AudioCodec},
     {GST_TAG_THUMBNAIL,                 MediaItem::Meta::Thumbnail}
 };
-
 GStreamerExtractor::StreamMeta &operator++(GStreamerExtractor::StreamMeta &meta)
 {
     if (meta == GStreamerExtractor::StreamMeta::EOL)
@@ -71,10 +72,9 @@ GStreamerExtractor::~GStreamerExtractor()
     // nothing to be done here
 }
 
-bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
+bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
 {
     bool ret = true;
-    bool force_sw_decoders = false;
     GstDiscoverer *discoverer = gst_discoverer_new(GST_SECOND, NULL);
     GError *error = nullptr;
 
@@ -89,16 +89,7 @@ bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
     LOG_DEBUG("Extract meta data from '%s' (%s) with GstDiscoverer",
         uri.c_str(), MediaItem::mediaTypeToString(mediaItem.type()).c_str());
 
-    pbnjson::JValue root = pbnjson::JDomParser::fromFile(JSON_CONFIGURATION_FILE);
-    if (!root.isObject()) {
-        LOG_DEBUG("configulation parsing error! set force-sw-decoders property!");
-        force_sw_decoders = true;
-    } else {
-        JSonParser parser(root.stringify().c_str());
-        force_sw_decoders = parser.get<bool>("force-sw-decoders");
-    }
-
-    g_object_set(discoverer, "force-sw-decoders", force_sw_decoders, NULL);
+    g_object_set(discoverer, "force-sw-decoders", true, NULL);
 
     GstDiscovererInfo *discoverInfo =
         gst_discoverer_discover_uri(discoverer, uri.c_str(), &error);
@@ -141,42 +132,44 @@ bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool expand) const
 
     switch (mediaItem.type()) {
     case MediaItem::Type::Audio: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
-        setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM);
-        setMeta(mediaItem, discoverInfo, GST_TAG_ARTIST);
-        if (expand) {
+        if (!extra) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
+            setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM);
+            setMeta(mediaItem, discoverInfo, GST_TAG_ARTIST);
+        } else {
             setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
             setMeta(mediaItem, discoverInfo, GST_TAG_ALBUM_ARTIST);
             setMeta(mediaItem, discoverInfo, GST_TAG_TRACK_NUMBER);
         }
-        setStreamMeta(mediaItem, streamInfo, expand);
+        setStreamMeta(mediaItem, streamInfo, extra);
         break;
     }
     case MediaItem::Type::Video: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
-        setMeta(mediaItem, discoverInfo, GST_TAG_THUMBNAIL);
-        if (expand) {
+        if (!extra) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
+            setMeta(mediaItem, discoverInfo, GST_TAG_DURATION);
+            setMeta(mediaItem, discoverInfo, GST_TAG_THUMBNAIL);
+        } else {
             setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
-            setMeta(mediaItem, discoverInfo, GST_TAG_GENRE);
             setMeta(mediaItem, discoverInfo, GST_TAG_VIDEO_CODEC);
             setMeta(mediaItem, discoverInfo, GST_TAG_AUDIO_CODEC);
         }
-        setStreamMeta(mediaItem, streamInfo, expand);
+        setStreamMeta(mediaItem, streamInfo, extra);
         break;
     }
     case MediaItem::Type::Image: {
-        setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
-        if (expand) {
+        if (!extra) {
+            setMeta(mediaItem, discoverInfo, GST_TAG_TITLE);
+        } else {
             setMeta(mediaItem, discoverInfo, GST_TAG_DATE_TIME);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LONGITUDE);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_LATITUDE);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_COUNTRY);
             setMeta(mediaItem, discoverInfo, GST_TAG_GEO_LOCATION_CITY);
         }
-        setStreamMeta(mediaItem, streamInfo, expand);
+        setStreamMeta(mediaItem, streamInfo, extra);
         break;
     }
     case MediaItem::Type::EOL:
@@ -210,207 +203,198 @@ bool GStreamerExtractor::saveBufferToImage(void *data, int32_t width, int32_t he
         }
         ofs.flush();
         ofs.close();
+        tjFree(_data);
         return true;
     };
-    if (ext == "jpg")
-    {
-        tjhandle tjInstance = NULL;
-        uint8_t *outData = NULL;
-        unsigned long outDataSize = 0;
-        int32_t outSubSample = TJSAMP_420;
-        int32_t flag = TJFLAG_FASTDCT;
-        int32_t format = TJPF_RGBA;
-        int32_t quality = 75;
-        if ((tjInstance = tjInitCompress()) == NULL)
-        {
-            LOG_ERROR(0, "instance initialization failed");
-            return false;
-        }
 
-        if (tjCompress2(tjInstance, static_cast<uint8_t *>(data), width, 0, height, format,
-                    &outData, &outDataSize, outSubSample, quality, flag) < 0)
-        {
-            LOG_ERROR(0, "Image compression failed");
-            return false;
-        }
-        tjDestroy(tjInstance);  tjInstance = NULL;
-        return writeData(outData, outDataSize);
-    }
-    else if (ext == "png")
-    {
-        unsigned char *pdata = static_cast<unsigned char *>(data);
-        std::ofstream ofile(filename, std::ios_base::out | std::ios_base::binary);
-        png_structp p = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-        if (!p)
-        {
-            LOG_ERROR(0, "Failed to create png struct");
-            return false;
-        }
-        png_infop pinfo = png_create_info_struct(p);
-        if (!pinfo)
-        {
-            LOG_ERROR(0, "Failed to create png info struct");
-            return false;
-        }
-        if (setjmp(png_jmpbuf(p)))
-        {
-            LOG_ERROR(0, "Error during write header");
-            return false;
-        }
-        png_set_IHDR(p, pinfo, width, height, 8,
-                    PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
-                    PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-
-        std::vector<unsigned char*> prows(height);
-        for (int32_t row = 0; row < height; ++row)
-            prows[row] = pdata + row * (width * 4);
-        png_set_rows(p, pinfo, &prows[0]);
-        png_set_write_fn(p, &ofile,
-            [](png_structp png_ptr, png_bytep png_data, size_t length)->void {
-                std::ofstream *ofs = (std::ofstream *)png_get_io_ptr(png_ptr);
-                ofs->write(reinterpret_cast<char *>(png_data), length);
-                if (ofs->fail())
-                {
-                    LOG_ERROR(0, "Failed to write attached image to device");
-                    return;
-                }
-            },
-        NULL);
-        png_write_png(p, pinfo, PNG_TRANSFORM_IDENTITY, NULL);
-        ofile.flush();
-        ofile.close();
-    }
-    else if (ext == "bmp")
-    {
-        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data (static_cast<uint8_t *>(data),
-            GDK_COLORSPACE_RGB, TRUE, 8, width, height,
-            GST_ROUND_UP_4 (width * 4), NULL, NULL);
-        GError *error = nullptr;
-
-        if (!gdk_pixbuf_save (pixbuf, filename.c_str(), ext.c_str(), &error, NULL)) {
-            LOG_ERROR(0, "Failed to save thumbnail image, Error Message : %s", error->message);
-        }
-    }
-    else
-    {
-        LOG_ERROR(0, "Invalid format is requested, supported format : jpg, png, bmp");
+    tjhandle tjInstance = NULL;
+    uint8_t *outData = NULL;
+    unsigned long outDataSize = 0;
+    int32_t outSubSample = TJSAMP_420;
+    int32_t flag = TJFLAG_FASTDCT;
+    int32_t format = TJPF_RGBA;
+    int32_t quality = 75;
+    if ((tjInstance = tjInitCompress()) == NULL) {
+        LOG_ERROR(0, "instance initialization failed");
         return false;
     }
 
-
-    return true;
+    // ext in this function parameter is always jpg.
+    if (tjCompress2(tjInstance, static_cast<uint8_t *>(data), width, 
+                    0, height, format, &outData, &outDataSize, outSubSample,
+                    quality, flag) < 0) {
+        LOG_ERROR(0, "Image compression failed");
+        return false;
+    }
+    tjDestroy(tjInstance);  tjInstance = NULL;
+    return writeData(outData, outDataSize);
 }
 
 bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filename, const std::string &ext) const
 {
     LOG_DEBUG("Thumbnail Image creation start");
-    std::lock_guard<std::mutex> lk(mutex_);
-    auto begin = std::chrono::high_resolution_clock::now();;
-    MediaItem::Type type = mediaItem.type();
-    if (type != MediaItem::Type::Video && type != MediaItem::Type::Image)
-    {
-        LOG_ERROR(0, "Invalid Type of media(%s) for extracting thumbnail", \
-            MediaItem::mediaTypeToString(mediaItem.type()).c_str());
-        return false;
-    }
+
+    auto begin = std::chrono::high_resolution_clock::now();
     std::string uri = "file://";
     uri.append(mediaItem.path());
-    filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + randFilename() + "." + ext;
-
-    GstElement *pipeline = nullptr;
+    GstElement *thumbPipeline = nullptr;
     GstElement *videoSink = nullptr;
     gint width, height;
+    gulong unknownTypeId;
     GstSample *sample;
     gchar *pipelineStr = nullptr;
     GError *error = nullptr;
     gint64 duration, position;
     GstStateChangeReturn ret;
     GstMapInfo map;
-
     gboolean res;
+    bool supportedCodec = false;
     LOG_DEBUG("uri : \"%s\"", uri.c_str());
-    pipelineStr = g_strdup_printf("uridecodebin uri=\"%s\" force-sw-decoders=true ! queue ! videoconvert n-threads=4 ! videoscale ! "" appsink name=video-sink caps=\"" CAPS "\"", uri.c_str());
-    pipeline = gst_parse_launch(pipelineStr, &error);
-    if (error != nullptr)
-    {
+    pipelineStr = g_strdup_printf("uridecodebin uri=\"%s\" name=uridecodebin \
+                                   force-sw-decoders=true ! queue ! \
+                                   videoconvert n-threads=4 ! videoscale ! \
+                                   "" appsink name=video-sink \
+                                   caps=\"" CAPS "\"", uri.c_str());
+
+    thumbPipeline = gst_parse_launch(pipelineStr, &error);
+    g_free(pipelineStr);
+
+    if (error != nullptr) {
         LOG_ERROR(0, "Failed to establish pipeline, Error Message : %s", error->message);
         g_error_free(error);
         return false;
     }
 
-    videoSink = gst_bin_get_by_name (GST_BIN (pipeline), "video-sink");
-    if (videoSink == nullptr)
-        RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "Failed to get video sink");    
+    if (thumbPipeline) {
+        LOG_DEBUG("pipeline has been established");
+    } else {
+        LOG_ERROR(0, "pipeline does not established");
+        return false;
+    }
 
-    ret = gst_element_set_state (pipeline, GST_STATE_PAUSED);
-    //ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);
-    LOG_DEBUG("gst_element_set_state GST_STATE_PAUSED OK");
-    switch (ret)
-    {
+    GstElement *uridecodebin = gst_bin_get_by_name(GST_BIN(thumbPipeline), "uridecodebin");
+
+    auto unknownTypeCB = +[] (GstElement *element, GstPad *pad, GstCaps *caps,
+                              bool &supportedCodec) -> void {
+        gchar *caps_str = gst_caps_to_string(caps);
+        LOG_WARNING(0, "The codec of media file is not supported by system");
+        LOG_WARNING(0, "CAPS : %s", caps);
+        supportedCodec = false;
+        g_free(caps_str);
+    };
+
+    auto releaseGstElements = [&]() -> void {
+        if (videoSink)
+            gst_object_unref (videoSink);
+        if (uridecodebin)
+            gst_object_unref (uridecodebin);
+        if (thumbPipeline)
+            gst_object_unref (thumbPipeline);
+    };
+
+    if (uridecodebin) {
+        unknownTypeId = g_signal_connect(uridecodebin, "unknown-type",
+                G_CALLBACK(unknownTypeCB), static_cast<void *>(&supportedCodec));
+    } else {
+        LOG_ERROR(0, "Failed to get decodebin");
+        gst_object_unref (thumbPipeline);
+        return false;
+    }
+
+    videoSink = gst_bin_get_by_name (GST_BIN (thumbPipeline), "video-sink");
+    if (videoSink == nullptr) {
+        LOG_ERROR(0, "Failed to get video sink");
+        gst_object_unref (uridecodebin);
+        gst_object_unref (thumbPipeline);
+        return false;
+    }
+
+    ret = gst_element_set_state (thumbPipeline, GST_STATE_PAUSED);
+    switch (ret) {
         case GST_STATE_CHANGE_FAILURE:
-            RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "failed to play the file");
+        {
+            if (supportedCodec) {
+                RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                        "failed to play the file");
+            } else {
+                RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                        "Not supported Codec");
+            }
+        }
         case GST_STATE_CHANGE_NO_PREROLL:
-            RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "live sources not supported");
+        {
+            RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                    "live sources not supported");
+        }
         default:
             break;
     }
 
-    ret = gst_element_get_state (pipeline, NULL, NULL, 5 * GST_SECOND);
-    if (ret == GST_STATE_CHANGE_FAILURE)
-        RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "failed to play the file");
-
-    gst_element_query_duration (pipeline, GST_FORMAT_TIME, &duration);
+    ret = gst_element_get_state (thumbPipeline, NULL, NULL, 5 * GST_SECOND);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        if (supportedCodec) {
+            RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                    "failed to play the file");
+        }
+        else {
+            RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                    "Not supported Codec");
+        }
+    }
+    gst_element_query_duration (thumbPipeline, GST_FORMAT_TIME, &duration);
 
     if (duration != -1)
         position = duration * 50 / 100;
     else
         position = 1 * GST_SECOND;
-
-    gst_element_seek(pipeline, 1.0f, GST_FORMAT_TIME,
-                   GstSeekFlags(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
-                   GST_SEEK_TYPE_SET, position,
-                   GST_SEEK_TYPE_NONE, 0);
-
+    gst_element_seek(thumbPipeline, 1.0f, GST_FORMAT_TIME,
+                     GstSeekFlags(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+                     GST_SEEK_TYPE_SET, position,
+                     GST_SEEK_TYPE_NONE, 0);
     g_signal_emit_by_name (videoSink, "pull-preroll", &sample, NULL);
-    gst_object_unref (videoSink);
-
-    if (sample)
-    {
+    if (sample) {
         GstBuffer *buffer;
         GstCaps *caps;
         GstStructure *s;
 
         caps = gst_sample_get_caps (sample);
         if (!caps)
-            RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "could not get snapshot format");
+            RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                    "could not get snapshot format");
+
         s = gst_caps_get_structure (caps, 0);
 
         res = gst_structure_get_int (s, "width", &width);
         res |= gst_structure_get_int (s, "height", &height);
         if (!res)
-            RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "could not get resolution information");
+            RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                    "could not get resolution information");
 
         buffer = gst_sample_get_buffer (sample);
         gst_buffer_map (buffer, &map, GST_MAP_READ);
 
-        if (!saveBufferToImage(map.data, width, height, filename, ext))
-        {
-            RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "could not save thumbnail image");
+        filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + randFilename() + "." + ext;
+        if (!saveBufferToImage(map.data, width, height, filename, ext)) {
+            RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                    "could not save thumbnail image");
         }
 
+        gst_sample_unref (sample);
         gst_buffer_unmap (buffer, &map);
-
     }
     else
     {
-         RETURN_IF_FAILED(pipeline, GST_STATE_NULL, "could not make snapshot");
+         RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
+                 "could not make snapshot");
     }
-    gst_element_set_state (pipeline, GST_STATE_NULL);
-    gst_object_unref (pipeline);
+    gst_element_set_state (thumbPipeline, GST_STATE_NULL);
+    g_signal_handler_disconnect(uridecodebin, unknownTypeId);
+    releaseGstElements();
 
-    auto end = std::chrono::high_resolution_clock::now();;
+    auto end = std::chrono::high_resolution_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-    LOG_DEBUG("Thumbnail Image creation done, elapsed time = %d [ms]", (int)(elapsedTime.count()));
+    LOG_DEBUG("Thumbnail Image creation done, elapsed time = %d [ms]",
+            (int)(elapsedTime.count()));
     return true;
 }
 
@@ -425,7 +409,7 @@ MediaItem::Meta GStreamerExtractor::metaFromTag(const char *gstTag) const
     return MediaItem::Meta::EOL;
 }
 
-void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *info,
+void GStreamerExtractor::setMeta(MediaItem &mediaItem, GstDiscovererInfo *info,
     const char *tag) const
 {
     GValue val = G_VALUE_INIT;
@@ -471,14 +455,25 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *
     } else if (!strcmp(tag, GST_TAG_THUMBNAIL)) {
         LOG_DEBUG("Generate Thumbnail image");
         std::string fname = "";
-        if (!getThumbnail(mediaItem, fname)) {
-            LOG_ERROR(0, "Failed to get thumbnail image from media item");
-            return;
-        } else {
+        GList *videoStreams = gst_discoverer_info_get_video_streams(info);
+        if (videoStreams && getThumbnail(mediaItem, fname)) {
             data = {fname};
+            gst_discoverer_stream_info_list_free(videoStreams);
+        } else {
+            if (videoStreams) {
+                LOG_DEBUG("No video streams in %s", mediaItem.uri().c_str());
+                data = {fname};
+                gst_discoverer_stream_info_list_free(videoStreams);
+            } else {
+                LOG_ERROR(0, "Failed to get thumbnail image from media item");
+                return;
+            }
         }
     } else {
-        return;
+        if (!strcmp(tag, GST_TAG_VIDEO_CODEC) || !strcmp(tag, GST_TAG_AUDIO_CODEC)) {
+            data = {"Not supported"};
+        } else
+            return;
     }
 
     auto meta = metaFromTag(tag);
@@ -489,7 +484,7 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, const GstDiscovererInfo *
 }
 
 void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
-                                       GstDiscovererStreamInfo *streamInfo, bool expand) const
+                                       GstDiscovererStreamInfo *streamInfo, bool extra) const
 {
     MediaItem::MetaData data;
     MediaItem::Meta meta;
@@ -500,85 +495,119 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
 
     switch (mediaItem.type()) {
     case MediaItem::Type::Audio: {
-        if (expand) {
+        if (extra) {
             if (GST_IS_DISCOVERER_AUDIO_INFO(streamInfo)) {
                 /* let's get the audio meta data */
-                LOG_INFO(0, "<Audio stream info>");
+                LOG_DEBUG("<Audio stream info>");
                 GstDiscovererAudioInfo *audio_info =
                     reinterpret_cast<GstDiscovererAudioInfo*>(streamInfo);
                 // SampleRate
                 data = {gst_discoverer_audio_info_get_sample_rate(audio_info)};
-                LOG_INFO(0, " -> Audio SampleRate : %u", std::get<std::uint32_t>(data));
+                LOG_DEBUG(" -> Audio SampleRate : %u", std::get<std::uint32_t>(data));
                 meta = MediaItem::Meta::SampleRate;
                 mediaItem.setMeta(meta, data);
 
                 // Channels
                 data = {gst_discoverer_audio_info_get_channels(audio_info)};
-                LOG_INFO(0, " -> Audio Channels : %u", std::get<std::uint32_t>(data));
+                LOG_DEBUG(" -> Audio Channels : %u", std::get<std::uint32_t>(data));
                 meta = MediaItem::Meta::Channels;
                 mediaItem.setMeta(meta, data);
 
                 // BitRate
                 data = {gst_discoverer_audio_info_get_bitrate(audio_info)};
-                LOG_INFO(0, " -> Audio BitRate : %u", std::get<std::uint32_t>(data));
+                LOG_DEBUG(" -> Audio BitRate : %u", std::get<std::uint32_t>(data));
                 meta = MediaItem::Meta::BitRate;
                 mediaItem.setMeta(meta, data);
 
                 // BitPerSample
                 data = {gst_discoverer_audio_info_get_depth(audio_info)};
-                LOG_INFO(0, " -> Audio BitPerSample : %u", std::get<std::uint32_t>(data));
+                LOG_DEBUG(" -> Audio BitPerSample : %u", std::get<std::uint32_t>(data));
                 meta = MediaItem::Meta::BitPerSample;
             }
         }
         break;
     }
     case MediaItem::Type::Video: {
-        if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
-            /* let's get the video meta data */
-            LOG_INFO(0, "<Video stream info>");
-            GstDiscovererVideoInfo *video_info =
-                reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
-            // Width
-            data = {gst_discoverer_video_info_get_width(video_info)};
-            LOG_INFO(0, " -> Video Width : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Width;
-            mediaItem.setMeta(meta, data);
+        if (!extra) {
+            if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
+                /* let's get the video meta data */
+                LOG_DEBUG("<Video stream info>");
+                GstDiscovererVideoInfo *video_info =
+                    reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
+                // Width
+                data = {gst_discoverer_video_info_get_width(video_info)};
+                LOG_DEBUG(" -> Video Width : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Width;
+                mediaItem.setMeta(meta, data);
 
-            // Height
-            data = {gst_discoverer_video_info_get_height(video_info)};
-            LOG_INFO(0, " -> Video Height : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Height;
-            mediaItem.setMeta(meta, data);
-            if (expand) {
+                // Height
+                data = {gst_discoverer_video_info_get_height(video_info)};
+                LOG_DEBUG(" -> Video Height : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Height;
+                mediaItem.setMeta(meta, data);
+            }
+        } else {
+            if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
+                GstDiscovererVideoInfo *video_info =
+                    reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
                 // Frame rate
                 uint32_t num = gst_discoverer_video_info_get_framerate_num(video_info);
                 uint32_t denom = gst_discoverer_video_info_get_framerate_denom(video_info);
                 std::string frame_rate = std::to_string(num) + std::string("/") + std::to_string(denom);
                 data = {frame_rate};
-                LOG_INFO(0, " -> Video Frame Rate : %s", std::get<std::string>(data).c_str());
+                LOG_DEBUG(" -> Video Frame Rate : %s", std::get<std::string>(data).c_str());
                 meta = MediaItem::Meta::FrameRate;
                 mediaItem.setMeta(meta, data);
+            } else if (GST_IS_DISCOVERER_AUDIO_INFO(streamInfo)) {
+                /* let's get the audio meta data */
+                LOG_DEBUG("<Audio stream info>");
+                GstDiscovererAudioInfo *audio_info =
+                    reinterpret_cast<GstDiscovererAudioInfo*>(streamInfo);
+                // SampleRate
+                data = {gst_discoverer_audio_info_get_sample_rate(audio_info)};
+                LOG_DEBUG(" -> Audio SampleRate : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::SampleRate;
+                mediaItem.setMeta(meta, data);
+
+                // Channels
+                data = {gst_discoverer_audio_info_get_channels(audio_info)};
+                LOG_DEBUG(" -> Audio Channels : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Channels;
+                mediaItem.setMeta(meta, data);
+
+                // BitRate
+                data = {gst_discoverer_audio_info_get_bitrate(audio_info)};
+                LOG_DEBUG(" -> Audio BitRate : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::BitRate;
+                mediaItem.setMeta(meta, data);
+
+                // BitPerSample
+                data = {gst_discoverer_audio_info_get_depth(audio_info)};
+                LOG_DEBUG(" -> Audio BitPerSample : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::BitPerSample;
             }
         }
         break;
     }
     case MediaItem::Type::Image: {
         if (GST_IS_DISCOVERER_VIDEO_INFO(streamInfo)) {
-            /* let's get the image meta data */
-            LOG_INFO(0, "<Image stream info>");
-            GstDiscovererVideoInfo *video_info =
-                reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
-            // Width
-            data = {gst_discoverer_video_info_get_width(video_info)};
-            LOG_INFO(0, " -> Image Width : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Width;
-            mediaItem.setMeta(meta, data);
+            if (!extra) {
+                /* let's get the image meta data */
+                LOG_DEBUG("<Image stream info>");
+                GstDiscovererVideoInfo *video_info =
+                    reinterpret_cast<GstDiscovererVideoInfo*>(streamInfo);
+                // Width
+                data = {gst_discoverer_video_info_get_width(video_info)};
+                LOG_DEBUG(" -> Image Width : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Width;
+                mediaItem.setMeta(meta, data);
 
-            // Height
-            data = {gst_discoverer_video_info_get_height(video_info)};
-            LOG_INFO(0, " -> Image Height : %u", std::get<std::uint32_t>(data));
-            meta = MediaItem::Meta::Height;
-            mediaItem.setMeta(meta, data);
+                // Height
+                data = {gst_discoverer_video_info_get_height(video_info)};
+                LOG_DEBUG(" -> Image Height : %u", std::get<std::uint32_t>(data));
+                meta = MediaItem::Meta::Height;
+                mediaItem.setMeta(meta, data);
+            }
         }
         break;
     }
@@ -591,7 +620,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
         gst_discoverer_stream_info_get_next(streamInfo);
 
     if (nextStreamInfo) {
-        setStreamMeta(mediaItem, nextStreamInfo, expand);
+        setStreamMeta(mediaItem, nextStreamInfo, extra);
         gst_discoverer_stream_info_unref(nextStreamInfo);
     } else if (GST_IS_DISCOVERER_CONTAINER_INFO(streamInfo)) {
         GList *streams =
@@ -599,7 +628,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
         for (GList *stream = streams; stream; stream = stream->next) {
             GstDiscovererStreamInfo *strInfo =
                 reinterpret_cast<GstDiscovererStreamInfo*>(stream->data);
-            setStreamMeta(mediaItem, strInfo, expand);
+            setStreamMeta(mediaItem, strInfo, extra);
         }
         gst_discoverer_stream_info_list_free(streams);
     } else {

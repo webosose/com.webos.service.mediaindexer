@@ -15,15 +15,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "imetadataextractor.h"
-#include "logging.h"
-
-#if defined HAS_GSTREAMER
 #include "gstreamerextractor.h"
-#endif
-
-#if defined HAS_TAGLIB
 #include "taglibextractor.h"
-#endif
+#include "imageextractor.h"
+#include "logging.h"
 
 #include <cinttypes>
 #include <fstream>
@@ -35,22 +30,24 @@
 #include <unistd.h>
 
 
-std::unique_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(
-    MediaItem::Type type, std::string &ext) {
-#if defined HAS_TAGLIB
-    if (type == MediaItem::Type::Audio &&
-        (ext.compare(TAGLIB_EXT_MP3) == 0 ||
-         ext.compare(TAGLIB_EXT_OGG) == 0)) {
-        std::unique_ptr<IMetaDataExtractor>
-            extractor(static_cast<IMetaDataExtractor *>(new TaglibExtractor()));
-        return extractor;
+std::shared_ptr<IMetaDataExtractor> IMetaDataExtractor::extractor(const MediaItem::ExtractorType& type) {
+    std::shared_ptr<IMetaDataExtractor> extractor = nullptr;
+    switch(type) {
+        case MediaItem::ExtractorType::TagLibExtractor:
+            extractor = std::make_shared<TaglibExtractor>();
+            break;
+        case MediaItem::ExtractorType::GStreamerExtractor:
+            extractor = std::make_shared<GStreamerExtractor>();
+            break;
+        case MediaItem::ExtractorType::ImageExtractor:
+            extractor = std::make_shared<ImageExtractor>();
+            //extractor = std::make_shared<GStreamerExtractor>();
+            break;
+        default:
+            LOG_ERROR(0, "Invalid extractor type : %d", type);
+            break;
     }
-#endif
-#if defined HAS_GSTREAMER
-    std::unique_ptr<IMetaDataExtractor>
-        extractor(static_cast<IMetaDataExtractor *>(new GStreamerExtractor()));
     return extractor;
-#endif
 }
 
 /// Get base filename from mediaItem

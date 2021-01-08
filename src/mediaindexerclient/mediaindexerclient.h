@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 LG Electronics, Inc.
+// Copyright (c) 2018-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,15 +52,15 @@ private:
     pbnjson::JValue generateLunaPayload(MediaIndexerClientAPI api,
                                         const std::string& uri) const;
 
-    pbnjson::JValue prepareWhere(const std::string &key,
+    bool prepareWhere(const std::string &key,
                                  const std::string &value,
                                  bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+                                 pbnjson::JValue &whereClause) const;
 
-    pbnjson::JValue prepareWhere(const std::string &key,
+    bool prepareWhere(const std::string &key,
                                  bool value,
                                  bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+                                 pbnjson::JValue &whereClause) const;
 
     pbnjson::JValue prepareQuery(const std::string& kindId,
                                  pbnjson::JValue where) const;

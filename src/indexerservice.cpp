@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -178,7 +178,7 @@ IndexerService::IndexerService(MediaIndexer *indexer) :
         // get the permission for the com.webos.service.mediaindexer
         // TODO: reply doesn't used in grantAccessAll function.
         auto reply = pbnjson::Object();
-        mdb->grantAccessAll(std::string(lunaServiceId), false, reply);
+        mdb->grantAccessAll(std::string(lunaServiceId), false, reply, "putPermissions-async");
         SettingsDb::instance();
         DeviceDb::instance();
         MediaParser::instance();
@@ -553,16 +553,16 @@ bool IndexerService::onAudioListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     return ret;
 }
 
-bool IndexerService::getAudioList(const std::string &uri, int count, LSMessage *msg)
+bool IndexerService::getAudioList(const std::string &uri, int count, LSMessage *msg, bool expand)
 {
     MediaDb *mdb = MediaDb::instance();
-    return mdb->getAudioList(uri, count, msg);
+    return mdb->getAudioList(uri, count, msg, expand);
 }
 
 bool IndexerService::onAudioMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_DEBUG("call onGetAudioMetadata");
-
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     std::string method = LSMessageGetMethod(msg);
@@ -580,33 +580,8 @@ bool IndexerService::onAudioMetadataGet(LSHandle *lsHandle, LSMessage *msg, void
     auto uri = domTree["uri"].asString();
     LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
         uri.c_str());
-    bool rv = false;
-    auto mdb = MediaDb::instance();
-    auto mparser = MediaParser::instance();
-    auto reply = pbnjson::Object();
-    std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb && mparser) {
-        pbnjson::JValue metadata = pbnjson::Object();
-        rv = mparser->setMediaItem(uri);
-        rv = mparser->extractMetaDirect(metadata);
-        reply.put("metadata", metadata);
-        mdb->putRespObject(rv, reply);
-        mdb->sendResponse(lsHandle, msg, reply.stringify());
-    } else {
-        LOG_ERROR(0, "Failed to get instance of Media Db");
-        reply.put("returnValue", false);
-        reply.put("errorCode", -1);
-        reply.put("errorText", "Invalid MediaDb Object");
-
-        LSError lsError;
-        LSErrorInit(&lsError);
-
-        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
-            LOG_ERROR(0, "Message reply error");
-        }
-    }
-    return rv;
-
+    LSMessageRef(msg);
+    return indexerService->getAudioList(uri, 0, msg, true);
 }
 
 
@@ -702,16 +677,16 @@ bool IndexerService::onVideoListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     return ret;
 }
 
-bool IndexerService::getVideoList(const std::string &uri, int count, LSMessage *msg)
+bool IndexerService::getVideoList(const std::string &uri, int count, LSMessage *msg, bool expand)
 {
     MediaDb *mdb = MediaDb::instance();
-    return mdb->getVideoList(uri, count, msg);
+    return mdb->getVideoList(uri, count, msg, expand);
 }
 
 bool IndexerService::onVideoMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     LOG_DEBUG("call onGetVideoMetadata");
-
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     std::string method = LSMessageGetMethod(msg);
@@ -729,32 +704,9 @@ bool IndexerService::onVideoMetadataGet(LSHandle *lsHandle, LSMessage *msg, void
     auto uri = domTree["uri"].asString();
     LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
         uri.c_str());
-    bool rv = false;
-    auto mdb = MediaDb::instance();
-    auto mparser = MediaParser::instance();
-    auto reply = pbnjson::Object();
-    std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb && mparser) {
-        pbnjson::JValue metadata = pbnjson::Object();
-        rv = mparser->setMediaItem(uri);
-        rv = mparser->extractMetaDirect(metadata);
-        reply.put("metadata", metadata);
-        mdb->putRespObject(rv, reply);
-        mdb->sendResponse(lsHandle, msg, reply.stringify());
-    } else {
-        LOG_ERROR(0, "Failed to get instance of Media Db");
-        reply.put("returnValue", false);
-        reply.put("errorCode", -1);
-        reply.put("errorText", "Invalid MediaDb Object");
+    LSMessageRef(msg);
+    return indexerService->getVideoList(uri, 0, msg, true);
 
-        LSError lsError;
-        LSErrorInit(&lsError);
-
-        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
-            LOG_ERROR(0, "Message reply error");
-        }
-    }
-    return rv;
 }
 
 bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
@@ -849,17 +801,16 @@ bool IndexerService::onImageListGet(LSHandle *lsHandle, LSMessage *msg, void *ct
     return ret;
 }
 
-bool IndexerService::getImageList(const std::string &uri, int count, LSMessage *msg)
+bool IndexerService::getImageList(const std::string &uri, int count, LSMessage *msg, bool expand)
 {
     MediaDb *mdb = MediaDb::instance();
-    return mdb->getImageList(uri, count, msg);
+    return mdb->getImageList(uri, count, msg, expand);
 }
 
 bool IndexerService::onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
-    //IndexerService *is = static_cast<IndexerService *>(ctx);
     LOG_DEBUG("call onGetImageMetadata");
-
+    IndexerService *indexerService = static_cast<IndexerService *>(ctx);
     // parse incoming message
     const char *payload = LSMessageGetPayload(msg);
     std::string method = LSMessageGetMethod(msg);
@@ -877,33 +828,8 @@ bool IndexerService::onImageMetadataGet(LSHandle *lsHandle, LSMessage *msg, void
     auto uri = domTree["uri"].asString();
     LOG_DEBUG("Valid %s request for uri: %s", LSMessageGetMethod(msg),
         uri.c_str());
-    bool rv = false;
-    auto mdb = MediaDb::instance();
-    auto mparser = MediaParser::instance();
-    auto reply = pbnjson::Object();
-    std::lock_guard<std::mutex> lk(mutex_);
-    if (mdb && mparser) {
-        pbnjson::JValue metadata = pbnjson::Object();
-        rv = mparser->setMediaItem(uri);
-        rv = mparser->extractMetaDirect(metadata);
-        reply.put("metadata", metadata);
-        mdb->putRespObject(rv, reply);
-        mdb->sendResponse(lsHandle, msg, reply.stringify());
-    } else {
-        LOG_ERROR(0, "Failed to get instance of Media Db");
-        reply.put("returnValue", false);
-        reply.put("errorCode", -1);
-        reply.put("errorText", "Invalid MediaDb Object");
-
-        LSError lsError;
-        LSErrorInit(&lsError);
-
-        if (!LSMessageReply(lsHandle, msg, reply.stringify().c_str(), &lsError)) {
-            LOG_ERROR(0, "Message reply error");
-        }
-    }
-    return rv;
-
+    LSMessageRef(msg);
+    return indexerService->getImageList(uri, 0, msg, true);
 }
 
 bool IndexerService::onRequestDelete(LSHandle *lsHandle, LSMessage *msg, void *ctx)
@@ -1016,7 +942,7 @@ bool IndexerService::requestMediaScan(LSMessage *msg)
     for (auto const &[uri, plg] : indexer_->plugins_) {
         plg->lock();
         for (auto const &[uri, dev] : plg->devices()) {
-            if (plg->matchUri(dev->mountpoint(), path)) {
+            if ((dev->available()) && (plg->matchUri(dev->mountpoint(), path))) {
                 LOG_INFO(0, "Media Scan start for device %s", dev->uri().c_str());
                 dev->scan();
                 scanned = true;
@@ -1035,7 +961,6 @@ bool IndexerService::requestMediaScan(LSMessage *msg)
         reply.put("errorCode", -1);
         reply.put("errorText", "Scan Failed");
     }
-
     LSError lsError;
     LSErrorInit(&lsError);
 

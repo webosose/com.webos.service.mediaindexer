@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 LG Electronics, Inc.
+# Copyright (c) 2019-2021 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 
 include_directories(../log)
-
 # libmtp
 pkg_check_modules(LIBMTP libmtp>=1.0)
 if (LIBMTP_FOUND AND STANDALONE)
@@ -50,10 +49,9 @@ endif ()
 # a list of local storage pathes to observe, the list has the format
 # <path>,<name>,<desc>;...
 if (NOT STORAGE_DEVS)
-  add_definitions(-DSTORAGE_DEVS="/media/multimedia,Media,Local Media Storage")
-else ()
-  add_definitions(-DSTORAGE_DEVS="${STORAGE_DEVS}")
+  set(STORAGE_DEVS /media/multimedia)
 endif ()
+add_definitions(-DSTORAGE_DEVS="${STORAGE_DEVS},Media,Local Media Storage")
 
 # gio
 pkg_check_modules(GIO2 REQUIRED gio-2.0)

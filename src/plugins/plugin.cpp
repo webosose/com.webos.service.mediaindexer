@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 #include "plugin.h"
 #include "ideviceobserver.h"
-
+#include "configurator.h"
 #include <algorithm>
 #include <filesystem>
 
 #include <gio/gio.h>
 
 namespace fs = std::filesystem;
-
 bool Plugin::matchUri(const std::string &refUri, const std::string &testUri)
 {
     return !testUri.compare(0, refUri.size(), refUri);
@@ -99,6 +98,7 @@ bool Plugin::injectDevice(std::shared_ptr<Device> device)
 
 bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::string uuid)
 {
+    LOG_INFO(0, "uri = [%s], uuid[%s]", uri.c_str(), uuid.c_str());
     bool isNew = false;
 
     if (!hasDevice(uri)) {
@@ -106,6 +106,9 @@ bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::st
         LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());
         devices_[uri] = std::make_shared<Device>(uri, alive, avail, uuid);
         isNew = true;
+    } else {
+        auto dev = device(uri);
+        dev->setNewMountedDevice(isNew);
     }
 
     if (isNew)
@@ -169,6 +172,7 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::strin
         auto changed = dev->setAvailable(true);
         dev->setMountpoint(mp);
         dev->setUuid(uuid);
+        dev->setNewMountedDevice(isNew);
         // now tell the observers if availability changed
         if (changed)
             notifyObserversStateChange(dev);
@@ -263,7 +267,6 @@ void Plugin::scan(const std::string &uri)
         return;
 
     auto obs = dev->observer();
-
     if (!obs) {
         LOG_ERROR(0, "device %s has no observer, observer is manadatory", dev->uri().c_str());
         return;
@@ -276,76 +279,51 @@ void Plugin::scan(const std::string &uri)
         return;
     }
     LOG_DEBUG("file scan start for mountpoint : %s!", mp.c_str());
+    auto configurator = Configurator::instance();
     // do the file-tree-walk
-    std::error_code err;
     try {
         for (auto &file : fs::recursive_directory_iterator(mp)) {
-            if (!file.is_regular_file(err))
-                continue;
-            // get the file content type to decide if it can become a media
-            // item
-            std::string mimeType;
-            gchar *contentType = NULL;
-            gboolean uncertain;
-            bool mimeTypeSupported = false;
-            bool extTypeSupported = false;
-            contentType = g_content_type_guess(file.path().c_str(), NULL, 0,
-                &uncertain);
-
-            LOG_DEBUG("contentType : %s", contentType);
-
-            if (!contentType) {
-                LOG_INFO(0, "MIME type detection is failed for '%s'",
-                    file.path().c_str());
+            std::error_code err;
+            if (!file.is_regular_file(err)) {
+                LOG_WARNING(0, "'%s' is not regular file. error message : '%s'", 
+                        file.path().c_str(), err.message().c_str());
                 continue;
             }
-            mimeType = contentType;
-            g_free(contentType);
+
             std::string path = file.path();
+            std::string mimeType;
+            if (isHiddenfolder(path))
+                continue;
+
             std::string ext = path.substr(path.find_last_of('.') + 1);
-            extTypeSupported = MediaItem::extTypeSupported(ext);
-            if (!extTypeSupported) {
-                LOG_DEBUG("skip file scanning for %s", path.c_str());
-                continue;
-            }
-            mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
-            if (!mimeTypeSupported) {
-                // get the file extension for the ts or ps.
-                LOG_DEBUG("scan ext '%s'", ext.c_str());
-
-                //TODO: switch case
-                if (!ext.compare("ts"))
-                    mimeType = std::string("video/MP2T");
-                else if (!ext.compare("ps"))
-                    mimeType = std::string("video/MP2P");
-                else if (!ext.compare("asf"))
-                    mimeType = std::string("video/x-asf");
-                else {
-                    LOG_INFO(0, "it's NOT ts/ps/asf. need to check for '%s'", file.path().c_str());
-                    continue;
-                }
-                // again check the mimtType supported or not.
-                mimeTypeSupported = MediaItem::mimeTypeSupported(mimeType);
-            }
-
-            if (uncertain && !mimeTypeSupported) {
-                LOG_INFO(0, "Invalid MIME type for '%s'", path.c_str());
+            if (!configurator->isSupportedExtension(ext)) {
+                LOG_WARNING(0, "'%s' is NOT supported!", ext.c_str());
                 continue;
             }
 
-            if (!dev->isValidFile(path)) {
-                LOG_WARNING(0, "file path : %s is already scanned before or path is invalid", path.c_str());
-                continue;
-            }
+            // let's get the media item type and extractor type
+            auto typeInfo = configurator->getTypeInfo(ext);
+            auto lastWrite = file.last_write_time();
+            auto fileSize = file.file_size();
+            auto hash = lastWrite.time_since_epoch().count();
+            auto type = typeInfo.first;
+            auto extractorType = typeInfo.second;
+            MediaItemPtr mi = std::make_unique<MediaItem>(dev, path, mimeType, hash,
+                    fileSize, ext, type, extractorType);
+            obs->newMediaItem(std::move(mi));
 
-            if (mimeTypeSupported) {
+            /*
+            if (MediaItem::mediaItemSupported(path, mimeType)) {
                 auto lastWrite = file.last_write_time();
                 auto fileSize = file.file_size();
                 auto hash = lastWrite.time_since_epoch().count();
                 MediaItemPtr mi(new MediaItem(dev,
-                        file.path(), mimeType, hash, fileSize));
+                        path, mimeType, hash, fileSize));
                 obs->newMediaItem(std::move(mi));
+            } else {
+                LOG_WARNING(0, "mediaItem : %s is not supported", path.c_str());
             }
+            */
         }
     } catch (const std::exception &ex) {
         LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",
@@ -353,6 +331,13 @@ void Plugin::scan(const std::string &uri)
     }
     LOG_INFO(0, "File-tree-walk on device '%s' has been completed",
         dev->uri().c_str());
+}
+
+bool Plugin::isHiddenfolder(std::string &filepath)
+{
+    if(filepath.find("/.") != -1)
+        return true;
+    return false;
 }
 
 void Plugin::extractMeta(MediaItem &mediaItem, bool expand)

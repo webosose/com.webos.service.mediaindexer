@@ -55,29 +55,33 @@ public:
         TYPE, ///< Media type, possible value : audio / video / image
         MIME, ///< Mime type of media item
         FILEPATH, ///< Accessible file path
+        KIND, ///< DB kind
         EOL
     };
     /// Meta data type specifiers.
     enum class Meta : int {
+        // Common Meta Data
         Title, ///< Media title, mandatory.
         Genre, ///< Media genre.
         Album, ///< Media album.
         Artist, ///< Media artist.
-        AlbumArtist, ///< The album artist, set to artist of not
-                     ///available.
+        Duration, ///< Media duration in seconds.
+        Thumbnail, ///< Attached Picture
+        LastModifiedDate, ///< Last modified date.(formatted)
+        LastModifiedDateRaw, ///< Last modified date.(not formatted)
+        FileSize, ///< File size.
+        Width, ///< Video width.
+        Height, ///< Video height.
+        // Extra Meta Data
         Track, ///< Track number in album.
+        AlbumArtist, ///< The album artist, set to artist of not available.
         TotalTracks, ///< Total number of tracks in album.
         DateOfCreation, ///< Date of creation.
-        Duration, ///< Media duration in seconds.
         Year, ///< Recoding time(Year).
-        Thumbnail, ///< Attached Picture
         GeoLocLongitude, ///< Location longitude.
         GeoLocLatitude, ///< Location latitude.
         GeoLocCountry, ///< Location country code.
         GeoLocCity, ///< Location city name.
-        LastModifiedDate, ///< Last modified date.(formatted)
-        LastModifiedDateRaw, ///< Last modified date.(not formatted)
-        FileSize, ///< File size.
         VideoCodec, ///< Video Codec Information.
         AudioCodec, ///< Audio Codec Information.
         SampleRate, ///< Audio sample rate.
@@ -85,8 +89,6 @@ public:
         BitRate, ///< Audio bitrate.
         BitPerSample, ///<Audio bit per sample.
         Lyric, ///< Audio Lyric.
-        Width, ///< Video width.
-        Height, ///< Video height.
         FrameRate, ///< Video framerate.
         EOL /// End of list marker.
     };
@@ -121,6 +123,13 @@ public:
         EOL ///< End of list marker.
     };
 
+    enum class ExtractorType : int {
+        TagLibExtractor,
+        GStreamerExtractor,
+        ImageExtractor,
+        EOL
+    };
+
     /**
      * \brief Check if given MIME type is supported.
      *
@@ -136,6 +145,14 @@ public:
      * \return True if supported, else false.
      */
     static bool extTypeSupported(const std::string &ext);
+
+    /**
+     * \brief Check if given media item is supported.
+     *
+     * \param[in] ext extension type string.
+     * \return True if supported, else false.
+     */
+    static bool mediaItemSupported(const std::string &path, std::string &mimeType);
 
     /**
      * \brief Get media type from mime type.
@@ -198,7 +215,30 @@ public:
      * \param[in] filesize The media item filesize(byte).
      */
     MediaItem(std::shared_ptr<Device> device, const std::string &path,
-        const std::string &mime, unsigned long hash, unsigned long filesize = 0);
+              const std::string &mime, unsigned long hash, unsigned long filesize = 0);
+    /**
+     * \brief Construct media item.
+     *
+     * The device is referenced from a std::shared_ptr as the device
+     * might be destroyed in the plugin while still in use from this
+     * media item.
+     *
+     * The path string must begin with a '/' if it is a file path and
+     * must not begin with '/' else.
+     *
+     * \param[in] device The device this media item belongs to.
+     * \param[in] path The media item path.
+     * \param[in] mime The MIME type information.
+     * \param[in] hash Some hash to check for modifications.
+     * \param[in] filesize The media item filesize(byte).
+     * \param[in] ext The media file extension.
+     * \param[in] type The media item type.
+     * \param[in] extType The extractor type.
+     */
+    MediaItem(std::shared_ptr<Device> device, const std::string &path,
+              const std::string &mime, unsigned long hash, unsigned long filesize,
+              const std::string &ext, const MediaItem::Type &type,
+              const MediaItem::ExtractorType &extType);
 
     /**
      * \brief Construct media item only with uri.
@@ -218,7 +258,7 @@ public:
     virtual ~MediaItem() {};
 
     /**
-     * \brief put all meta data of this media item to given json object.
+     * \brief put meta data of this media item to given json object.
      *
      * This will write all available meta data to json object
      * given as input parameter.
@@ -226,7 +266,7 @@ public:
      * \param[in] meta Json object that meta data of this item to be stored.
      * \return result(true or false).
      */
-    bool putAllMetaToJson(pbnjson::JValue &meta);
+    bool putExtraMetaToJson(pbnjson::JValue &meta);
 
     /**
      * \brief Get the identifier of this media item.
@@ -299,6 +339,20 @@ public:
     void setParsed(bool value) { parsed_ = value; }
 
     /**
+     * \brief Set media item type.
+     * \param[in] type The value to indicate media item type.
+     *
+     */
+    void setType(MediaItem::Type type) { type_ = type; }
+
+    /**
+     * \brief Set extractor type for this media item.
+     * \param[in] type The value to indicate extractor type.
+     *
+     */
+    void setExtractorType(MediaItem::ExtractorType type) { extractorType_ = type; }
+
+    /**
      * \brief Check if media item has been parsed.
      *
      * \return True if parsed, else false.
@@ -325,6 +379,13 @@ public:
      * \return The type.
      */
     MediaItem::Type type() const;
+
+    /**
+     * \brief Get the extractor type.
+     *
+     * \return The type.
+     */
+    MediaItem::ExtractorType extractorType() const;
 
     /**
      *\brief Gives us the current media item observer.
@@ -367,12 +428,17 @@ private:
     std::string path_;
     /// The file extension
     std::string ext_;
+    /// Type of extractor.
+    ExtractorType extractorType_;
     /// Not supported ext
     static std::vector<std::string> notSupportedExt_;
 };
 
 /// Useful when iterating over enum.
 MediaItem::Type &operator++(MediaItem::Type &type);
+
+/// Useful when iterating over enum.
+MediaItem::ExtractorType &operator++(MediaItem::ExtractorType &type);
 
 // TODO: need to change as template
 /// Useful when iterating over enum.

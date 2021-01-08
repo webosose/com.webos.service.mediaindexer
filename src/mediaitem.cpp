@@ -20,6 +20,8 @@
 #include "plugins/plugin.h"
 #include <cinttypes>
 #include <gio/gio.h>
+#include <exception>
+#include <stdexcept>
 
 std::vector<std::string> MediaItem::notSupportedExt_ = {
     "rv",
@@ -35,6 +37,15 @@ MediaItem::Type &operator++(MediaItem::Type &type)
     if (type == MediaItem::Type::EOL)
         return type;
     type = static_cast<MediaItem::Type>(static_cast<int>(type) + 1);
+    return type;
+}
+
+// Not part of Device class, this is defined at the bottom of device.h
+MediaItem::ExtractorType &operator++(MediaItem::ExtractorType &type)
+{
+    if (type == MediaItem::ExtractorType::EOL)
+        return type;
+    type = static_cast<MediaItem::ExtractorType>(static_cast<int>(type) + 1);
     return type;
 }
 
@@ -102,6 +113,57 @@ bool MediaItem::extTypeSupported(const std::string &ext)
     }
     return true;
 }
+
+bool MediaItem::mediaItemSupported(const std::string &path, std::string &mimeType)
+{
+
+    gchar *contentType = NULL;
+    gboolean uncertain;
+    bool _mimeTypeSupported = false;
+    contentType = g_content_type_guess(path.c_str(), NULL, 0,
+        &uncertain);
+
+    LOG_DEBUG("contentType : %s", contentType);
+
+    if (!contentType) {
+        LOG_INFO(0, "MIME type detection is failed for '%s'",
+            path.c_str());
+        return false;
+    }
+    mimeType = contentType;
+    g_free(contentType);
+    std::string ext = path.substr(path.find_last_of('.') + 1);
+    if (!extTypeSupported(ext)) {
+        LOG_DEBUG("skip file scanning for %s", path.c_str());
+        return false;
+    }
+    _mimeTypeSupported = mimeTypeSupported(mimeType);
+    if (!_mimeTypeSupported) {
+        // get the file extension for the ts or ps.
+        LOG_DEBUG("scan ext '%s'", ext.c_str());
+
+        //TODO: switch case
+        if (!ext.compare("ts"))
+            mimeType = std::string("video/MP2T");
+        else if (!ext.compare("ps"))
+            mimeType = std::string("video/MP2P");
+        else if (!ext.compare("asf"))
+            mimeType = std::string("video/x-asf");
+        else {
+            LOG_INFO(0, "it's NOT ts/ps/asf. need to check for '%s'", path.c_str());
+            return false;
+        }
+        // again check the mimtType supported or not.
+        _mimeTypeSupported = mimeTypeSupported(mimeType);
+    }
+
+    if (uncertain && !_mimeTypeSupported) {
+        LOG_INFO(0, "Invalid MIME type for '%s'", path.c_str());
+        return false;
+    }
+    return true;
+}
+
 
 MediaItem::Type MediaItem::typeFromMime(const std::string &mime)
 {
@@ -246,6 +308,8 @@ std::string MediaItem::metaToString(MediaItem::CommonType meta)
             return std::string("mime");
         case MediaItem::CommonType::FILEPATH:
             return std::string("file_path");
+        case MediaItem::CommonType::KIND:
+            return std::string("_kind");
         case MediaItem::CommonType::EOL:
             return "";
         default:
@@ -254,18 +318,18 @@ std::string MediaItem::metaToString(MediaItem::CommonType meta)
 }
 
 MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
-    const std::string &mime, unsigned long hash, unsigned long filesize) :
-    device_(device),
-    type_(Type::EOL),
-    hash_(hash),
-    filesize_(filesize),
-    parsed_(false),
-    uri_(""),
-    mime_(mime),
-    path_(""),
-    ext_("")
+                     const std::string &mime, unsigned long hash, unsigned long filesize)
+    : device_(device)
+    , type_(Type::EOL)
+    , hash_(hash)
+    , filesize_(filesize)
+    , parsed_(false)
+    , uri_("")
+    , mime_(mime)
+    , path_("")
+    , ext_("")
 {
-    LOG_INFO(0, "path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
+    LOG_DEBUG("path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
     // create uri
     uri_ = device->uri();
     if (uri_.back() != '/' && path.front() != '/')
@@ -285,10 +349,34 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
         break;
     }
 
-    if (type_ != Type::EOL) {
+    if (type_ != Type::EOL)
         device_->incrementMediaItemCount(type_);
-        device_->addFileList(path_);
-    }
+}
+
+MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
+                     const std::string &mime, unsigned long hash, unsigned long filesize,
+                     const std::string &ext, const MediaItem::Type &type,
+                     const MediaItem::ExtractorType &extType)
+    : device_(device)
+    , type_(type)
+    , hash_(hash)
+    , filesize_(filesize)
+    , parsed_(false)
+    , uri_("")
+    , mime_(mime)
+    , path_(path)
+    , ext_(ext)
+    , extractorType_(extType)
+{
+    LOG_DEBUG("path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
+    // create uri
+    uri_ = device->uri();
+    if (uri_.back() != '/' && path.front() != '/')
+        uri_.append("/");
+    uri_.append(path);
+
+    if (type_ != Type::EOL)
+        device_->incrementMediaItemCount(type_);
 }
 
 MediaItem::MediaItem(const std::string &uri) :
@@ -308,10 +396,13 @@ MediaItem::MediaItem(const std::string &uri) :
         LOG_DEBUG("path_ : %s",path_.c_str());
         ext_ = path_.substr(path_.find_last_of('.') + 1);
         auto fpath = std::filesystem::path(path_);
-        gboolean uncertain;
-        mime_ = g_content_type_guess(path_.c_str(), NULL, 0, &uncertain);
         filesize_ = std::filesystem::file_size(fpath);
         hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
+
+        if (!MediaItem::mediaItemSupported(path_, mime_)) {
+            LOG_ERROR(0, "Media Item %s is not supported by this system", path_.c_str());
+            throw std::runtime_error("error");
+        }
 
         // set the type
         for (auto type = MediaItem::Type::Audio;
@@ -330,30 +421,13 @@ MediaItem::MediaItem(const std::string &uri) :
     }
 }
 
-bool MediaItem::putAllMetaToJson(pbnjson::JValue &meta)
+bool MediaItem::putExtraMetaToJson(pbnjson::JValue &meta)
 {
-    meta.put(metaToString(CommonType::URI), uri_);
-    meta.put(metaToString(CommonType::HASH), std::to_string(hash_));
-    meta.put(metaToString(CommonType::DIRTY), false);
-    meta.put(metaToString(CommonType::TYPE), mediaTypeToString(type_));
-    meta.put(metaToString(CommonType::MIME), mime_);
-    // check if the plugin is available and get it
-    LOG_DEBUG("Try to find plugin for uri_ : %s", uri_.c_str());
-    auto plg = PluginFactory().plugin(uri_);
-    if (!plg)
-        return false;
-
-    auto filepath = plg->getPlaybackUri(uri_);
-    LOG_DEBUG("filepath : %s", filepath.value().c_str());
-    meta.put(metaToString(CommonType::FILEPATH), filepath ? filepath.value() : "");
-
-
-    for (auto _meta = MediaItem::Meta::Title; _meta < MediaItem::Meta::EOL; ++_meta) {
+    for (auto _meta = MediaItem::Meta::Track; _meta < MediaItem::Meta::EOL; ++_meta) {
         auto metaStr = metaToString(_meta);
         auto data = this->meta(_meta);
-
         if ((type_ == MediaItem::Type::Audio && isAudioMeta(_meta))
-            ||(type_ == MediaItem::Type::Video && isVideoMeta(_meta))
+            ||(type_ == MediaItem::Type::Video && (isVideoMeta(_meta) || isAudioMeta(_meta)))
             ||(type_ == MediaItem::Type::Image && isImageMeta(_meta))) {
             if (!putProperties(metaStr, data, meta)) {
                 LOG_ERROR(0, "Failed to meta data to json object, type : %s", metaStr.c_str());
@@ -468,6 +542,11 @@ MediaItem::Type MediaItem::type() const
     return type_;
 }
 
+MediaItem::ExtractorType MediaItem::extractorType() const
+{
+    return extractorType_;
+}
+
 IMediaItemObserver *MediaItem::observer() const
 {
     return device_->observer();
@@ -502,6 +581,7 @@ bool MediaItem::isAudioMeta(Meta meta){
         case MediaItem::Meta::BitPerSample:
         case MediaItem::Meta::Channels:
         case MediaItem::Meta::BitRate:
+        case MediaItem::Meta::AudioCodec:
         case MediaItem::Meta::Lyric:
         case MediaItem::Meta::DateOfCreation:
             return true;

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,9 @@ public:
         GetAudioList,
         GetVideoList,
         GetImageList,
+        GetAudioMetaData,
+        GetVideoMetaData,
+        GetImageMetaData,
         RequestDelete,
         RemoveDirty,
         EOL
@@ -85,16 +88,6 @@ public:
     bool needUpdate(MediaItem *mediaItem);
 
     /**
-     * \brief Check whether db data of media item include enough information.
-     *
-     * If db data for media item have missing data, the observer will get notified.
-     *
-     * \param[in] mediaItem The media item to check.
-     * \param[in] val db data for media item(previously stored).
-     */
-    bool isEnoughInfo(MediaItem *mediaItem, pbnjson::JValue &val);
-
-    /**
      * \brief Update the media item meta in the database.
      *
      * \param[in] mediaItem The media item to update.
@@ -137,13 +130,13 @@ public:
      */
     void grantAccess(const std::string &serviceName);
 
-    void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp);
+    void grantAccessAll(const std::string &serviceName, bool atomic, pbnjson::JValue &resp, const std::string &methodName = std::string());
 
-    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getAudioList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 
-    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getVideoList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 
-    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr);
+    bool getImageList(const std::string &uri, int count, LSMessage *msg = nullptr, bool expand = false);
 
     void makeUriIndex();
 
@@ -162,6 +155,44 @@ public:
      */
     MediaItem::Type guessType(const std::string &uri);
 
+    /**
+     * \brief flush dirty flag handling.
+     *
+     * \param[in] device The device to unflag dirty.
+     */
+    void flushUnflagDirty(Device* device);
+
+    /**
+     * \brief put meta data of media item to buffer.
+     *        If more than a certain number is accumulated,
+     *        it is flushed.
+     * \param[in] params Meta data formatted with json format.
+     * \param[in] device The device contains the media item.
+     * \return true if the operation is sucessful.
+     */
+    bool putMeta(pbnjson::JValue &params, DevicePtr device);
+
+    /**
+     * \brief flush meta data from buffer to db8 service.
+     * \param[in] device The device contains the media item related to meta data to be flushed.
+     * \return true if the operation is sucessful.
+     */
+    bool flushPut(Device* device);
+
+    /**
+     * \brief reset temporary buffer used in first scanning procedure
+     * \param[in] uri The uri of corresponding device.
+     * \return true if the operation is sucessful.
+     */
+    bool resetFirstScanTempBuf(const std::string &uri);
+
+    /**
+     * \brief reset temporary buffer used in rescanning procedure
+     * \param[in] uri The uri of corresponding device.
+     * \return true if the operation is sucessful.
+     */
+    bool resetReScanTempBuf(const std::string &uri);
+
 protected:
     /// Get message id.
     LOG_MSGID;
@@ -170,15 +201,19 @@ protected:
     MediaDb();
 
 private:
-    pbnjson::JValue prepareWhere(const std::string &key,
+    bool prepareWhere(const std::string &key,
                                  const std::string &value,
                                  bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+                                 pbnjson::JValue &whereClause) const;
 
-    pbnjson::JValue prepareWhere(const std::string &key,
+    bool prepareWhere(const std::string &key,
                                  bool value,
                                  bool precise,
-                                 pbnjson::JValue whereClause = pbnjson::Array()) const;
+                                 pbnjson::JValue &whereClause) const;
+
+    bool prepareOperation(const std::string &method,
+                                 pbnjson::JValue &param,
+                                 pbnjson::JValue &operationClause) const;
 
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
@@ -192,6 +227,9 @@ private:
         { std::string("getAudioList"),   MediaDbMethod::GetAudioList  },
         { std::string("getVideoList"),   MediaDbMethod::GetVideoList  },
         { std::string("getImageList"),   MediaDbMethod::GetImageList  },
+        { std::string("getAudioMetaData"),   MediaDbMethod::GetAudioMetaData  },
+        { std::string("getVideoMetaData"),   MediaDbMethod::GetVideoMetaData  },
+        { std::string("getImageMetaData"),   MediaDbMethod::GetImageMetaData  },
         { std::string("requestDelete"),  MediaDbMethod::RequestDelete },
         { std::string("removeDirty"),    MediaDbMethod::RemoveDirty   }
     };
@@ -200,6 +238,7 @@ private:
     /// database.
     std::list<std::string> dbClients_;
     std::map<std::string, unsigned long> mediaItemMap_;
+    std::mutex mutex_;
 
     //static constexpr char MEDIA_KIND[]  = "com.webos.service.mediaindexer.media:1";
     static constexpr char AUDIO_KIND[] = "com.webos.service.mediaindexer.audio:1";
@@ -213,4 +252,7 @@ private:
     static constexpr char MIME[] = "mime";
     static constexpr char FILE_PATH[] = "file_path";
 
+    pbnjson::JValue batchOperations_ = pbnjson::Array();
+    std::map<std::string, pbnjson::JValue> firstScanTempBuf_;
+    std::map<std::string, pbnjson::JValue> reScanTempBuf_;
 };

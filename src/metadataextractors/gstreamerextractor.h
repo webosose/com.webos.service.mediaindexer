@@ -19,6 +19,7 @@
 #include "imetadataextractor.h"
 
 #if defined HAS_GSTREAMER
+#include <gst/gst.h>
 #include <gst/pbutils/gstdiscoverer.h>
 #include <gst/pbutils/pbutils.h>
 #include <gst/audio/audio.h>
@@ -53,7 +54,7 @@ public:
     virtual ~GStreamerExtractor();
 
     /// From interface.
-    bool extractMeta(MediaItem &mediaItem, bool expand = false) const;
+    bool extractMeta(MediaItem &mediaItem, bool extra = false) const;
 
 private:
     /// Get message id.
@@ -70,12 +71,12 @@ private:
                                   const std::string &filename, const std::string &ext = "jpg") const;
 
     /// Set media item media per media type.
-    void setMeta(MediaItem &mediaItem, const GstDiscovererInfo *metaInfo,
+    void setMeta(MediaItem &mediaItem, GstDiscovererInfo *metaInfo,
         const char *tag) const;
-    void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool expand = false) const;
+    void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool extra = false) const;
 
     static std::map<std::string, MediaItem::Meta> metaMap_;
-    mutable std::mutex mutex_;
+    bool supportedCodec_;
 };
 
 /// Useful when iterating over enum.

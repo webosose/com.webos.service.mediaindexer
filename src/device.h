@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,10 @@
 #include "logging.h"
 #include "mediaitem.h"
 #include "task.h"
+
+#if PERFCHECK_ENABLE
+#include "performancechecker.h"
+#endif
 
 #include <string>
 #include <chrono>
@@ -158,6 +162,21 @@ public:
      */
     virtual void setState(Device::State state);
 
+
+    /**
+     * \brief Get the device mount state that whether it's new device or not
+     *
+     * \return True if device is first mounted on target, else false.
+     */
+    virtual bool isNewMountedDevice() const;
+
+    /**
+     * \brief Set the device mount state that whether it's new device or not
+     *
+     * \param[in] isNew device mount state.
+     */
+    virtual void setNewMountedDevice(bool isNew);
+
     /**
      * \brief Tell the timestamp when the device was available last
      * time.
@@ -213,28 +232,48 @@ public:
      * \brief Increase processed media item count by one for given media type.
      *
      * \param[in] type Media item type.
+     * \param[in] count increment Processed Item Count.
      */
-    void incrementProcessedItemCount(MediaItem::Type type);
+    void incrementProcessedItemCount(MediaItem::Type type, int count = 1);
+
+    /**
+     * \brief Increase total processed media item count.
+     *
+     * \param[in] count increment Processed Item Count.
+     */
+    void incrementTotalProcessedItemCount(int count = 1);
+
+    /**
+     * \brief Increase media item count by putMeta method.
+     *
+     * \param[in] count increment Processed Item Count.
+     */
+    void incrementPutItemCount(int count = 1);
+
+    /**
+     * \brief Increase media item count by unflagDirty method.
+     *
+     * \param[in] count increment Processed Item Count.
+     */
+    void incrementDirtyItemCount(int count = 1);
+
+    /**
+     * \brief check whether the buffered data for put should be flushed or not.
+     *
+     */
+    bool needFlushed();
+
+    /**
+     * \brief check whether the buffered data for unflagDirty should be flushed or not.
+     *
+     */
+    bool needDirtyFlushed();
 
     /**
      * \brief check if processing of media items inside device is done.
      *
      */
     bool processingDone();
-
-    /**
-     * \brief Add absolute file path for device.
-     *
-     * \param[in] fpath file path.
-     */
-    bool addFileList(std::string &fpath);
-
-    /**
-     * \brief Check input file path is already exist in fileList_.
-     *
-     * \param[in] fpath file path.
-     */
-    bool isValidFile(std::string &fpath);
 
     /**
      * \brief If done, activate cleanup task to delete db not matched to
@@ -250,6 +289,13 @@ public:
      * \return Media item count.
      */
     virtual int mediaItemCount(MediaItem::Type type);
+
+    /**
+     * \brief Create directory dedicated to the device for thumbnails.
+     *
+     * \return creation success or failure.
+     */
+    virtual bool createThumbnailDirectory();
 
     /**
      * \brief Thread loop for file scanning.
@@ -297,9 +343,11 @@ private:
     int alive_;
     /// Alive reset value.
     int maxAlive_;
+    bool newMountedDevice_ = true;
 
     std::thread task_;
     std::mutex mutex_;
+    std::mutex pmtx_;
     std::condition_variable cv_;
     std::deque<std::string> queue_;
     bool exit_ = false;
@@ -312,9 +360,9 @@ private:
     int totalItemCount_ = 0;
     /// Processed media item count per media type.
     std::map<MediaItem::Type, int> processedCount_;
-    std::vector<std::string> fileList_;
     int totalProcessedCount_ = 0;
-
+    int putCount_ = 0;
+    int dirtyCount_ = 0;
     Task cleanUpTask_;
 };
 

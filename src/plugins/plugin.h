@@ -251,6 +251,9 @@ private:
     /// Notify the observer about a device modification.
     void notifyObserversModify(const std::shared_ptr<Device> &device) const;
 
+    /// Check if the path is a hidden file.
+    bool isHiddenfolder(std::string &filepath);
+
     /// Lock this instance, this is locked when the observer is
     /// notified and the observer may call back into one of the
     /// protected methods so better make it recursive.

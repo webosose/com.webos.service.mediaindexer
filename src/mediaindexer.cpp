@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@
 #endif
 
 #include <iostream>
-
 std::unique_ptr<MediaIndexer> MediaIndexer::instance_;
 GMainLoop *MediaIndexer::mainLoop_ = nullptr;
 
@@ -48,7 +47,7 @@ MediaIndexer::MediaIndexer() :
 #endif
     plugins_()
 {
-
+    Configurator::instance();
 }
 
 MediaIndexer::~MediaIndexer()
@@ -235,6 +234,7 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 {
     // this helps us for logging
     auto dev = mediaItem->device();
+
     // if the media item has not yet been parsed we first check if
     // parsing is necessary at all
     if (!mediaItem->parsed()) {
@@ -246,14 +246,19 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
 #if defined HAS_LUNA
         auto mdb = MediaDb::instance();
         //mdb->checkForChange(std::move(mediaItem));
-        if (mdb->needUpdate(mediaItem.get()))
+        if (dev->isNewMountedDevice()) {
             metaDataUpdateRequired(std::move(mediaItem));
-        else
-            mdb->unflagDirty(std::move(mediaItem));
+        } else {
+            if (mdb->needUpdate(mediaItem.get())) {
+                metaDataUpdateRequired(std::move(mediaItem));
+            } else
+                mdb->unflagDirty(std::move(mediaItem));
+        }
 
         // the device media item count has changed - notify
         // subscribers
         indexerService_->pushDeviceList();
+
 #else
         LOG_INFO(0, "Device '%s' media item count (audio/video/images): %i/%i/%i",
             dev->uri().c_str(), dev->mediaItemCount(MediaItem::Type::Audio),
@@ -290,6 +295,12 @@ void MediaIndexer::cleanupDevice(Device* device)
     mdb->removeDirty(device);
 }
 
+void MediaIndexer::flushUnflagDirty(Device* device)
+{
+    auto mdb = MediaDb::instance();
+    mdb->flushUnflagDirty(device);
+}
+
 void MediaIndexer::notifyDeviceScanned(Device* device)
 {
     indexerService_->notifyScanDone();
@@ -302,3 +313,16 @@ bool MediaIndexer::sendMediaMetaDataNotification(const std::string &method,
     LOG_INFO(0, "MediaIndexer::sendMediaListNotification");
     return indexerService_->notifyMediaMetaData(method, metaData, msg);
 }
+
+Device *MediaIndexer::findDevice(const std::string &uri)
+{
+    Device *ret = nullptr;
+    for (auto const &[puri, plg] : plugins_) {
+        for (auto const &[duri, dev] : plg->devices()) {
+            if (duri == uri)
+                return dev.get();
+        }
+    }
+    return ret;
+}
+

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,7 +58,14 @@ public:
      */
     virtual void cleanupDevice(Device* dev) = 0;
 
-     /**
+    /**
+     * \brief Called when dirty flag handling remains on the device.
+     *
+     * \param[in] dev The device.
+     */
+    virtual void flushUnflagDirty(Device* dev) = 0;
+
+    /**
      * \brief notify after specified device has been scanned.
      *
      *

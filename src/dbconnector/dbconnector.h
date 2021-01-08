@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #pragma once
 
 #include "logging.h"
+#include "performancechecker.h"
 #include "lunaconnector.h"
 #include <luna-service2/lunaservice.h>
 #include <pbnjson.hpp>
@@ -27,6 +28,14 @@
 #include <thread>
 #include <map>
 #include <list>
+
+#define FLUSH_COUNT 100
+
+enum SessionHdlType {
+    HDL_DEFAULT = 0,
+    HDL_LUNA_CONN,
+    HDL_MAX
+};
 
 /// Connector to com.webos.mediadb.
 class DbConnector
@@ -99,8 +108,9 @@ protected:
         pbnjson::JValue &props, void *obj = nullptr, const std::string &kind_name = "", bool atomic = false);
 
     virtual bool merge(const std::string &kind_name, pbnjson::JValue &props,
-		const std::string &whereProp, const std::string &whereVal, bool precise = true, void *obj = nullptr, bool atomic = false, std::string method = std::string());
+        const std::string &whereProp, const std::string &whereVal, bool precise = true, void *obj = nullptr, bool atomic = false, std::string method = std::string());
 
+    virtual bool put(pbnjson::JValue &props, void *obj = nullptr, bool atomic = false, std::string method = std::string());
     /**
      * \brief Send find request with uri.
      *
@@ -112,6 +122,16 @@ protected:
      */
     virtual bool find(const std::string &uri, bool precise = true,
         void *obj = nullptr, const std::string &kind_name = "", bool atomic = false);
+
+    /**
+     * \brief Send batch request with multiple database operations.(merge, put, find, get, del)
+     *
+     * \param[in] operations   The list of database operation to perform.
+     * \param[in] dbMethod     Caller method.
+     * \param[in] obj          Some object to send with the luna request.
+     * \return                 True on success, false on error.
+     */
+    virtual bool batch(pbnjson::JValue &operations, const std::string &dbMethod, void *obj = nullptr, bool atomic = false);
 
     /**
      * \brief Send search request with uri.
@@ -161,7 +181,7 @@ protected:
      */
     virtual bool roAccess(std::list<std::string> &services,
                           std::list<std::string> &kinds, void *obj = nullptr,
-                          bool atomic = false);
+                          bool atomic = false, const std::string &forcemethod = "");
 
     /// Get message id.
     LOG_MSGID;
@@ -185,7 +205,7 @@ protected:
     pbnjson::JArray uriIndexes_;
 
     /// Get message token to classify response and get attached data.
-    bool sessionDataFromToken(LSMessageToken token, SessionData *sd);
+    bool sessionDataFromToken(LSMessageToken token, SessionData *sd, SessionHdlType hdlType = HDL_DEFAULT);
 
 private:
 
@@ -205,7 +225,9 @@ private:
 
     /// Map of luna service message tokens and the method along with
     /// some call specific user data.
-    std::map<LSMessageToken, DbConnector::SessionData> messageMap_;
+    /// messageMap_[0] : for handler using luna connector(SessionHdrType : HDL_DEFAULT)
+    /// messageMap_[1] : for handler not using luna connector(SessionHdrType : HDL_LUNA_CONN)
+    std::map<LSMessageToken, DbConnector::SessionData> messageMap_[HDL_MAX];
 
     /// Callback for luna responses.
     static bool onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx);
@@ -222,7 +244,6 @@ private:
                              const std::string &dbServiceMethod,
                              const std::string &dbMethod,
                              pbnjson::JValue &query,
-                             void *object);
-
-
+                             void *object,
+                             SessionHdlType hdlType = HDL_DEFAULT);
 };

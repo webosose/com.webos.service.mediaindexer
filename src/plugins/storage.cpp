@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <string>
 #include <sstream>
+#include <filesystem>
 
 std::string Storage::uri("storage");
 std::shared_ptr<Plugin> Storage::instance_ = nullptr;
@@ -46,6 +47,19 @@ Storage::Storage() : Plugin(Storage::uri)
         std::getline(details, storageDev.path, ',');
         std::getline(details, storageDev.name, ',');
         std::getline(details, storageDev.desc, ',');
+        std::error_code err;
+        if (!std::filesystem::is_directory(storageDev.path))
+        {
+            if (!std::filesystem::create_directory(storageDev.path, err))
+            {
+                LOG_WARNING(0, "Failed to create directory %s, error : %s",
+                    storageDev.path.c_str(), err.message().c_str());
+                LOG_DEBUG("Retry with create_directories");
+                if (!std::filesystem::create_directories(storageDev.path, err)) {
+                    LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+                }
+            }
+        }
         devs_.push_back(storageDev);
     }
 }

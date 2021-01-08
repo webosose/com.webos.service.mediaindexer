@@ -25,29 +25,21 @@
 
 
 std::queue<std::unique_ptr<MediaParser>> MediaParser::tasks_;
-std::map<std::pair<MediaItem::Type, std::string>, std::unique_ptr<IMetaDataExtractor>> MediaParser::extractor_;
+std::map<MediaItem::ExtractorType, std::shared_ptr<IMetaDataExtractor>> MediaParser::extractor_;
 int MediaParser::runningThreads_ = 0;
 std::mutex MediaParser::lock_;
 std::unique_ptr<MediaParser> MediaParser::instance_;
 std::mutex MediaParser::ctorLock_;
-constexpr int retryCnt = 3;
+
 
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
     std::lock_guard<std::mutex> lock(lock_);
-    auto ext = mediaItem->ext();
-    auto type = mediaItem->type();
-    std::pair<MediaItem::Type, std::string> p(type, ext);
-    if (extractor_.find(p) == extractor_.end()) {
-        LOG_DEBUG("Extractor is added for type = %d, ext = %s", static_cast<int>(type), ext.c_str());
-        extractor_[p] = std::move(IMetaDataExtractor::extractor(type, ext));
-    }
-
+    auto type = mediaItem->extractorType();
     MediaParser* mParser = MediaParser::instance();
-    MediaItemWrapper_t *mp = new MediaItemWrapper_t;
-    mp->mediaItem_ = std::move(mediaItem);
+    mParser->mediaItemQueue_.push(std::move(mediaItem));
     GError *error = nullptr;
-    if (!g_thread_pool_push(mParser->pool, (void *)(mp), &error)) {
+    if (!g_thread_pool_push(mParser->pool, static_cast<void*>(&type), &error)) {
         LOG_ERROR(0, "Fail occurred in g_thread_pool_push");
         if (error) {
             LOG_ERROR(0, "Error Message : %s", error->message);
@@ -78,14 +70,42 @@ MediaParser::MediaParser()
 {
     pool = g_thread_pool_new((GFunc) &MediaParser::extractMeta, this, PARALLEL_META_EXTRACTION, TRUE, NULL);
     g_thread_pool_set_max_unused_threads(PARALLEL_META_EXTRACTION);
+
+    // create each extractors
+    for (auto type = MediaItem::ExtractorType::TagLibExtractor;
+            type < MediaItem::ExtractorType::EOL; ++type)
+        extractor_[type] = IMetaDataExtractor::extractor(type);
 }
+
+MediaItem::ExtractorType MediaParser::getType(MediaItem::Type type, const std::string &ext)
+{
+    MediaItem::ExtractorType ret = MediaItem::ExtractorType::EOL;
+    switch(type) {
+        case MediaItem::Type::Audio:
+            if (ext.compare(EXT_MP3) == 0 || ext.compare(EXT_OGG) == 0)
+                ret = MediaItem::ExtractorType::TagLibExtractor;
+            else
+                ret = MediaItem::ExtractorType::GStreamerExtractor;
+            break;
+        case MediaItem::Type::Video:
+            ret = MediaItem::ExtractorType::GStreamerExtractor;
+            break;
+        case MediaItem::Type::Image:
+            ret = MediaItem::ExtractorType::ImageExtractor;
+            break;
+        default:
+            break;
+    }
+    return ret;
+}
+
 
 bool MediaParser::setMediaItem(std::string & uri)
 {
     std::lock_guard<std::mutex> lock(mediaItemLock_);
     if (mediaItem_.get() != nullptr)
         mediaItem_.reset();
-    mediaItem_ = std::unique_ptr<MediaItem>(new MediaItem(uri));
+    mediaItem_ = std::make_unique<MediaItem>(uri);
     if (mediaItem_.get() == nullptr) {
         LOG_ERROR(0, "Failed to get mediaitem!");
         return false;
@@ -93,7 +113,7 @@ bool MediaParser::setMediaItem(std::string & uri)
     return true;
 }
 
-bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
+bool MediaParser::extractExtraMeta(pbnjson::JValue &meta)
 {
     try {
         std::lock_guard<std::mutex> lock(mediaItemLock_);
@@ -106,7 +126,7 @@ bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
         auto path = mediaItem_->path();
 
         if (*path.begin() == '/') {
-            std::pair<MediaItem::Type, std::string> p(mediaItem_->type(), mi->ext());
+            MediaItem::ExtractorType p = getType(mediaItem_->type(), mi->ext());
 
             if (extractor_.find(p) != extractor_.end()) {
                 extractor_[p]->extractMeta(*mi, true);
@@ -114,7 +134,7 @@ bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
             } else {
                 LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mediaItem_->type()).c_str(), mi->ext().c_str());
                 LOG_DEBUG("Create new extractor");
-                extractor_[p] = std::move(IMetaDataExtractor::extractor(p.first, p.second));
+                extractor_[p] = IMetaDataExtractor::extractor(p);
                 extractor_[p]->extractMeta(*mi, true);
                 mi->setParsed(true);
             }
@@ -123,8 +143,7 @@ bool MediaParser::extractMetaDirect(pbnjson::JValue &meta)
             plg->extractMeta(*mi, true);
             mi->setParsed(true);
         }
-        LOG_DEBUG("Start mediaItem_->putAllMetaToJson");
-        if (!mediaItem_->putAllMetaToJson(meta)) {
+        if (!mediaItem_->putExtraMetaToJson(meta)) {
             LOG_ERROR(0, "Failed to put meta to json");
             return false;
         }
@@ -148,34 +167,22 @@ void MediaParser::extractMeta(void *data, void *user_data)
             return;
         }
         MediaParser *mp = static_cast<MediaParser *>(user_data);
-        MediaItemWrapper_t * pMip = static_cast<MediaItemWrapper_t *>(data);
-        if (!pMip) {
-            LOG_ERROR(0, "Failed to extractor media item, Invalid input data parameter");
-            return;
+
+        MediaItemPtr mip;
+        {
+            // mediaItemQueue is resource that task threads use it.
+            std::lock_guard<std::mutex> lock(mp->mediaItemLock_);
+            mip = std::move(mp->mediaItemQueue_.front());
+            mp->mediaItemQueue_.pop();
         }
-        MediaItemPtr mip = std::move(pMip->mediaItem_);
-        LOG_INFO(0, "Media item to extract %p with parser %p", mip.get(), mp);
+
+        LOG_DEBUG("Media item to extract %p with parser %p", mip.get(), mp);
 
         auto path = mip->path();
         if (*path.begin() == '/') {
-            std::pair<MediaItem::Type, std::string> p(mip->type(), mip->ext());
-
-            if (extractor_.find(p) == extractor_.end()) {
-                LOG_WARNING(0, "Could not found valid extractor, type : %s, ext : %s", MediaItem::mediaTypeToString(mip->type()).c_str(), mip->ext().c_str());
-                LOG_DEBUG("Create new extractor");
-                extractor_[p] = std::move(IMetaDataExtractor::extractor(p.first, p.second));
-            }
-            uint32_t retry = 0;
-            /* FIXME : We should replace retry with another solution that is more safe and without 
-                       performance degradation. This is just workaround for prevent a media file extraction is failed
-                       because gstreamer discoverInfo or streamInfo object acquisition is failed
-            */
-            while(!extractor_[p]->extractMeta(*mip)) {
-                if (++retry >= retryCnt) {
-                    LOG_ERROR(0, "Failed to extract metadata for %s", mip->uri().c_str());
-                    break;
-                }
-                LOG_WARNING(0, "%s meta data extraction failed, retry with cnt = %d", mip->uri().c_str(), retry);
+            MediaItem::ExtractorType p = mip->extractorType();
+            if (!extractor_[p]->extractMeta(*mip)) {
+                LOG_WARNING(0, "%s meta data extraction failed!", mip->uri().c_str());
             }
         } else {
             auto plg = PluginFactory().plugin(mip->uri());
@@ -183,12 +190,11 @@ void MediaParser::extractMeta(void *data, void *user_data)
         }
 
         mip->setParsed(true);
-        LOG_INFO(0, "Pushing parsed mediaitem %p to mdb, updateMediaItem start", mip.get());
+        LOG_DEBUG("Pushing parsed mediaitem %p to mdb, updateMediaItem start", mip.get());
         auto mdb = MediaDb::instance();
         mdb->updateMediaItem(std::move(mip));
-        LOG_INFO(0, "mdb->updateMediaItem Done");
+        LOG_DEBUG("mdb->updateMediaItem Done");
 
-        delete pMip;
     } catch (const std::exception & e) {
         LOG_ERROR(0, "MediaParser::extractMeta failure: %s", e.what());
     } catch (...) {
