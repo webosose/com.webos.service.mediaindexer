@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ Configurator::~Configurator()
 void Configurator::init()
 {
     // get the JDOM tree from configuration file
-    pbnjson::JValue root = pbnjson::JDomParser::fromFile(confPath_.c_str());
+    auto root = pbnjson::JDomParser::fromFile(confPath_.c_str());
     if (!root.isObject()) {
         LOG_ERROR(0, "configuration file parsing error! need to check %s", confPath_.c_str());
         return;
@@ -59,11 +59,11 @@ void Configurator::init()
     }
 
     // get the extentions from supportedMediaExtension field
-    pbnjson::JValue supportedExtensions = root["supportedMediaExtension"];
+    auto supportedExtensions = root["supportedMediaExtension"];
 
     // for audio extension
     if (supportedExtensions.hasKey("audio")) {
-        pbnjson::JValue audioExtension = supportedExtensions["audio"];
+        auto audioExtension = supportedExtensions["audio"];
         for (int idx = 0; idx < audioExtension.arraySize(); idx++) {
             auto ext = audioExtension[idx].asString();
             // check extension for setting extractor type.
@@ -81,7 +81,7 @@ void Configurator::init()
 
     // for video extension
     if (supportedExtensions.hasKey("video")) {
-        pbnjson::JValue videoExtension = supportedExtensions["video"];
+        auto videoExtension = supportedExtensions["video"];
         for (int idx = 0; idx < videoExtension.arraySize(); idx++)
             extensions_.insert(std::make_pair(videoExtension[idx].asString(),
                         std::make_pair(MediaItem::Type::Video,
@@ -90,7 +90,7 @@ void Configurator::init()
 
     // for image extension
     if (supportedExtensions.hasKey("image")) {
-        pbnjson::JValue imageExtension = supportedExtensions["image"];
+        auto imageExtension = supportedExtensions["image"];
         for (int idx = 0; idx < imageExtension.arraySize(); idx++)
             extensions_.insert(std::make_pair(imageExtension[idx].asString(),
                         std::make_pair(MediaItem::Type::Image,
@@ -102,7 +102,6 @@ void Configurator::init()
 
 bool Configurator::isSupportedExtension(const std::string& ext) const
 {
-    //printSupportedExtension();
     auto ret = extensions_.find(ext);
     if (ret != extensions_.end())
         return true;

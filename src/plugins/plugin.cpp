@@ -17,8 +17,10 @@
 #include "plugin.h"
 #include "ideviceobserver.h"
 #include "configurator.h"
+#include "cachemanager.h"
 #include <algorithm>
 #include <filesystem>
+#include <cinttypes>
 
 #include <gio/gio.h>
 
@@ -260,7 +262,7 @@ bool Plugin::active() const
 
 void Plugin::scan(const std::string &uri)
 {
-    LOG_DEBUG("scan start! uri : %s", uri.c_str());
+    LOG_DEBUG("Scan start! uri : %s", uri.c_str());
     // first get the device from the uri
     auto dev = device(uri);
     if (!dev)
@@ -279,13 +281,104 @@ void Plugin::scan(const std::string &uri)
         return;
     }
     LOG_DEBUG("file scan start for mountpoint : %s!", mp.c_str());
+
+    bool newMountedDevice = dev->isNewMountedDevice();
+    bool ret = false;
+    if (newMountedDevice)
+        ret = doFileTreeWalk(dev, obs, mp);
+    else
+        ret = doFileTreeWalkWithCache(dev, obs, mp);
+
+    if (!ret) {
+        LOG_ERROR(0, "Failed file-tree-walk for '%s'", dev->uri().c_str());
+        return;
+    }
+
+    LOG_DEBUG("Scan has been completed for uri : %s!", uri.c_str());
+}
+
+bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
+                                     IMediaItemObserver* observer,
+                                     const std::string& mountPoint)
+{
     auto configurator = Configurator::instance();
-    // do the file-tree-walk
+    auto cacheMgr = CacheManager::instance();
+    auto cache = cacheMgr->readCache(device->uri(), device->uuid());
+    if (!cache) {
+        LOG_WARNING(0, "Failed to get the cache for '%s'. let's try full scanning instead!",
+                device->uri().c_str());
+        return doFileTreeWalk(device, observer, mountPoint);
+    }
+
     try {
-        for (auto &file : fs::recursive_directory_iterator(mp)) {
+        for (const auto &file : fs::recursive_directory_iterator(mountPoint)) {
             std::error_code err;
             if (!file.is_regular_file(err)) {
-                LOG_WARNING(0, "'%s' is not regular file. error message : '%s'", 
+                LOG_WARNING(0, "'%s' is not regular file. error message : '%s'",
+                        file.path().c_str(), err.message().c_str());
+                continue;
+            }
+
+            std::string path = file.path();
+            std::string mimeType;
+            if (isHiddenfolder(path))
+                continue;
+
+            std::string ext = path.substr(path.find_last_of('.') + 1);
+            if (!configurator->isSupportedExtension(ext)) {
+                LOG_WARNING(0, "'%s' is NOT supported!", ext.c_str());
+                continue;
+            }
+
+            auto typeInfo = configurator->getTypeInfo(ext);
+            auto type = typeInfo.first;
+            auto extractorType = typeInfo.second;
+            auto fileSize = file.file_size();
+            auto lastWrite = file.last_write_time();
+            auto hash = static_cast<unsigned long>(lastWrite.time_since_epoch().count());
+
+            // check the cache whether exist or not
+            bool exist = cache->isExist(path, hash);
+            if (exist) {
+                LOG_DEBUG("not needed extraction for path '%s' and hash '%" PRIu64 "'",
+                        ext.c_str(), hash);
+                device->incrementMediaItemCount(type);
+                device->incrementProcessedItemCount(type);
+                continue;
+            }
+
+            MediaItemPtr mi = std::make_unique<MediaItem>(device, path, mimeType, hash,
+                    fileSize, ext, type, extractorType);
+            observer->newMediaItem(std::move(mi));
+            cache->insertItem(path, hash);
+        }
+    } catch (const std::exception &ex) {
+        LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",
+            mountPoint.c_str(), ex.what());
+    }
+    LOG_INFO(0, "File-tree-walk(with cache) on device '%s' has been completed",
+        device->uri().c_str());
+
+    bool ret = cacheMgr->generateCacheFile(device->uri(), cache);
+    if (!ret)
+        LOG_WARNING(0, "Cache file generation fail for '%s'", device->uri().c_str());
+
+    return true;
+}
+
+bool Plugin::doFileTreeWalk(const std::shared_ptr<Device> &device,
+                            IMediaItemObserver* observer,
+                            const std::string& mountPoint)
+{
+    auto configurator = Configurator::instance();
+    auto cacheMgr = CacheManager::instance();
+    auto cache = cacheMgr->createCache(device->uri(), device->uuid());
+
+    try {
+        for (auto &file : fs::recursive_directory_iterator(mountPoint)) {
+            std::error_code err;
+            if (!file.is_regular_file(err)) {
+                LOG_WARNING(0, "'%s' is not regular file. error message : '%s'",
                         file.path().c_str(), err.message().c_str());
                 continue;
             }
@@ -305,21 +398,22 @@ void Plugin::scan(const std::string &uri)
             auto typeInfo = configurator->getTypeInfo(ext);
             auto lastWrite = file.last_write_time();
             auto fileSize = file.file_size();
-            auto hash = lastWrite.time_since_epoch().count();
+            auto hash = static_cast<unsigned long>(lastWrite.time_since_epoch().count());
             auto type = typeInfo.first;
             auto extractorType = typeInfo.second;
-            MediaItemPtr mi = std::make_unique<MediaItem>(dev, path, mimeType, hash,
+            MediaItemPtr mi = std::make_unique<MediaItem>(device, path, mimeType, hash,
                     fileSize, ext, type, extractorType);
-            obs->newMediaItem(std::move(mi));
+            observer->newMediaItem(std::move(mi));
+            cache->insertItem(path, hash);
 
             /*
             if (MediaItem::mediaItemSupported(path, mimeType)) {
                 auto lastWrite = file.last_write_time();
                 auto fileSize = file.file_size();
                 auto hash = lastWrite.time_since_epoch().count();
-                MediaItemPtr mi(new MediaItem(dev,
+                MediaItemPtr mi(new MediaItem(device,
                         path, mimeType, hash, fileSize));
-                obs->newMediaItem(std::move(mi));
+                obsserver->newMediaItem(std::move(mi));
             } else {
                 LOG_WARNING(0, "mediaItem : %s is not supported", path.c_str());
             }
@@ -327,12 +421,42 @@ void Plugin::scan(const std::string &uri)
         }
     } catch (const std::exception &ex) {
         LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",
-            mp.c_str(), ex.what());
+            mountPoint.c_str(), ex.what());
+        return false;
     }
     LOG_INFO(0, "File-tree-walk on device '%s' has been completed",
-        dev->uri().c_str());
-}
+        device->uri().c_str());
 
+    bool ret = cacheMgr->generateCacheFile(device->uri(), cache);
+    if (!ret)
+        LOG_WARNING(0, "Cache file generation fail for '%s'", device->uri().c_str());
+
+    return true;
+}
+/*
+bool Plugin::checkFileInfomation(const fs::directory_entry& file)
+{
+    std::error_code err;
+    if (!file.is_regular_file(err)) {
+        LOG_WARNING(0, "'%s' is not regular file. error message : '%s'",
+                file.path().c_str(), err.message().c_str());
+        return false;
+    }
+
+    std::string path = file.path();
+    std::string mimeType;
+    if (isHiddenfolder(path))
+        return false;
+
+    std::string ext = path.substr(path.find_last_of('.') + 1);
+    auto configurator = Configurator::instance();
+    if (!configurator->isSupportedExtension(ext)) {
+        LOG_WARNING(0, "'%s' is NOT supported!", ext.c_str());
+        return false;
+    }
+    return true;
+}
+*/
 bool Plugin::isHiddenfolder(std::string &filepath)
 {
     if(filepath.find("/.") != -1)

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -253,6 +253,17 @@ private:
 
     /// Check if the path is a hidden file.
     bool isHiddenfolder(std::string &filepath);
+
+
+    //TODO: need refactoring!
+    bool doFileTreeWalk(const std::shared_ptr<Device>& device,
+                        IMediaItemObserver* observer,
+                        const std::string& mountPoint);
+
+    //TODO: need refactoring!
+    bool doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
+                                 IMediaItemObserver* observer,
+                                 const std::string& mountPoint);
 
     /// Lock this instance, this is locked when the observer is
     /// notified and the observer may call back into one of the

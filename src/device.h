@@ -298,6 +298,13 @@ public:
     virtual bool createThumbnailDirectory();
 
     /**
+     * \brief Create directory dedicated to the device for cache.
+     *
+     * \return creation success or failure.
+     */
+    virtual bool createCacheDirectory();
+
+    /**
      * \brief Thread loop for file scanning.
      *
      */

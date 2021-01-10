@@ -17,6 +17,7 @@
 #include "mediaindexer.h"
 #include "mediaparser.h"
 #include "plugins/pluginfactory.h"
+#include "cache/cachemanager.h"
 #if defined HAS_LUNA
 #include "dbconnector/devicedb.h"
 #include "dbconnector/mediadb.h"
@@ -48,6 +49,7 @@ MediaIndexer::MediaIndexer() :
     plugins_()
 {
     Configurator::instance();
+    CacheManager::instance();
 }
 
 MediaIndexer::~MediaIndexer()

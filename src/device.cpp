@@ -359,7 +359,6 @@ void Device::incrementDirtyItemCount(int count)
 {
     std::unique_lock lock(lock_);
     dirtyCount_ += count;
-    LOG_PERF("dirtyCount_ = %d", dirtyCount_);
 }
 
 bool Device::needFlushed()
@@ -445,6 +444,26 @@ bool Device::createThumbnailDirectory()
             LOG_ERROR(0, "Failed to create directory %s, error : %s",thumbnailDir.c_str(), err.message().c_str());
             LOG_DEBUG("Retry with create_directories");
             if (!std::filesystem::create_directories(thumbnailDir, err)) {
+                LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
+                ret = false;
+            }
+        }
+    }
+    return ret;
+}
+
+bool Device::createCacheDirectory()
+{
+    bool ret = true;
+    std::error_code err;
+    std::string cacheDir = CACHE_DIRECTORY + uuid_;
+    if (!std::filesystem::is_directory(cacheDir))
+    {
+        if (!std::filesystem::create_directory(cacheDir, err))
+        {
+            LOG_ERROR(0, "Failed to create directory %s, error : %s",cacheDir.c_str(), err.message().c_str());
+            LOG_DEBUG("Retry with create_directories");
+            if (!std::filesystem::create_directories(cacheDir, err)) {
                 LOG_ERROR(0, "Retry Failed, error : %s", err.message().c_str());
                 ret = false;
             }

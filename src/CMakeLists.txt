@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 LG Electronics, Inc.
+# Copyright (c) 2019-2021 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -124,9 +124,13 @@ include_directories(./jsonparser)
 include_directories(./log)
 include_directories(./mediaindexerclient)
 include_directories(./perf)
+include_directories(./cache)
 
 # definitions for thumbnail directory
 add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
+# definitions for cache directory
+add_definitions(-DCACHE_DIRECTORY="/media/.cache/")
+add_definitions(-DCACHE_JSONFILE="cache.json")
 
 # TODO: get these definition from bitbake recipe
 add_definitions(-DPERFCHECK_ENABLE=1)
@@ -138,8 +142,9 @@ add_subdirectory(plugins)
 add_subdirectory(metadataextractors)
 add_subdirectory(mediaindexerclient)
 add_subdirectory(perf)
+add_subdirectory(cache)
 
-list(APPEND LOCAL_LIBS plugins metadataextractor pthread perf)
+list(APPEND LOCAL_LIBS plugins metadataextractor pthread perf cachemanager)
 target_link_libraries(com.webos.service.mediaindexer ${LOCAL_LIBS})
 
 webos_build_program(ADMIN)
