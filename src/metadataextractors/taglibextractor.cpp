@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -90,7 +90,9 @@ std::string TaglibExtractor::saveAttachedImage(MediaItem &mediaItem, TagLib::ID3
             LOG_ERROR(0, "Invalid device for creating thumbnail directory for UUID %s", mediaItem.uuid().c_str());
         }
 
-        of = TAGLIB_BASE_DIRECTORY + mediaItem.uuid() + "/" + fname + "." + ext;
+        std::string thumbnailName = fname + "." + ext;
+        of = TAGLIB_BASE_DIRECTORY + mediaItem.uuid() + "/" + thumbnailName;
+        mediaItem.setThumbnailFileName(thumbnailName);
 
         LOG_DEBUG("Save Attached Image, fullpath : %s",of.c_str());
         std::ofstream ofs(of, ios_base::out | ios_base::binary);

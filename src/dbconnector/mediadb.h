@@ -165,6 +165,13 @@ public:
     void flushUnflagDirty(Device* device);
 
     /**
+     * \brief flush dirty flag handling.
+     *
+     * \param[in] device The device to remove items.
+     */
+    void flushDeleteItems(Device* device);
+
+    /**
      * \brief put meta data of media item to buffer.
      *        If more than a certain number is accumulated,
      *        it is flushed.
@@ -195,6 +202,14 @@ public:
      */
     bool resetReScanTempBuf(const std::string &uri);
 
+    /**
+     * \brief request to delete in Media DB.
+     *
+     * \param[in] uri Uri of the media item.
+     * \param[in] type Type of the media item.
+     * \param[in] device The device to remove items.
+     */
+    void requestDeleteItem(MediaItemPtr mediaitem);
 protected:
     /// Get message id.
     LOG_MSGID;
@@ -204,18 +219,20 @@ protected:
 
 private:
     bool prepareWhere(const std::string &key,
-                                 const std::string &value,
-                                 bool precise,
-                                 pbnjson::JValue &whereClause) const;
+                      const std::string &value,
+                      bool precise,
+                      pbnjson::JValue &whereClause) const;
 
     bool prepareWhere(const std::string &key,
-                                 bool value,
-                                 bool precise,
-                                 pbnjson::JValue &whereClause) const;
+                      bool value,
+                      bool precise,
+                      pbnjson::JValue &whereClause) const;
 
     bool prepareOperation(const std::string &method,
-                                 pbnjson::JValue &param,
-                                 pbnjson::JValue &operationClause) const;
+                          pbnjson::JValue &param,
+                          pbnjson::JValue &operationClause) const;
+
+
 
     /// Singleton object.
     static std::unique_ptr<MediaDb> instance_;
@@ -254,7 +271,6 @@ private:
     static constexpr char MIME[] = "mime";
     static constexpr char FILE_PATH[] = "file_path";
 
-    pbnjson::JValue batchOperations_ = pbnjson::Array();
     std::map<std::string, pbnjson::JValue> firstScanTempBuf_;
     std::map<std::string, pbnjson::JValue> reScanTempBuf_;
 };

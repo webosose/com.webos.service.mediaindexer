@@ -19,9 +19,12 @@
 #include "mediaitem.h"
 #include <pbnjson.hpp>
 #include <unordered_map>
+#include <tuple>
+#include <utility>
 
 /// alias
-using CacheMap = std::unordered_map<std::string, unsigned long>;
+using CacheMap = std::unordered_map<std::string, 
+                                    std::tuple<unsigned long, MediaItem::Type, std::string>>;
 using CacheMapIterator = CacheMap::iterator;
 
 /// Cache class based on media uri and hash
@@ -31,7 +34,8 @@ public:
     Cache(const std::string& path);
     ~Cache();
 
-    void insertItem(const std::string& uri, const unsigned long& hash);
+    void insertItem(const std::string& uri, const unsigned long& hash,
+                    const MediaItem::Type& type, const std::string& thumbnailFile);
     int size() const;
     const std::string& getPath() const;
     bool setPath(const std::string& path);
@@ -41,6 +45,7 @@ public:
     void resetCache();
     void clear();
     void printCache() const;
+    const CacheMap& getRemainingCache() const;
 
  private:
     /// Get message id.
@@ -48,6 +53,9 @@ public:
 
     /// cacheMap
     CacheMap cacheMap_;
+
+    /// cacheList for generate Cache file
+    CacheMap cacheItems_;
 
     /// media item cache path
     std::string cachePath_;

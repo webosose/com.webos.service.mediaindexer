@@ -138,10 +138,16 @@ protected:
     void flushUnflagDirty(Device* device);
 
     /// MediaItemObserver interface.
-    void notifyDeviceScanned(Device* device);
+    void flushDeleteItems(Device* device);
+
+    /// MediaItemObserver interface.
+    void notifyDeviceScanned();
 
     /// MediaItemObserver interface.
     void notifyDeviceList();
+
+    /// MediaItemObserver interface.
+    void removeMediaItem(MediaItemPtr mediaItem);
 
 private:
     /// Get message id.

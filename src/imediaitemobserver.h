@@ -65,18 +65,23 @@ public:
      */
     virtual void flushUnflagDirty(Device* dev) = 0;
 
+    virtual void flushDeleteItems(Device* dev) = 0;
     /**
      * \brief notify after specified device has been scanned.
      *
      *
      * \param[in] dev The device.
      */
-    virtual void notifyDeviceScanned(Device* dev) = 0;
+    virtual void notifyDeviceScanned() = 0;
 
     /**
      * \brief notify device list.
      */
     virtual void notifyDeviceList() = 0;
+
+
+    virtual void removeMediaItem(std::unique_ptr<MediaItem> mediaItem) = 0;
+
 protected:
     IMediaItemObserver() {};
 };

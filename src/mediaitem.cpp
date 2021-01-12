@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <gio/gio.h>
 #include <exception>
 #include <stdexcept>
+#include <fstream>
 
 std::vector<std::string> MediaItem::notSupportedExt_ = {
     "rv",
@@ -349,6 +350,9 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
         break;
     }
 
+    // generate random file name
+    thumbnailFileName_ = generateRandFilename() + "." + ext_;
+    
     if (type_ != Type::EOL)
         device_->incrementMediaItemCount(type_);
 }
@@ -368,15 +372,44 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     , ext_(ext)
     , extractorType_(extType)
 {
-    LOG_DEBUG("path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
+    LOG_DEBUG("path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(),
+            device->uri().c_str());
     // create uri
     uri_ = device->uri();
     if (uri_.back() != '/' && path.front() != '/')
         uri_.append("/");
     uri_.append(path);
 
+    // generate random file name
+    thumbnailFileName_ = generateRandFilename() + "." + ext_;
+
     if (type_ != Type::EOL)
         device_->incrementMediaItemCount(type_);
+}
+
+MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
+                     unsigned long hash, const MediaItem::Type &type)
+    : device_(device)
+    , type_(type)
+    , hash_(hash)
+    , filesize_(0)
+    , parsed_(false)
+    , mime_("")
+    , path_(path)
+    , ext_("")
+    , extractorType_(MediaItem::ExtractorType::EOL)
+{
+    LOG_DEBUG("path : %s, device->uri : %s", path.c_str(), device->uri().c_str());
+    // create uri
+    uri_ = device->uri();
+    if (uri_.back() != '/' && path.front() != '/')
+        uri_.append("/");
+    uri_.append(path);
+
+    ext_ = path_.substr(path_.find_last_of('.') + 1);
+
+    // generate random file name
+    thumbnailFileName_ = generateRandFilename() + "." + ext_;
 }
 
 MediaItem::MediaItem(const std::string &uri) :
@@ -398,6 +431,9 @@ MediaItem::MediaItem(const std::string &uri) :
         auto fpath = std::filesystem::path(path_);
         filesize_ = std::filesystem::file_size(fpath);
         hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
+
+        // generate random file name
+        thumbnailFileName_ = generateRandFilename() + "." + ext_;
 
         if (!MediaItem::mediaItemSupported(path_, mime_)) {
             LOG_ERROR(0, "Media Item %s is not supported by this system", path_.c_str());
@@ -628,4 +664,24 @@ bool MediaItem::isImageMeta(Meta meta){
             return false;
     }
     return false;
+}
+
+std::string MediaItem::generateRandFilename() const
+{
+    uint64_t val = 0;
+    std::ifstream fs("/dev/urandom", std::ios::in|std::ios::binary);
+    if (fs)
+        fs.read(reinterpret_cast<char *>(&val), sizeof(val));
+    fs.close();
+    return std::to_string(val).substr(0, thumbnailFileNameLength_);
+}
+
+std::string MediaItem::getThumbnailFileName() const
+{
+    return thumbnailFileName_;
+}
+
+void MediaItem::setThumbnailFileName(const std::string& name)
+{
+    thumbnailFileName_ = name;
 }

@@ -29,11 +29,13 @@ Cache::~Cache()
 {
     LOG_DEBUG("Cache dtor! path : %s", cachePath_.c_str());
     cacheMap_.clear();
+    cacheItems_.clear();
 }
 
-void Cache::insertItem(const std::string& uri, const unsigned long& hash)
+void Cache::insertItem(const std::string& uri, const unsigned long& hash,
+                       const MediaItem::Type& type, const std::string& thumbnailFile)
 {
-    cacheMap_.emplace(uri, hash);
+    cacheItems_.emplace(uri, std::make_tuple(hash, type, thumbnailFile));
 }
 
 int Cache::size() const
@@ -74,12 +76,18 @@ bool Cache::generateCacheFile()
     auto cache = pbnjson::Object();
     auto uri_array = pbnjson::Array();
     auto hash_array = pbnjson::Array();
-    for (auto item : cacheMap_) {
+    auto type_array = pbnjson::Array();
+    auto thumbnail_array = pbnjson::Array();
+    for (const auto &item : cacheItems_) {
         uri_array.append(item.first);
-        hash_array.append(std::to_string(item.second));
+        hash_array.append(std::to_string(std::get<0>(item.second)));
+        type_array.append(static_cast<int32_t>(std::get<1>(item.second)));
+        thumbnail_array.append(std::get<2>(item.second));
     }
     cache.put("uri", uri_array);
     cache.put("hash", hash_array);
+    cache.put("type", type_array);
+    cache.put("thumbnail", thumbnail_array);
 
     outputFile << pbnjson::JGenerator::serialize(cache, pbnjson::JSchemaFragment("{}"));
     outputFile.close();
@@ -98,15 +106,20 @@ bool Cache::readCache()
         return false;
     }
 
-    if (!root.hasKey("uri") || !root.hasKey("hash")) {
+    if (!root.hasKey("uri") || !root.hasKey("hash") || 
+        !root.hasKey("type") || !root.hasKey("thumbnail")) {
         LOG_WARNING(0, "can't find 'uri' and 'hash' field!");
         return false;
     }
 
     auto uriList = root["uri"];
     auto hashList = root["hash"];
+    auto typeList = root["type"];
+    auto thumbList = root["thumbnail"];
     int uri_count = uriList.arraySize();
     int hash_count = hashList.arraySize();
+    int type_count = typeList.arraySize();
+    int thumb_count = thumbList.arraySize();
 
     if (uri_count != hash_count) {
         LOG_WARNING(0, "count mismatch between 'uriList' and 'hashList'");
@@ -116,7 +129,9 @@ bool Cache::readCache()
     for (int idx = 0; idx < uri_count; idx++) {
         auto uri = uriList[idx].asString();
         auto hash = std::stoul(hashList[idx].asString());
-        cacheMap_.emplace(uri, hash);
+        auto type = static_cast<MediaItem::Type>(typeList[idx].asNumber<int32_t>());
+        auto thumb = thumbList[idx].asString();
+        cacheMap_.emplace(uri, std::make_tuple(hash, type, thumb));
     }
 
     // remove cache file
@@ -126,30 +141,42 @@ bool Cache::readCache()
 
 bool Cache::isExist(const std::string& uri, const unsigned long& hash)
 {
-    auto ret = cacheMap_.find(uri);
-    if (ret != cacheMap_.end() && ret->second == hash) {
-        return true;
-    } else {
-        cacheMap_.erase(uri);
-        return false;
+    bool ret = false;
+    auto iter = cacheMap_.find(uri);
+    if (iter != cacheMap_.end() && std::get<0>(iter->second) == hash) {
+        cacheItems_.emplace(uri, std::make_tuple(std::get<0>(iter->second), 
+                    std::get<1>(iter->second), std::get<2>(iter->second)));
+        ret = true;
     }
+
+    cacheMap_.erase(uri);
+    return ret;
 }
 
 void Cache::resetCache()
 {
     std::filesystem::remove(getPath());
     cacheMap_.clear();
+    cacheItems_.clear();
 }
 
 void Cache::clear()
 {
     cacheMap_.clear();
+    cacheItems_.clear();
+}
+
+const CacheMap& Cache::getRemainingCache() const
+{
+    return cacheMap_;
 }
 
 void Cache::printCache() const
 {
     LOG_DEBUG("--------------Cached Items--------------");
-    for (const auto &cache : cacheMap_)
-        LOG_DEBUG("uri : '%s', hash : '%"PRIu64"'", cache.first.c_str(), cache.second);
-    LOG_DEBUG("-------------------------  -------------");
+    for (const auto &item : cacheMap_)
+        LOG_DEBUG("uri : '%s', hash : '%"PRIu64"', type : '%d', thumbnail : '%s'",
+                item.first.c_str(), std::get<0>(item.second), std::get<1>(item.second),
+                std::get<2>(item.second));
+    LOG_DEBUG("----------------------------------------");
 }

@@ -280,6 +280,12 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
     }
 }
 
+void MediaIndexer::removeMediaItem(MediaItemPtr mediaItem) 
+{
+    auto mdb = MediaDb::instance();
+    mdb->requestDeleteItem(std::move(mediaItem));
+}
+
 void MediaIndexer::metaDataUpdateRequired(MediaItemPtr mediaItem)
 {
     MediaParser::enqueueTask(std::move(mediaItem));
@@ -305,7 +311,13 @@ void MediaIndexer::flushUnflagDirty(Device* device)
     mdb->flushUnflagDirty(device);
 }
 
-void MediaIndexer::notifyDeviceScanned(Device* device)
+void MediaIndexer::flushDeleteItems(Device* device)
+{
+    auto mdb = MediaDb::instance();
+    mdb->flushDeleteItems(device);
+}
+
+void MediaIndexer::notifyDeviceScanned()
 {
     indexerService_->notifyScanDone();
 }

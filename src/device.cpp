@@ -94,7 +94,7 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
     cleanUpTask_.create([] (void *ctx, void *data) -> void {
         Device* dev = static_cast<Device *>(ctx);
         if (dev) {
-            LOG_DEBUG("Clean Up Task start for device ");
+            LOG_DEBUG("Clean Up Task start for device '%s'", dev->uri().c_str());
             auto obs = dev->observer();
             if (obs)
                 obs->cleanupDevice(dev);
@@ -343,10 +343,32 @@ void Device::incrementProcessedItemCount(MediaItem::Type type, int count)
     totalProcessedCount_ += count;
 }
 
+void Device::incrementRemovedItemCount(MediaItem::Type type, int count)
+{
+    if (type == MediaItem::Type::EOL)
+        return;
+
+    std::unique_lock lock(lock_);
+
+    auto cntIter = removedCount_.find(type);
+    if (cntIter == removedCount_.end())
+        removedCount_[type] = count;
+    else
+        removedCount_[type] += count;
+    totalRemovedCount_ += count;
+
+}
+
 void Device::incrementTotalProcessedItemCount(int count)
 {
     std::unique_lock lock(lock_);
     totalProcessedCount_ += count;
+}
+
+void Device::incrementTotalRemovedItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    totalRemovedCount_ += count;
 }
 
 void Device::incrementPutItemCount(int count)
@@ -361,6 +383,12 @@ void Device::incrementDirtyItemCount(int count)
     dirtyCount_ += count;
 }
 
+void Device::incrementRemoveItemCount(int count)
+{
+    std::unique_lock lock(lock_);
+    removeCount_ += count;
+}
+
 bool Device::needFlushed()
 {
     if ((state_ == Device::State::Idle) && (totalItemCount_ == putCount_))
@@ -373,24 +401,38 @@ bool Device::needDirtyFlushed()
     return totalItemCount_ == dirtyCount_;
 }
 
+bool Device::needFlushedForRemove()
+{
+    if (totalRemovedCount_ != removeCount_)
+        return true;
+
+    return false;
+}
+
 bool Device::processingDone()
 {
     std::unique_lock<std::mutex> lock(pmtx_);
     if (state_ == Device::State::Idle) {
-        LOG_INFO(0, "Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
-         if (totalItemCount_ == totalProcessedCount_) {
+        LOG_INFO(0, "Item Count : %d, Proccessed Count : %d, Removed Count :%d", totalItemCount_, 
+                totalProcessedCount_, totalRemovedCount_);
+        if ((totalItemCount_ == totalProcessedCount_) && (removeCount_ == totalRemovedCount_)) {
             auto obs = observer();
             if (obs)
-                obs->notifyDeviceScanned(this);
+                obs->notifyDeviceScanned();
 #if PERFCHECK_ENABLE
-        PERF_END("TOTAL");
-        LOG_PERF("Item Count : %d, Proccessed Count : %d", totalItemCount_, totalProcessedCount_);
+            PERF_END("TOTAL");
+            LOG_PERF("Item Count : %d, Proccessed Count : %d, Removed Count : %d",
+                    totalItemCount_, totalProcessedCount_, totalRemovedCount_);
 #endif
             return true;
         } else if (needDirtyFlushed()) {
             auto obs = observer();
             if (obs)
                 obs->flushUnflagDirty(this);
+        } else if (needFlushedForRemove()) {
+            auto obs = observer();
+            if (obs)
+                obs->flushDeleteItems(this);
         }
     }
     return false;
@@ -405,9 +447,11 @@ void Device::resetMediaItemCount()
 {
     mediaItemCount_.clear();
     processedCount_.clear();
-    totalItemCount_ = totalProcessedCount_ = 0;
+    removedCount_.clear();
+    totalItemCount_ = totalProcessedCount_ = totalRemovedCount_ = 0;
     putCount_ = 0;
     dirtyCount_ = 0;
+    removeCount_ = 0;
     auto mdb = MediaDb::instance();
     mdb->resetFirstScanTempBuf(uri_);
     mdb->resetReScanTempBuf(uri_);

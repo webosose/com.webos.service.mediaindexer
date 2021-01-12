@@ -325,12 +325,12 @@ bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
                 continue;
 
             std::string ext = path.substr(path.find_last_of('.') + 1);
-            if (!configurator->isSupportedExtension(ext)) {
+            auto typeInfo = configurator->getTypeInfo(ext);
+            if (typeInfo.first == MediaItem::Type::EOL) {
                 LOG_WARNING(0, "'%s' is NOT supported!", ext.c_str());
                 continue;
             }
 
-            auto typeInfo = configurator->getTypeInfo(ext);
             auto type = typeInfo.first;
             auto extractorType = typeInfo.second;
             auto fileSize = file.file_size();
@@ -350,8 +350,9 @@ bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
 
             MediaItemPtr mi = std::make_unique<MediaItem>(device, path, mimeType, hash,
                     fileSize, ext, type, extractorType);
+            auto thumbnail = mi->getThumbnailFileName();
+            cache->insertItem(path, hash, type, thumbnail);
             observer->newMediaItem(std::move(mi));
-            cache->insertItem(path, hash);
         }
     } catch (const std::exception &ex) {
         LOG_ERROR(0, "Exception caught while traversing through '%s', exception : %s",
@@ -359,6 +360,25 @@ bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
     }
     LOG_INFO(0, "File-tree-walk(with cache) on device '%s' has been completed",
         device->uri().c_str());
+
+    // we have to remove remaining cache with mediaDB.
+    auto remainingCache = cache->getRemainingCache();
+    for (auto& item : remainingCache) {
+        auto uri = item.first;
+        auto hash = std::get<0>(item.second);
+        auto type = std::get<1>(item.second);
+        std::string ext = uri.substr(uri.find_last_of('.') + 1);
+
+        // we don't have to increase media item count.
+        MediaItemPtr mi = std::make_unique<MediaItem>(device, uri, hash, type);
+
+        // let's first remove thumbnail.
+        std::string fileName = mi->getThumbnailFileName();
+        std::string filePath = THUMBNAIL_DIRECTORY + device->uuid() + "/" + fileName;
+        std::filesystem::remove(filePath);
+        // now, we have to remove database for syncronization
+        observer->removeMediaItem(std::move(mi));
+    }
 
     bool ret = cacheMgr->generateCacheFile(device->uri(), cache);
     if (!ret)
@@ -390,22 +410,22 @@ bool Plugin::doFileTreeWalk(const std::shared_ptr<Device> &device,
                 continue;
 
             std::string ext = path.substr(path.find_last_of('.') + 1);
-            if (!configurator->isSupportedExtension(ext)) {
+            auto typeInfo = configurator->getTypeInfo(ext);
+            if (typeInfo.first == MediaItem::Type::EOL) {
                 LOG_WARNING(0, "'%s' is NOT supported!", ext.c_str());
                 continue;
             }
 
-            // let's get the media item type and extractor type
-            auto typeInfo = configurator->getTypeInfo(ext);
+            auto type = typeInfo.first;
+            auto extractorType = typeInfo.second;
             auto lastWrite = file.last_write_time();
             auto fileSize = file.file_size();
             auto hash = static_cast<unsigned long>(lastWrite.time_since_epoch().count());
-            auto type = typeInfo.first;
-            auto extractorType = typeInfo.second;
             MediaItemPtr mi = std::make_unique<MediaItem>(device, path, mimeType, hash,
                     fileSize, ext, type, extractorType);
+            auto thumbnail = mi->getThumbnailFileName();
+            cache->insertItem(path, hash, type, thumbnail);
             observer->newMediaItem(std::move(mi));
-            cache->insertItem(path, hash);
 
             /*
             if (MediaItem::mediaItemSupported(path, mimeType)) {

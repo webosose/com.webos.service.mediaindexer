@@ -237,11 +237,26 @@ public:
     void incrementProcessedItemCount(MediaItem::Type type, int count = 1);
 
     /**
+     * \brief Increase removed media item count by one for given media type.
+     *
+     * \param[in] type Media item type.
+     * \param[in] count increment Removed Item Count.
+     */
+    void incrementRemovedItemCount(MediaItem::Type type, int count = 1);
+
+    /**
      * \brief Increase total processed media item count.
      *
      * \param[in] count increment Processed Item Count.
      */
     void incrementTotalProcessedItemCount(int count = 1);
+
+    /**
+     * \brief Increase total removed media item count.
+     *
+     * \param[in] count increment Removed Item Count.
+     */
+    void incrementTotalRemovedItemCount(int count = 1);
 
     /**
      * \brief Increase media item count by putMeta method.
@@ -258,6 +273,13 @@ public:
     void incrementDirtyItemCount(int count = 1);
 
     /**
+     * \brief Increase media item count by unflagDirty method.
+     *
+     * \param[in] count increment Processed Item Count.
+     */
+    void incrementRemoveItemCount(int count = 1);
+
+    /**
      * \brief check whether the buffered data for put should be flushed or not.
      *
      */
@@ -269,6 +291,7 @@ public:
      */
     bool needDirtyFlushed();
 
+    bool needFlushedForRemove();
     /**
      * \brief check if processing of media items inside device is done.
      *
@@ -370,6 +393,12 @@ private:
     int totalProcessedCount_ = 0;
     int putCount_ = 0;
     int dirtyCount_ = 0;
+
+    /// Processed media item count per media type.
+    std::map<MediaItem::Type, int> removedCount_;
+    int totalRemovedCount_ = 0;
+    int removeCount_ = 0;
+
     Task cleanUpTask_;
 };
 

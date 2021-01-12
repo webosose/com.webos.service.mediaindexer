@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 LG Electronics, Inc.
+// Copyright (c) 2019-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -216,6 +216,9 @@ public:
      */
     MediaItem(std::shared_ptr<Device> device, const std::string &path,
               const std::string &mime, unsigned long hash, unsigned long filesize = 0);
+
+    MediaItem(std::shared_ptr<Device> device, const std::string &path, unsigned long hash,
+              const MediaItem::Type &type);
     /**
      * \brief Construct media item.
      *
@@ -399,6 +402,26 @@ public:
     bool isVideoMeta(Meta meta);
     bool isImageMeta(Meta meta);
 
+    /**
+     *\brief Generate the random thumbnail file name of media item
+     *
+     * \return The thumbnail file name.
+     */
+    std::string generateRandFilename() const;
+
+    /**
+     *\brief Get the thumbnail file name of media item
+     *
+     * \return The thumbnail file name.
+     */
+    std::string getThumbnailFileName() const;
+
+    /**
+     * \brief Set the thumbnail file name as given name
+     * \param[in] name The value to indicate thumbnail name.
+     */
+    void setThumbnailFileName(const std::string& name);
+
 private:
     /// Get message id.
     LOG_MSGID;
@@ -432,6 +455,9 @@ private:
     ExtractorType extractorType_;
     /// Not supported ext
     static std::vector<std::string> notSupportedExt_;
+    /// The thumbnail file name
+    std::string thumbnailFileName_;
+    const int thumbnailFileNameLength_ = 15; 
 };
 
 /// Useful when iterating over enum.
