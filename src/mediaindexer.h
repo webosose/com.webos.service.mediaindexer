@@ -140,6 +140,9 @@ protected:
     /// MediaItemObserver interface.
     void notifyDeviceScanned(Device* device);
 
+    /// MediaItemObserver interface.
+    void notifyDeviceList();
+
 private:
     /// Get message id.
     LOG_MSGID;

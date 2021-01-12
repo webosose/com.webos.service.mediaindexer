@@ -73,6 +73,10 @@ public:
      */
     virtual void notifyDeviceScanned(Device* dev) = 0;
 
+    /**
+     * \brief notify device list.
+     */
+    virtual void notifyDeviceList() = 0;
 protected:
     IMediaItemObserver() {};
 };

@@ -212,6 +212,8 @@ void MediaIndexer::deviceStateChanged(std::shared_ptr<Device> device)
 
     // start device media scan
     if (device->available()) {
+        auto mdb = MediaDb::instance();
+        mdb->markAllDirty(device);
         device->scan(this);
 #if defined HAS_LUNA
     } else {
@@ -306,6 +308,11 @@ void MediaIndexer::flushUnflagDirty(Device* device)
 void MediaIndexer::notifyDeviceScanned(Device* device)
 {
     indexerService_->notifyScanDone();
+}
+
+void MediaIndexer::notifyDeviceList()
+{
+    indexerService_->pushDeviceList();
 }
 
 bool MediaIndexer::sendMediaMetaDataNotification(const std::string &method,

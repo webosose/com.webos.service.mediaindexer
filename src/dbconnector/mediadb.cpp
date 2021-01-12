@@ -563,6 +563,21 @@ void MediaDb::markDirty(std::shared_ptr<Device> device, MediaItem::Type type)
         merge(kindMap_[type], props, URI, device->uri(), false);
 }
 
+void MediaDb::markAllDirty(std::shared_ptr<Device> device, MediaItem::Type type)
+{
+    // update or create the device in the database
+    auto props = pbnjson::Object();
+    props.put(DIRTY, false);
+
+    //mergePut(device->uri(), false, props);
+    if (type == MediaItem::Type::EOL) {
+        merge(AUDIO_KIND, props, URI, device->uri(), false);
+        merge(VIDEO_KIND, props, URI, device->uri(), false);
+        merge(IMAGE_KIND, props, URI, device->uri(), false);
+    } else
+        merge(kindMap_[type], props, URI, device->uri(), false);
+}
+
 void MediaDb::unflagDirty(MediaItemPtr mediaItem)
 {
      std::string uri = mediaItem->uri();

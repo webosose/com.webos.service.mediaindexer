@@ -116,6 +116,8 @@ public:
      */
     void unflagDirty(MediaItemPtr mediaItem);
 
+    void markAllDirty(std::shared_ptr<Device> device, MediaItem::Type type = MediaItem::Type::EOL);
+
     /**
      * \brief Remove all dirty flagged items for this device.
      *
