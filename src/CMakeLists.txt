@@ -126,8 +126,9 @@ include_directories(./mediaindexerclient)
 include_directories(./perf)
 include_directories(./cache)
 
-# definitions for thumbnail directory
+# definitions for thumbnail directory and extension
 add_definitions(-DTHUMBNAIL_DIRECTORY="/media/.thumbnail/")
+add_definitions(-DTHUMBNAIL_EXTENSION=".jpg")
 # definitions for cache directory
 add_definitions(-DCACHE_DIRECTORY="/media/.cache/")
 add_definitions(-DCACHE_JSONFILE="cache.json")

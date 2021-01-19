@@ -367,14 +367,14 @@ bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
         auto uri = item.first;
         auto hash = std::get<0>(item.second);
         auto type = std::get<1>(item.second);
+        auto thumb = std::get<2>(item.second);
         std::string ext = uri.substr(uri.find_last_of('.') + 1);
 
         // we don't have to increase media item count.
         MediaItemPtr mi = std::make_unique<MediaItem>(device, uri, hash, type);
 
         // let's first remove thumbnail.
-        std::string fileName = mi->getThumbnailFileName();
-        std::string filePath = THUMBNAIL_DIRECTORY + device->uuid() + "/" + fileName;
+        std::string filePath = THUMBNAIL_DIRECTORY + device->uuid() + "/" + thumb;
         std::filesystem::remove(filePath);
         // now, we have to remove database for syncronization
         observer->removeMediaItem(std::move(mi));

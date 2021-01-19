@@ -373,11 +373,10 @@ bool GStreamerExtractor::getThumbnail(MediaItem &mediaItem, std::string &filenam
         buffer = gst_sample_get_buffer (sample);
         gst_buffer_map (buffer, &map, GST_MAP_READ);
 
-        std::string randName = randFilename() + "." + ext;
-        filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + randName;
-        mediaItem.setThumbnailFileName(randName);
-//        filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + mediaItem.getFileName() + "." + ext;
+        filename = THUMBNAIL_DIRECTORY + mediaItem.uuid() + "/" + mediaItem.getThumbnailFileName();
         if (!saveBufferToImage(map.data, width, height, filename, ext)) {
+            gst_sample_unref (sample);
+            gst_buffer_unmap (buffer, &map);
             RETURN_AFTER_RELEASE(thumbPipeline, uridecodebin, videoSink, GST_STATE_NULL,
                     "could not save thumbnail image");
         }

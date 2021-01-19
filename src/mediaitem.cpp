@@ -351,7 +351,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     }
 
     // generate random file name
-    thumbnailFileName_ = generateRandFilename() + "." + ext_;
+    thumbnailFileName_ = generateRandFilename() + THUMBNAIL_EXTENSION;
     
     if (type_ != Type::EOL)
         device_->incrementMediaItemCount(type_);
@@ -381,7 +381,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     uri_.append(path);
 
     // generate random file name
-    thumbnailFileName_ = generateRandFilename() + "." + ext_;
+    thumbnailFileName_ = generateRandFilename() + THUMBNAIL_EXTENSION;
 
     if (type_ != Type::EOL)
         device_->incrementMediaItemCount(type_);
@@ -409,7 +409,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     ext_ = path_.substr(path_.find_last_of('.') + 1);
 
     // generate random file name
-    thumbnailFileName_ = generateRandFilename() + "." + ext_;
+    thumbnailFileName_ = generateRandFilename() + THUMBNAIL_EXTENSION;
 }
 
 MediaItem::MediaItem(const std::string &uri) :
@@ -433,7 +433,7 @@ MediaItem::MediaItem(const std::string &uri) :
         hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
 
         // generate random file name
-        thumbnailFileName_ = generateRandFilename() + "." + ext_;
+        thumbnailFileName_ = generateRandFilename() + THUMBNAIL_EXTENSION;
 
         if (!MediaItem::mediaItemSupported(path_, mime_)) {
             LOG_ERROR(0, "Media Item %s is not supported by this system", path_.c_str());
