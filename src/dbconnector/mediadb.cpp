@@ -331,6 +331,18 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
     case MediaDbMethod::GetImageMetaData: {
         auto response = pbnjson::Object();
         auto metadata = results[0];
+        MediaIndexer *indexer = MediaIndexer::instance();
+
+        if (!metadata.hasKey("uri")) {
+            putRespObject(false, response, -1, "Invalid uri");
+            ret = indexer->sendMediaMetaDataNotification(dbMethod, response.stringify(),
+                    static_cast<LSMessage*>(object));
+            if (!ret) {
+                LOG_ERROR(0, "Notification error in extra meta data extraction!");
+            }
+            break;
+        }
+
         auto uri = metadata["uri"].asString();
         auto mparser = MediaParser::instance();
         if (mparser) {
@@ -346,7 +358,6 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
             LOG_ERROR(0, "Failed to get instance of Media parser Object");
             putRespObject(false, response, -1, "Invalid media parser object");
         }
-        MediaIndexer *indexer = MediaIndexer::instance();
         ret = indexer->sendMediaMetaDataNotification(dbMethod, response.stringify(),
                 static_cast<LSMessage*>(object));
         if (!ret) {
