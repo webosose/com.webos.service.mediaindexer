@@ -329,6 +329,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     , mime_(mime)
     , path_("")
     , ext_("")
+    , extractorType_(MediaItem::ExtractorType::EOL)
 {
     LOG_DEBUG("path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
     // create uri
@@ -412,11 +413,12 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     thumbnailFileName_ = generateRandFilename() + THUMBNAIL_EXTENSION;
 }
 
-MediaItem::MediaItem(const std::string &uri) :
-    device_(Device::device(uri)),
-    type_(Type::EOL),
-    parsed_(false),
-    uri_(uri)
+MediaItem::MediaItem(const std::string &uri)
+    : device_(Device::device(uri))
+    , type_(Type::EOL)
+    , parsed_(false)
+    , uri_(uri)
+    , extractorType_(MediaItem::ExtractorType::EOL)
 {
     try {
         LOG_DEBUG("uri_ : %s, device->uri() : %s", uri_.c_str(), device_->uri().c_str());

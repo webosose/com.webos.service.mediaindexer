@@ -565,7 +565,7 @@ bool MediaDb::flushPut(Device* device)
         auto uri = device->uri();
         if (firstScanTempBuf_.find(uri) != firstScanTempBuf_.end()) {
             if (firstScanTempBuf_[uri].arraySize() > 0) {
-                RespData *obj = new RespData {device, firstScanTempBuf_[uri].arraySize()};
+                RespData *obj = new RespData {device, static_cast<size_t>(firstScanTempBuf_[uri].arraySize())};
                 put(firstScanTempBuf_[uri], (void *)obj);
                 while (firstScanTempBuf_[uri].arraySize() > 0)
                     firstScanTempBuf_[uri].remove(ssize_t(0));
@@ -651,7 +651,7 @@ void MediaDb::flushUnflagDirty(Device *device)
         if (reScanTempBuf_.find(uri) != reScanTempBuf_.end()) {
             if (reScanTempBuf_[uri].arraySize() > 0) {
 
-                RespData *obj = new RespData {device, reScanTempBuf_[uri].arraySize()};
+                RespData *obj = new RespData {device, static_cast<size_t>(reScanTempBuf_[uri].arraySize())};
                 batch(reScanTempBuf_[uri], "unflagDirty", (void *)obj);
 
                 while (reScanTempBuf_[uri].arraySize() > 0)
@@ -708,7 +708,7 @@ void MediaDb::flushDeleteItems(Device *device)
         auto array = iter->second;
         auto arraySize = iter->second.arraySize();
         if (arraySize > 0) {
-            RespData *obj = new RespData {device, arraySize};
+            RespData *obj = new RespData {device, static_cast<size_t>(arraySize)};
             batch(array, "flushDeleteItems", static_cast<void*>(obj));
 
             while (arraySize > 0) {

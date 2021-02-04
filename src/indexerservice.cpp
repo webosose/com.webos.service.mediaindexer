@@ -1071,7 +1071,11 @@ void IndexerService::checkForDeviceListSubscriber(LSMessage *msg,
 
     LOG_INFO(0, "Adding getDeviceList subscriber '%s'",
         LSMessageGetSenderServiceName(msg));
-    LSSubscriptionAdd(lsHandle_, "getDeviceList", msg, NULL);
+
+    if (!LSSubscriptionAdd(lsHandle_, "getDeviceList", msg, NULL)) {
+        LOG_ERROR(0, "Add subscription error");
+        return;
+    }
 
     auto mdb = MediaDb::instance();
     std::string sn(LSMessageGetSenderServiceName(msg));

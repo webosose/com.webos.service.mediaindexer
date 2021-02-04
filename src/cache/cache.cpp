@@ -175,7 +175,7 @@ void Cache::printCache() const
 {
     LOG_DEBUG("--------------Cached Items--------------");
     for (const auto &item : cacheMap_)
-        LOG_DEBUG("uri : '%s', hash : '%"PRIu64"', type : '%d', thumbnail : '%s'",
+        LOG_DEBUG("uri : '%s', hash : '%lu', type : '%d', thumbnail : '%s'",
                 item.first.c_str(), std::get<0>(item.second), std::get<1>(item.second),
                 std::get<2>(item.second));
     LOG_DEBUG("----------------------------------------");

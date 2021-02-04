@@ -76,7 +76,6 @@ private:
     void setStreamMeta(MediaItem &mediaItem, GstDiscovererStreamInfo *streamInfo, bool extra = false) const;
 
     static std::map<std::string, MediaItem::Meta> metaMap_;
-    bool supportedCodec_;
 };
 
 /// Useful when iterating over enum.
