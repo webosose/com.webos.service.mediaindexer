@@ -258,11 +258,6 @@ void MediaIndexer::newMediaItem(MediaItemPtr mediaItem)
             } else
                 mdb->unflagDirty(std::move(mediaItem));
         }
-
-        // the device media item count has changed - notify
-        // subscribers
-        indexerService_->pushDeviceList();
-
 #else
         LOG_INFO(0, "Device '%s' media item count (audio/video/images): %i/%i/%i",
             dev->uri().c_str(), dev->mediaItemCount(MediaItem::Type::Audio),
@@ -320,6 +315,7 @@ void MediaIndexer::flushDeleteItems(Device* device)
 void MediaIndexer::notifyDeviceScanned()
 {
     indexerService_->notifyScanDone();
+    indexerService_->pushDeviceList();
 }
 
 void MediaIndexer::notifyDeviceList()

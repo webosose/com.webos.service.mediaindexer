@@ -254,6 +254,10 @@ void Device::scanLoop()
         setState(Device::State::Scanning);
         plg->scan(uri);
         setState(Device::State::Idle);
+        auto obs = observer();
+        if (obs) {
+            obs->notifyDeviceList();
+        }
 #if PERFCHECK_ENABLE
         PERF_END(perfuri.c_str());
 #endif

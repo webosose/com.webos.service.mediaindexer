@@ -246,10 +246,11 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
             auto device = pbnjson::Object();
             device.put("available", dev->available());
             device.put("uri", uri);
+            device.put("state", dev->stateToString(dev->state()));
 
             // now get the meta data
             for (auto type = Device::Meta::Name;
-                 type < Device::Meta::EOL; ++type) {
+                 type < Device::Meta::Icon; ++type) {
                 auto meta = dev->meta(type);
                 device.put(Device::metaTypeToString(type), meta);
             }

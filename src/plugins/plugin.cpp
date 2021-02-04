@@ -344,7 +344,6 @@ bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
                         ext.c_str(), hash);
                 device->incrementMediaItemCount(type);
                 device->incrementProcessedItemCount(type);
-                observer->notifyDeviceList();
                 continue;
             }
 
