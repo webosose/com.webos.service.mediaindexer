@@ -43,6 +43,7 @@ public:
                          const MediaItem::ExtractorType& exType = MediaItem::ExtractorType::EOL);
     bool removeExtension(const std::string& ext);
     void printSupportedExtension() const;
+    std::string toLower(const std::string & ext) const;
 
  private:
     /// Get message id.

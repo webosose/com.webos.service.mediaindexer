@@ -22,6 +22,8 @@
             "mp4",
             "mpeg",
             "mpg",
+            "ts",
+            "ps",
             "webm",
             "wmv"
         ],

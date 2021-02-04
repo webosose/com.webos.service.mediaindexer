@@ -15,6 +15,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "configurator.h"
+#include <algorithm>
 
 std::unique_ptr<Configurator> Configurator::instance_;
 
@@ -102,8 +103,9 @@ void Configurator::init()
 
 bool Configurator::isSupportedExtension(const std::string& ext) const
 {
-    auto ret = extensions_.find(ext);
-    if (ret != extensions_.end())
+    std::string lower = toLower(ext);
+    if (extensions_.find(ext) != extensions_.end() ||
+        extensions_.find(lower) != extensions_.end())
         return true;
     else
         return false;
@@ -112,10 +114,14 @@ bool Configurator::isSupportedExtension(const std::string& ext) const
 MediaItemTypeInfo Configurator::getTypeInfo(const std::string& ext) const
 {
     auto ret = extensions_.find(ext);
+    if (ret != extensions_.end())
+        return ret->second;
+    std::string lower = toLower(ext);
+    ret = extensions_.find(lower);
     if (ret != extensions_.end()) {
         return ret->second;
-    }
-    else {
+    } else {
+        LOG_ERROR(0, "Didn't found proper type of extension %s and %s", ext.c_str(), lower.c_str());
         return std::make_pair(MediaItem::Type::EOL, MediaItem::ExtractorType::EOL);
     }
 }
@@ -154,4 +160,13 @@ void Configurator::printSupportedExtension() const
     for (const auto &ext : extensions_)
         LOG_DEBUG("%s", ext.first.c_str());
     LOG_DEBUG("------------------------------------------------");
+}
+
+std::string Configurator::toLower(const std::string & ext) const
+{
+    std::string ret = ext;
+    if (!ext.empty()) {
+        std::transform(ret.begin(), ret.end(), ret.begin(), ::tolower);
+    }
+    return ret;
 }
