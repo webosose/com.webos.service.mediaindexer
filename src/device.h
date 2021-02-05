@@ -52,6 +52,7 @@ public:
     enum class State {
         Idle, ///< Scan has been completed, not monitoring.
         Scanning, ///< Device is in initial scan mode.
+        Parsing, ///< Device is in media file parsing mode.
         Inactive ///< Device is not available.
     };
 

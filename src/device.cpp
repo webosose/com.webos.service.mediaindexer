@@ -52,6 +52,8 @@ std::string Device::stateToString(Device::State state)
         return std::string("idle");
     case Device::State::Scanning:
         return std::string("scanning");
+    case Device::State::Parsing:
+        return std::string("parsing");
     case Device::State::Inactive:
         return std::string("inactive");
     }
@@ -253,7 +255,7 @@ void Device::scanLoop()
 #endif
         setState(Device::State::Scanning);
         plg->scan(uri);
-        setState(Device::State::Idle);
+        setState(Device::State::Parsing);
         auto obs = observer();
         if (obs) {
             obs->notifyDeviceList();
@@ -395,7 +397,7 @@ void Device::incrementRemoveItemCount(int count)
 
 bool Device::needFlushed()
 {
-    if ((state_ == Device::State::Idle) && (totalItemCount_ == putCount_))
+    if ((state_ == Device::State::Parsing) && (totalItemCount_ == putCount_))
         return true;
     return false;
 }
@@ -416,10 +418,11 @@ bool Device::needFlushedForRemove()
 bool Device::processingDone()
 {
     std::unique_lock<std::mutex> lock(pmtx_);
-    if (state_ == Device::State::Idle) {
+    if (state_ == Device::State::Parsing) {
         LOG_INFO(0, "Item Count : %d, Proccessed Count : %d, Removed Count :%d", totalItemCount_, 
                 totalProcessedCount_, totalRemovedCount_);
         if ((totalItemCount_ == totalProcessedCount_) && (removeCount_ == totalRemovedCount_)) {
+            setState(Device::State::Idle);
             auto obs = observer();
             if (obs)
                 obs->notifyDeviceScanned();
