@@ -34,11 +34,11 @@ public:
      *
      * \param[in] dev The JValue from pdm luna notification.
      */
-    PdmDevice(pbnjson::JValue &dev);
+    PdmDevice(const std::string &mountPath, pbnjson::JValue &dev);
     virtual ~PdmDevice();
 
-    /// Give us the device rootPath property.
-    const std::string &rootPath(void) const;
+    /// Give us the device mountPath property.
+    const std::string &mountPath(void) const;
     /// Give us the device type classifier.
     DeviceType type(void) const;
     /// Give us the device JSON description.
@@ -62,8 +62,8 @@ private:
 
     /// Device type.
     DeviceType type_;
-    /// Root path of device.
-    std::string rootPath_;
+    /// Mount path of device.
+    std::string mountPath_;
     /// Parsed JSON message for device.
     pbnjson::JValue dev_;
     /// Indicates that device has not yet been marked available.

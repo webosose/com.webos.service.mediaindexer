@@ -63,13 +63,13 @@ void Usb::pdmUpdate(const pbnjson::JValue &dev, bool available)
         auto drive = drives[i];
 
         // sanity check
-        if (!drive.hasKey("mountName"))
+        if (!drive.hasKey("mountPath"))
             continue;
         if (!drive.hasKey("uuid"))
             continue;
 
         // remember mountpoint for device creation
-        auto mp = drive["mountName"].asString();
+        auto mp = drive["mountPath"].asString();
         auto uuid = drive["uuid"].asString(); // Device UUID.
         std::stringstream suri;
         suri << Usb::uri << "://" << // Uri identifier.

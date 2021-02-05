@@ -16,14 +16,13 @@
 
 #include "pdmdevice.h"
 
-PdmDevice::PdmDevice(pbnjson::JValue &dev) :
-    type_(DeviceType::UNSUPPORTED),
-    rootPath_(""),
-    dev_(),
-    dirty_(false)
+PdmDevice::PdmDevice(const std::string& mountPath, pbnjson::JValue& dev)
+    : type_(DeviceType::UNSUPPORTED)
+    , mountPath_(mountPath)
+    , dev_()
+    , dirty_(false)
 {
     dev_ = dev.duplicate();
-    rootPath_ = dev_["rootPath"].asString();
 
     auto typeString = dev_["deviceType"].asString();
 
@@ -39,9 +38,9 @@ PdmDevice::~PdmDevice()
     // nothing to be done here
 }
 
-const std::string &PdmDevice::rootPath(void) const
+const std::string &PdmDevice::mountPath(void) const
 {
-    return rootPath_;
+    return mountPath_;
 }
 
 PdmDevice::DeviceType PdmDevice::type(void) const

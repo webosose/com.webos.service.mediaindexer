@@ -81,10 +81,10 @@ private:
     /**
      * \brief Check if device is new and notify observers.
      *
-     * \param[in] rootPath Device root path as unique identifier.
+     * \param[in] mountPath Device mount path as unique identifier.
      * \param[in] dev Parsed DOM tree of device JSON.
      */
-    void checkDevice(std::string &rootPath, pbnjson::JValue &dev);
+    void checkDevice(std::string &mountPath, pbnjson::JValue &dev);
 
     /**
      * \brief Remove all devices that are dirty and notify observers.
@@ -94,7 +94,7 @@ private:
     /// List of notification observers for USB storage device.
     std::map<PdmDevice::DeviceType, std::list<IPdmObserver *>> deviceObservers_;
 
-    /// List of known devices where the key is the device root path
+    /// List of known devices where the key is the device mount path
     /// (unique).
     std::map<std::string, PdmDevice *> deviceMap_;
 
