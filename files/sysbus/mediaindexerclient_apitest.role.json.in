@@ -1,6 +1,7 @@
 {
-    "exeName":"@WEBOS_INSTALL_SBINDIR@/mediaindexerclient_test",
+    "exeName":"@WEBOS_INSTALL_SBINDIR@/mediaindexerclient_apitest",
     "type": "regular",
+    "trustLevel": "oem",
     "allowedNames": [
         "com.webos.service.mediaindexer.client*",
         "com.webos.service.mediaindexer.client.db*"
@@ -16,3 +17,4 @@
         }
     ]
 }
+

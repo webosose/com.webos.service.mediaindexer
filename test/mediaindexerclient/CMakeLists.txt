@@ -73,20 +73,3 @@ target_link_libraries(${API_TEST_NAME}
                       )
 
 install(TARGETS ${TESTNAME} ${API_TEST_NAME} DESTINATION sbin)
-
-configure_file(sysbus/mediaindexerclient_test.manifest.json.in sysbus/mediaindexerclient_test.manifest.json @ONLY)
-configure_file(sysbus/mediaindexerclient_test.role.json.in sysbus/mediaindexerclient_test.role.json @ONLY)
-configure_file(sysbus/mediaindexerclient_apitest.manifest.json.in sysbus/mediaindexerclient_apitest.manifest.json @ONLY)
-configure_file(sysbus/mediaindexerclient_apitest.role.json.in sysbus/mediaindexerclient_apitest.role.json @ONLY)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sysbus/mediaindexerclient_test.manifest.json
-   DESTINATION share/luna-service2/manifests.d/)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sysbus/mediaindexerclient_test.role.json
-   DESTINATION share/luna-service2/roles.d/)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sysbus/mediaindexerclient_apitest.manifest.json
-   DESTINATION share/luna-service2/manifests.d/)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sysbus/mediaindexerclient_apitest.role.json
-   DESTINATION share/luna-service2/roles.d/)
