@@ -185,10 +185,10 @@ bool PdmListener::onDeviceNotification(LSHandle *lsHandle, LSMessage *msg,
         return true;
     }
 
-    auto deviceList = domTree["storageDeviceList"];
+    auto storageDeviceList = domTree["storageDeviceList"];
 
     // sanity check
-    if (!deviceList.isArray())
+    if (!storageDeviceList.isArray())
         return true;
 
     // our reference list is deviceMap_, mark all devices dirty and
