@@ -81,10 +81,10 @@ private:
     /**
      * \brief Check if device is new and notify observers.
      *
-     * \param[in] mountPath Device mount path as unique identifier.
+     * \param[in] mountName Device mount name as unique identifier.
      * \param[in] dev Parsed DOM tree of device JSON.
      */
-    void checkDevice(std::string &mountPath, pbnjson::JValue &dev);
+    void checkDevice(std::string &mountName, pbnjson::JValue &dev);
 
     /**
      * \brief Remove all devices that are dirty and notify observers.

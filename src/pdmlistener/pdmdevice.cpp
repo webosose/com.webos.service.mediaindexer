@@ -16,9 +16,9 @@
 
 #include "pdmdevice.h"
 
-PdmDevice::PdmDevice(const std::string& mountPath, pbnjson::JValue& dev)
+PdmDevice::PdmDevice(const std::string& mountName, pbnjson::JValue& dev)
     : type_(DeviceType::UNSUPPORTED)
-    , mountPath_(mountPath)
+    , mountName_(mountName)
     , dev_()
     , dirty_(false)
 {
@@ -38,9 +38,9 @@ PdmDevice::~PdmDevice()
     // nothing to be done here
 }
 
-const std::string &PdmDevice::mountPath(void) const
+const std::string &PdmDevice::mountName(void) const
 {
-    return mountPath_;
+    return mountName_;
 }
 
 PdmDevice::DeviceType PdmDevice::type(void) const

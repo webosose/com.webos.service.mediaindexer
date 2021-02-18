@@ -66,13 +66,13 @@ void Mtp::pdmUpdate(const pbnjson::JValue &dev, bool available)
     auto drive = drives[0];
 
     // sanity check
-    if (!drive.hasKey("mountPath"))
+    if (!drive.hasKey("mountName"))
         return;
     if (!dev.hasKey("serialNumber"))
         return;
 
     // remember mountpoint for device creation
-    auto mp = drive["mountPath"].asString();
+    auto mp = drive["mountName"].asString();
 
     std::string sn = dev["serialNumber"].asString();
     std::stringstream suri;

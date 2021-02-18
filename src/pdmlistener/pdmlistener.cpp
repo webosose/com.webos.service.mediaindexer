@@ -80,8 +80,8 @@ void PdmListener::setDeviceNotifications(IPdmObserver *observer,
         deviceObservers_[type].push_back(observer);
 
         // push already known devices to new observer
-        for (auto const mountPath : deviceMapByType_[type]) {
-            auto dev = deviceMap_[mountPath];
+        for (auto const mountName : deviceMapByType_[type]) {
+            auto dev = deviceMap_[mountName];
             observer->pdmUpdate(dev->dev(), true);
         }
 
@@ -110,13 +110,13 @@ void PdmListener::subscribe()
     }
 }
 
-void PdmListener::checkDevice(std::string &mountPath, pbnjson::JValue &dev)
+void PdmListener::checkDevice(std::string &mountName, pbnjson::JValue &dev)
 {
-    auto match = deviceMap_.find(mountPath);
+    auto match = deviceMap_.find(mountName);
     if (match != deviceMap_.end()) {
-        deviceMap_[mountPath]->markDirty(false);
+        deviceMap_[mountName]->markDirty(false);
     } else {
-        PdmDevice *pdmDev = new PdmDevice(mountPath, dev);
+        PdmDevice *pdmDev = new PdmDevice(mountName, dev);
 
         // do we support this type of device at all?
         if (pdmDev->type() == PdmDevice::DeviceType::UNSUPPORTED) {
@@ -125,10 +125,10 @@ void PdmListener::checkDevice(std::string &mountPath, pbnjson::JValue &dev)
         }
 
         // append newly detected device to list of available devices
-        deviceMap_[mountPath] = pdmDev;
+        deviceMap_[mountName] = pdmDev;
 
         // map this device to the device type
-        deviceMapByType_[pdmDev->type()].push_back(mountPath);
+        deviceMapByType_[pdmDev->type()].push_back(mountName);
 
         // tell all observers for this device type of the new device
         for (auto const obs : deviceObservers_[pdmDev->type()])
@@ -151,7 +151,7 @@ void PdmListener::cleanupDevices()
 
             // remove all references from the deviceMapByType_
             auto deviceType = dev->type();
-            deviceMapByType_[deviceType].remove(dev->mountPath());
+            deviceMapByType_[deviceType].remove(dev->mountName());
 
             // remove device from list of devices
             delete dev;
@@ -208,14 +208,19 @@ bool PdmListener::onDeviceNotification(LSHandle *lsHandle, LSMessage *msg,
 
         // storageDriveList always has only one drive.
         auto drive = storageDriveList[0];
-        if (!drive.hasKey("mountPath")) {
-            LOG_ERROR(0, "mountPath is invalid");
+        if (!drive.hasKey("mountName")) {
+            LOG_ERROR(0, "mountName field is missing!");
+            continue;
+        }
+
+        auto mountName = drive["mountName"].asString();
+        if (mountName.empty()) {
+            LOG_ERROR(0, "mountName is NULL!");
             continue;
         }
 
         auto dev = storageDeviceList[i];
-        auto mountPath = drive["mountPath"].asString();
-        pl->checkDevice(mountPath, dev);
+        pl->checkDevice(mountName, dev);
     }
 
     pl->cleanupDevices();
