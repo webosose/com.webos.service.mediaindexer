@@ -88,23 +88,6 @@ std::shared_ptr<Cache> CacheManager::readCache(const std::string& devUri, const 
     }
     caches_.emplace(devUri, cache);
     return cache;
-
-    /*
-    auto iter = caches_.find(devUri);
-    if (iter != caches_.end()) {
-        auto cache = iter->second;
-        bool ret = cache->readCache();
-        if (!ret) {
-            LOG_WARNING(0, "Failed read cache file!");
-            return nullptr;
-        }
-        return cache;
-    } else {
-        return nullptr;
-    }
-    */
-
-
 }
 
 void CacheManager::resetCache(const std::string& path)

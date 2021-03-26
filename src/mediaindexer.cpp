@@ -213,7 +213,7 @@ void MediaIndexer::deviceStateChanged(std::shared_ptr<Device> device)
     // start device media scan
     if (device->available()) {
         auto mdb = MediaDb::instance();
-        mdb->markAllDirty(device);
+        mdb->unmarkAllDirty(device);
         device->scan(this);
 #if defined HAS_LUNA
     } else {

@@ -136,6 +136,7 @@ bool Cache::readCache()
 
     // remove cache file
     std::filesystem::remove(getPath());
+    sync();
     return true;
 }
 

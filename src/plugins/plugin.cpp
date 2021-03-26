@@ -284,10 +284,13 @@ void Plugin::scan(const std::string &uri)
 
     bool newMountedDevice = dev->isNewMountedDevice();
     bool ret = false;
-    if (newMountedDevice)
+    if (newMountedDevice) {
+        LOG_DEBUG("Device %s is new mounted device!", dev->uri().c_str());
         ret = doFileTreeWalk(dev, obs, mp);
-    else
+    } else {
+        LOG_DEBUG("Device %s is not new mounted device, cache is used!", dev->uri().c_str());
         ret = doFileTreeWalkWithCache(dev, obs, mp);
+    }
 
     if (!ret) {
         LOG_ERROR(0, "Failed file-tree-walk for '%s'", dev->uri().c_str());
@@ -378,11 +381,10 @@ bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
         // now, we have to remove database for syncronization
         observer->removeMediaItem(std::move(mi));
     }
-
     bool ret = cacheMgr->generateCacheFile(device->uri(), cache);
     if (!ret)
         LOG_WARNING(0, "Cache file generation fail for '%s'", device->uri().c_str());
-
+    sync();
     return true;
 }
 
