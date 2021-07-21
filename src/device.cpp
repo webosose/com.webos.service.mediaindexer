@@ -87,21 +87,6 @@ Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) 
 {
     lastSeen_ = std::chrono::system_clock::now();
     LOG_DEBUG("Device Ctor, URI : %s UUID : %s, object : %p", uri_.c_str(), uuid_.c_str(), this);
-    if (!createThumbnailDirectory()) {
-        LOG_ERROR(0, "Failed to create corresponding thumbnail directory for device UUID %s", uuid_.c_str());
-    }
-    task_ = std::thread(&Device::scanLoop, this);
-    task_.detach();
-
-    cleanUpTask_.create([] (void *ctx, void *data) -> void {
-        Device* dev = static_cast<Device *>(ctx);
-        if (dev) {
-            LOG_DEBUG("Clean Up Task start for device '%s'", dev->uri().c_str());
-            auto obs = dev->observer();
-            if (obs)
-                obs->cleanupDevice(dev);
-        }        
-    });
 }
 
 Device::~Device()
@@ -116,6 +101,27 @@ Device::~Device()
     if (task_.joinable())
         task_.join();
     cleanUpTask_.destroy();
+}
+
+void Device::init()
+{
+    if (!createThumbnailDirectory()) {
+        LOG_ERROR(0, "Failed to create corresponding thumbnail directory for device UUID %s", uuid_.c_str());
+    }
+    task_ = std::thread(&Device::scanLoop, this);
+    task_.detach();
+
+    auto cleanTaskFunc = [] (void *ctx, void *data) -> void {
+        Device* dev = static_cast<Device *>(ctx);
+        if (dev) {
+            LOG_DEBUG("Clean Up Task start for device '%s'", dev->uri().c_str());
+            auto obs = dev->observer();
+            if (obs)
+                obs->cleanupDevice(dev);
+        }
+    };
+
+    cleanUpTask_.create(cleanTaskFunc);
 }
 
 bool Device::available(bool check)

@@ -130,6 +130,7 @@ bool Plugin::addDevice(const std::string &uri, int alive)
 
         if (!dev) {
             dev = std::make_shared<Device>(uri, alive);
+            dev->init();
             LOG_DEBUG("Make new device for uri : %s", uri.c_str());
             devices_[uri] = dev;
             isNew = true;
@@ -140,6 +141,7 @@ bool Plugin::addDevice(const std::string &uri, int alive)
         notifyObserversStateChange(dev);
     } else {
         dev = device(uri);
+        dev->init();
         auto changed = dev->setAvailable(true);
         // now tell the observers if availability changed
         if (changed)
@@ -161,6 +163,7 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::strin
         if (!dev) {
             LOG_DEBUG("Make new device for uri : %s, uuid : %s", uri.c_str(), uuid.c_str());
             dev = std::make_shared<Device>(uri, alive, true, uuid);
+            dev->init();
             dev->setMountpoint(mp);
             devices_[uri] = dev;
             isNew = true;
@@ -171,6 +174,7 @@ bool Plugin::addDevice(const std::string &uri, const std::string &mp, std::strin
         notifyObserversStateChange(dev);
     } else {
         dev = device(uri);
+        dev->init();
         auto changed = dev->setAvailable(true);
         dev->setMountpoint(mp);
         dev->setUuid(uuid);

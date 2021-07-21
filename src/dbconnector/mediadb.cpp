@@ -432,7 +432,7 @@ void MediaDb::checkForChange(MediaItemPtr mediaItem)
         find(mediaItem->uri(), true, mi, "", false);
     }
 
-    mediaItem.release();
+    mediaItem.reset();
 }
 
 bool MediaDb::needUpdate(MediaItem *mediaItem)

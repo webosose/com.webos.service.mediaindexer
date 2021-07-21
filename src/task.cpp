@@ -18,11 +18,11 @@
 
 bool Task::create(Task::taskfunc_t func)
 {
-    if (!func)
-    {
+    if (!func) {
         LOG_ERROR(0, "Invalid task function");
         return false;
     }
+
     taskFunc = func;
     task_ = std::thread(&Task::loop, this);
     task_.detach();

@@ -334,6 +334,8 @@ public:
      */
     void scanLoop();
 
+    void init();
+
 private:
     /// Get message id.
     LOG_MSGID;
