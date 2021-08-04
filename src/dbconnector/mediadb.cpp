@@ -521,14 +521,14 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
         }
     }
     //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
-    auto uri = mediaItem->uri();
     auto dev = mediaItem->device();
-    // release ownership for this mediaItem.
-    auto mi = mediaItem.release();
     if (dev->isNewMountedDevice()) {
         props.put("_kind", kind_type);
         putMeta(props, dev);
     } else {
+        auto uri = mediaItem->uri();
+        // release ownership for this mediaItem.
+        auto mi = mediaItem.release();
         mergePut(uri, true, props, mi, kind_type);
     }
 }
