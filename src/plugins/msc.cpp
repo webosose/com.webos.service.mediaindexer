@@ -89,10 +89,10 @@ void Usb::pdmUpdate(const pbnjson::JValue &dev, bool available)
                         space_.size(), " ");
                 modifyDevice(uri, Device::Meta::Name, label);
             }
-            // the description can be build from vendor + product name
+            // the description can be build from vendor + device name
             if (dev.hasKey("productName")) {
                 auto desc = dev["productName"].asString();
-                // use product name for name if no volume label has
+                // use device name for name if no volume label has
                 // been set
                 if (label.empty())
                     modifyDevice(uri, Device::Meta::Name, desc);
@@ -109,7 +109,8 @@ int Usb::runDeviceDetection(bool start)
 {
 #if defined HAS_PDM
     auto listener = PdmListener::instance();
-    listener->setDeviceNotifications(
+    if(listener)
+      listener->setDeviceNotifications(
         static_cast<IPdmObserver *>(this), PdmDevice::DeviceType::USB, start);
 #else
     // there is no device detection for USB mass storage devices

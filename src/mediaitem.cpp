@@ -421,29 +421,31 @@ MediaItem::MediaItem(const std::string &uri)
     , extractorType_(MediaItem::ExtractorType::EOL)
 {
     try {
-        LOG_DEBUG(MEDIA_INDEXER_MEDIAITEM, "uri_ : %s, device->uri() : %s", uri_.c_str(), device_->uri().c_str());
-        std::size_t sz = uri_.find(device_->uri());
-        if (sz == std::string::npos) {
+        if(device_ && device_.use_count() > 0)
+        {
+          LOG_DEBUG(MEDIA_INDEXER_MEDIAITEM, "uri_ : %s, device->uri() : %s", uri_.c_str(), device_->uri().c_str());
+          std::size_t sz = uri_.find(device_->uri());
+          if (sz == std::string::npos) {
             LOG_ERROR(MEDIA_INDEXER_MEDIAITEM, 0, "Failed to found %s for uri : %s",device_->uri().c_str(), uri_.c_str());
-        }
-        sz += device_->uri().length();
-        path_ = uri_.substr(sz);
-        LOG_DEBUG(MEDIA_INDEXER_MEDIAITEM, "path_ : %s",path_.c_str());
-        ext_ = path_.substr(path_.find_last_of('.') + 1);
-        auto fpath = std::filesystem::path(path_);
-        filesize_ = std::filesystem::file_size(fpath);
-        hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
+          }
+          sz += device_->uri().length();
+          path_ = uri_.substr(sz);
+          LOG_DEBUG(MEDIA_INDEXER_MEDIAITEM, "path_ : %s",path_.c_str());
+          ext_ = path_.substr(path_.find_last_of('.') + 1);
+          auto fpath = std::filesystem::path(path_);
+          filesize_ = std::filesystem::file_size(fpath);
+          hash_ = std::filesystem::last_write_time(fpath).time_since_epoch().count();
 
-        // generate random file name
-        thumbnailFileName_ = generateRandFilename() + THUMBNAIL_EXTENSION;
+          // generate random file name
+          thumbnailFileName_ = generateRandFilename() + THUMBNAIL_EXTENSION;
 
-        if (!MediaItem::mediaItemSupported(path_, mime_)) {
+          if (!MediaItem::mediaItemSupported(path_, mime_)) {
             LOG_ERROR(MEDIA_INDEXER_MEDIAITEM, 0, "Media Item %s is not supported by this system", path_.c_str());
             throw std::runtime_error("error");
-        }
+          }
 
-        // set the type
-        for (auto type = MediaItem::Type::Audio;
+          // set the type
+          for (auto type = MediaItem::Type::Audio;
              type < MediaItem::Type::EOL; ++type) {
             auto typeString = MediaItem::mediaTypeToString(type);
             if (!!mime_.compare(0, typeString.size(), typeString))
@@ -451,6 +453,7 @@ MediaItem::MediaItem(const std::string &uri)
 
             type_ = type;
             break;
+          }
         }
     } catch (const std::exception & e) {
         LOG_ERROR(MEDIA_INDEXER_MEDIAITEM, 0, "MediaItem::Ctor failure: %s", e.what());

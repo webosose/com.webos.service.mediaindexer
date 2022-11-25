@@ -206,7 +206,8 @@ void Upnp::getDeviceMeta(Upnp *plugin, std::string uri, std::string location)
 
     // strip the base uri from the location
     auto baseUri(location);
-    auto idx = baseUri.begin() + 8; // 'http://' or 'https://'
+    const std::string::size_type maxSize = 8;
+    auto idx = baseUri.begin() + std::min(maxSize, baseUri.size()); // 'http://' or 'https://'
     // search for first '/' after protocol identifer
     idx = std::find(idx, baseUri.end(), '/');
     baseUri.erase(idx, baseUri.end());
@@ -428,7 +429,8 @@ const char *Upnp::checkServiceCategory(IXML_Document *doc) const
     auto check = [this, &controlUrl](IXML_Node *node) {
         auto sType = getNodeText(node, "serviceType");
         auto ctrlUrl = getNodeText(node, "controlURL");
-        if (!strcmp(sType, Upnp::upnpServiceCategory_))
+        if(sType)
+          if (!strcmp(sType, Upnp::upnpServiceCategory_))
             controlUrl = ctrlUrl;
     };
     iterateOnTag(doc, "service", check);

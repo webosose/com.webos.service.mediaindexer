@@ -49,7 +49,7 @@ std::string MediaDBConnector::sendSearchMessage(std::string&& request)
     LSMessageToken sessionToken;
     bool async = false;
 
-    std::string url = dbUrl_ + std::string("search");
+    std::string url = ((dbUrl_ != nullptr) ? dbUrl_ : "") + std::string("search");
     std::cout << "Url : " << url << std::endl;
     std::cout << "request : " << request << std::endl;
 
@@ -69,7 +69,7 @@ std::string MediaDBConnector::sendDelMessage(std::string&& request)
     LSMessageToken sessionToken;
     bool async = false;
 
-    std::string url = dbUrl_ + std::string("del");
+    std::string url = ((dbUrl_ != nullptr) ? dbUrl_ : "") + std::string("del");
     std::cout << "Url : " << url << std::endl;
     std::cout << "request : " << request << std::endl;
 

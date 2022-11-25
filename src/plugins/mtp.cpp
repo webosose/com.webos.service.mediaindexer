@@ -85,7 +85,7 @@ void Mtp::pdmUpdate(const pbnjson::JValue &dev, bool available)
     if (available) {
         addDevice(uri, mp);
 
-        // check for meta data, the name is the product name, the
+        // check for meta data, the name is the device name, the
         // description is the vendor name
         if (dev.hasKey("productName"))
             modifyDevice(uri, Device::Meta::Name,
@@ -219,7 +219,8 @@ int Mtp::runDeviceDetection(bool start)
 {
 #if defined HAS_PDM
     auto listener = PdmListener::instance();
-    listener->setDeviceNotifications(
+    if(listener)
+      listener->setDeviceNotifications(
         static_cast<IPdmObserver *>(this), PdmDevice::DeviceType::MTP, start);
 #else
     if (start && !Mtp::poller_) {
