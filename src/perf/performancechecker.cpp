@@ -16,6 +16,7 @@
 
 #include "performancechecker.h"
 #include "logging.h"
+#include <string>
 
 
 std::unique_ptr<PerfChecker> PerfChecker::instance_;
