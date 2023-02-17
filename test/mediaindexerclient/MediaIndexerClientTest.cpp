@@ -208,8 +208,10 @@ int main(int argc, char* argv[])
             printMenu();
             std::string cmd;
             std::getline(std::cin, cmd);
-            bool ret = processCommand(cmd, client, loop);
-            if (!ret) {
+            if(!cmd.empty())
+            {
+              bool ret = processCommand(cmd, client, loop);
+              if (!ret) {
                 std::cout << std::string("Exit thread!") << std::endl;
                 /*
                 if (!LSUnregister(handle, &lsError)) {
@@ -217,6 +219,7 @@ int main(int argc, char* argv[])
                 }
                 */
                 break;
+              }
             }
         }
     }, loop);

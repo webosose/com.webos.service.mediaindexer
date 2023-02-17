@@ -172,8 +172,11 @@ int main(int argc, char* argv[])
         printMenu();
         std::string cmd;
         std::getline(std::cin, cmd);
-        bool ret = processCommand(cmd, handle);
-        if (!ret) break;
+        if(!cmd.empty())
+        {
+          bool ret = processCommand(cmd, handle);
+          if (!ret) break;
+        }
     }
 
     DestroyMediaIndexerClient(handle);
