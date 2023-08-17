@@ -72,5 +72,5 @@ target_link_libraries(mediaindexerclient
     ${PMLOG_LDFLAGS}
     )
 
-install(TARGETS mediaindexerclient DESTINATION lib)
+install(TARGETS mediaindexerclient DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${MEDIA_INDEXER_CLIENT_HEADERS} DESTINATION include/mediaindexerclinet)
