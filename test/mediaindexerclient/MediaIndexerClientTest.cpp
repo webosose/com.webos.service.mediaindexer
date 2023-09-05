@@ -22,6 +22,7 @@
 #include <functional>
 #include <map>
 #include <glib.h>
+#include <regex>
 #include <luna-service2/lunaservice.h>
 //#include <luna-service2/lunaservice.hpp>
 #include "mediaindexerclient.h"
@@ -68,6 +69,11 @@ static bool processCommand(const std::string& cmd, MediaIndexerClient &client, G
 //        handle.detach();
         g_main_loop_quit(loop);
         return false;
+    }
+
+     if (!(std::regex_match(cmd, std::regex("^[0-9]+$")))) {
+         std::cout << std::string("Please provide numerical value") << std::endl;
+       return true;
     }
 
     // get API from user command
