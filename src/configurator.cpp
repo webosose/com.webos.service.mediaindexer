@@ -27,7 +27,7 @@ Configurator *Configurator::instance()
 }
 
 Configurator::Configurator(std::string confPath)
-    : confPath_(confPath)
+    : confPath_(std::move(confPath))
     , force_sw_decoders_(false)
 {
     init();

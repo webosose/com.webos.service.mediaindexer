@@ -57,7 +57,7 @@ bool SettingsDb::handleLunaResponse(LSMessage *msg)
         return false;
     }
 
-    auto dbServiceMethod = sd.dbServiceMethod;
+    const auto &dbServiceMethod = sd.dbServiceMethod;
     LOG_INFO(MEDIA_INDEXER_SETTINGSDB, 0, "Received response com.webos.mediadb for: '%s'",
             dbServiceMethod.c_str());
 

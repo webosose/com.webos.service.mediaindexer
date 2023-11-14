@@ -481,7 +481,7 @@ void GStreamerExtractor::setMeta(MediaItem &mediaItem, GstDiscovererInfo *info,
 
     auto meta = metaFromTag(tag);
     LOG_DEBUG(MEDIA_INDEXER_GSTREAMEREXTRACTOR, "Found tag for '%s'", MediaItem::metaToString(meta).c_str());
-    mediaItem.setMeta(meta, data);
+    mediaItem.setMeta(meta, std::move(data));
 
     g_value_unset(&val);
 }
@@ -609,7 +609,7 @@ void GStreamerExtractor::setStreamMeta(MediaItem &mediaItem,
                 data = {gst_discoverer_video_info_get_height(video_info)};
                 LOG_DEBUG(MEDIA_INDEXER_GSTREAMEREXTRACTOR, " -> Image Height : %u", std::get<std::uint32_t>(data));
                 meta = MediaItem::Meta::Height;
-                mediaItem.setMeta(meta, data);
+                mediaItem.setMeta(meta, std::move(data));
             }
         }
         break;

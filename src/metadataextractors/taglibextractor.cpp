@@ -316,7 +316,7 @@ void TaglibExtractor::setMetaMp3(MediaItem &mediaItem, TagLib::ID3v2::Tag *tag,
     }
 
     LOG_DEBUG(MEDIA_INDEXER_TAGLIBEXTRACTOR, "Found tag for '%s'", MediaItem::metaToString(flag).c_str());
-    mediaItem.setMeta(flag, data);
+    mediaItem.setMeta(flag, std::move(data));
 }
 
 void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment *tag,
@@ -393,6 +393,6 @@ void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment 
     }
 
     LOG_DEBUG(MEDIA_INDEXER_TAGLIBEXTRACTOR, "Found tag for '%s'", MediaItem::metaToString(flag).c_str());
-    mediaItem.setMeta(flag, data);
+    mediaItem.setMeta(flag, std::move(data));
 }
 

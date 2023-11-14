@@ -79,7 +79,7 @@ void Upnp::scan(const std::string &uri)
 
 void Upnp::extractMeta(MediaItem &mediaItem, bool expand)
 {
-    auto path = mediaItem.path();
+    const auto &path = mediaItem.path();
     LOG_INFO(MEDIA_INDEXER_UPNP, 0, "Request meta data for item '%s'", path.c_str());
     sendMetaRequest(path, mediaItem);
 }
@@ -98,17 +98,17 @@ std::optional<std::string> Upnp::getPlaybackUri(const std::string &uri)
     // remove the device uri and the '/' separator from the path
     id.erase(0, dev->uri().length() + 1);
 
-    IXML_Document *didl = getObjectMeta(id, dev);
+    IXML_Document *didl = getObjectMeta(id, std::move(dev));
     if (!didl)
         return std::nullopt;
 
-    std::string pbUri = getNodeText(didl, "res");
-    if (!pbUri.length())
+    auto pbUri = getNodeText(didl, "res");
+    if (!pbUri)
         return std::nullopt;
 
     ixmlDocument_free(didl);
 
-    LOG_DEBUG(MEDIA_INDEXER_UPNP, "Playback uri for '%s' is '%s'", uri.c_str(), pbUri.c_str());
+    LOG_DEBUG(MEDIA_INDEXER_UPNP, "Playback uri for '%s' is '%s'", uri.c_str(), pbUri);
     return pbUri;
 }
 
@@ -205,7 +205,7 @@ void Upnp::getDeviceMeta(Upnp *plugin, std::string uri, std::string location)
         return;
 
     // strip the base uri from the location
-    auto baseUri(location);
+    auto baseUri(std::move(location));
     const std::string::size_type maxSize = 8;
     auto idx = baseUri.begin() + std::min(maxSize, baseUri.size()); // 'http://' or 'https://'
     // search for first '/' after protocol identifer
@@ -456,7 +456,7 @@ bool Upnp::sendBrowseRequest(const std::string &id, int count,
     int done = 0;
 
     if (!count) {
-        browseChunk(id, 0, 0, device);
+        browseChunk(id, 0, 0, std::move(device));
     } else {
         while (done < count) {
             auto c = browseChunk(id, done, 10, device);
@@ -507,15 +507,25 @@ int Upnp::browseChunk(const std::string &id, int start, int count,
     }
 
     // how many matches did we receive
-    auto num = std::stoi(getNodeText(resp, "NumberReturned"));
+    auto numret = getNodeText(resp, "NumberReturned");
+    if(!numret) {
+        LOG_ERROR(MEDIA_INDEXER_UPNP, 0, "No browse NumberReturned");
+        return -1;
+    }
+    auto num = std::stoi(numret);
 
+    auto totmat = getNodeText(resp, "TotalMatches");
+    if(!totmat)
+    {
+        LOG_ERROR(MEDIA_INDEXER_UPNP, 0, "No browse TotalMatches");
+        return -1;
+    }
     // if there are no matches skip this
-    auto total = std::stoi(getNodeText(resp, "TotalMatches"));
+    auto total = std::stoi(totmat);
     if (!total) {
         ixmlDocument_free(resp);
         return -1;
     }
-
     // now get the DIDL text
     auto didl = getNodeText(resp, "Result");
     if (!didl) {
@@ -533,7 +543,7 @@ int Upnp::browseChunk(const std::string &id, int start, int count,
     }
 
     // and throw it into the parser
-    auto res = parseBrowseResponse(didlDoc, device);
+    auto res = parseBrowseResponse(didlDoc, std::move(device));
 
     ixmlDocument_free(didlDoc);
     ixmlDocument_free(resp);
@@ -548,18 +558,26 @@ bool Upnp::parseBrowseResponse(IXML_Document *doc,
     auto diveIn = [this, device](IXML_Node *node) {
         // no children - ignore
         auto cs = getAttributeText(node, "childCount");
+        if(!cs)
+            return;
         auto c = std::stoi(cs);
         free(cs);
         if (!c)
             return;
         // check if we want to follow this container type
         auto upnpClass = getNodeText(node, "upnp:class");
+        if(!upnpClass)
+            return;
+
         if (!upnpClassCheck(upnpClass)) {
             LOG_ERROR(MEDIA_INDEXER_UPNP, 0, "Ignore UPNP class %s", upnpClass);
             return;
         }
         LOG_WARNING(MEDIA_INDEXER_UPNP, 0, "Dive into UPNP class %s", upnpClass);
         auto id = getAttributeText(node, "id");
+        if(!id)
+            return;
+
         LOG_DEBUG(MEDIA_INDEXER_UPNP, "Browse %i from %s", c, id);
         sendBrowseRequest(id, c, device);
         free(id);
@@ -752,8 +770,10 @@ unsigned long Upnp::generateItemHash(IXML_Node *item) const
 
     // last resort - let's choose the item id
     auto id = getAttributeText(item, "id");
-    ret = std::hash<std::string>{}(id);
-    free(id);
+    if(id) {
+      ret = std::hash<std::string>{}(id);
+      free(id);
+    }
     return ret;
 }
 
@@ -823,10 +843,24 @@ IXML_Document *Upnp::getObjectMeta(const std::string &id,
     }
 
     // how many matches did we receive
-    auto num = std::stoi(getNodeText(resp, "NumberReturned"));
+    auto numret = getNodeText(resp, "NumberReturned");
+    if(!numret)
+    {
+        LOG_ERROR(MEDIA_INDEXER_UPNP, 0, "No browse NumberReturned");
+        ixmlDocument_free(resp);
+        return nullptr;
+    }
+    auto num = std::stoi(numret);
 
     // if there are no matches skip this
-    auto total = std::stoi(getNodeText(resp, "TotalMatches"));
+    auto totmat = getNodeText(resp, "TotalMatches");
+    if(!totmat)
+    {
+        LOG_ERROR(MEDIA_INDEXER_UPNP, 0, "No browse TotalMatches");
+        ixmlDocument_free(resp);
+        return nullptr;
+    }
+    auto total = std::stoi(totmat);
 
     if (!total || !num) {
         ixmlDocument_free(resp);

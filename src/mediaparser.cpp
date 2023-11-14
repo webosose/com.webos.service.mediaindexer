@@ -34,9 +34,9 @@ std::mutex MediaParser::ctorLock_;
 
 void MediaParser::enqueueTask(MediaItemPtr mediaItem)
 {
-    std::lock_guard<std::mutex> lock(lock_);
     auto type = mediaItem->extractorType();
     MediaParser* mParser = MediaParser::instance();
+    std::lock_guard<std::mutex> lock(mParser->mediaItemLock_);
     mParser->mediaItemQueue_.push(std::move(mediaItem));
     GError *error = nullptr;
     if (!g_thread_pool_push(mParser->pool, static_cast<void*>(&type), &error)) {

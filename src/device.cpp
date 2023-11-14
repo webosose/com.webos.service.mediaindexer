@@ -77,7 +77,7 @@ std::shared_ptr<Device> Device::device(const std::string &uri)
 Device::Device(const std::string &uri, int alive, bool avail, std::string uuid) :
     uri_(uri),
     mountpoint_(""),
-    uuid_(uuid),
+    uuid_(std::move(uuid)),
     lastSeen_(),
     state_(Device::State::Inactive),
     available_(avail),
@@ -138,8 +138,8 @@ void Device::unlock()
 
 bool Device::available(bool check)
 {
+    std::shared_lock lock(lock_);
     if (check) {
-        std::unique_lock lock(lock_);
         available_ = checkAlive();
     }
 
@@ -308,6 +308,7 @@ bool Device::scan(IMediaItemObserver *observer)
     PERF_START("TOTAL");
 #endif
     resetMediaItemCount();
+    std::unique_lock<std::mutex> lk(mutex_);
     queue_.push_back(uri_);
     cv_.notify_one();
     return true;
@@ -415,6 +416,7 @@ void Device::incrementRemoveItemCount(int count)
 
 bool Device::needFlushed()
 {
+    std::unique_lock lock(lock_);
     if ((state_ == Device::State::Parsing) && (totalItemCount_ == putCount_))
         return true;
     return false;
@@ -422,11 +424,13 @@ bool Device::needFlushed()
 
 bool Device::needDirtyFlushed()
 {
+    std::unique_lock lock(lock_);
     return totalItemCount_ == dirtyCount_;
 }
 
 bool Device::needFlushedForRemove()
 {
+    std::unique_lock lock(lock_);
     if (totalRemovedCount_ != removeCount_)
         return true;
 
@@ -437,8 +441,8 @@ bool Device::processingDone()
 {
     std::unique_lock<std::mutex> lock(pmtx_);
     if (state_ == Device::State::Parsing) {
-        LOG_INFO(MEDIA_INDEXER_DEVICE, 0, "Item Count : %d, Proccessed Count : %d, Removed Count :%d", totalItemCount_, 
-                totalProcessedCount_, totalRemovedCount_);
+        LOG_INFO(MEDIA_INDEXER_DEVICE, 0, "Item Count : %d, Proccessed Count : %d, Removed Count :%d", totalItemCount_,
+                totalProcessedCount_, totalRemovedCount_.load());
         if ((totalItemCount_ == totalProcessedCount_) && (removeCount_ == totalRemovedCount_)) {
             setState(Device::State::Idle);
             auto obs = observer();
@@ -447,7 +451,7 @@ bool Device::processingDone()
 #if PERFCHECK_ENABLE
             PERF_END("TOTAL");
             LOG_PERF("Item Count : %d, Proccessed Count : %d, Removed Count : %d",
-                    totalItemCount_, totalProcessedCount_, totalRemovedCount_);
+                    totalItemCount_, totalProcessedCount_, totalRemovedCount_.load());
 #endif
             return true;
         } else if (needDirtyFlushed()) {

@@ -64,7 +64,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         return false;
     }
 
-    auto method = sd.dbServiceMethod;
+    const auto &method = sd.dbServiceMethod;
     LOG_DEBUG(MEDIA_INDEXER_MEDIADB, "Received response com.webos.mediadb for: '%s'", method.c_str());
 
     // handle the media data exists case
@@ -88,7 +88,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
 
         // response message
         auto reply = static_cast<pbnjson::JValue *>(sd.object);
-        *reply = domTree;
+        *reply = std::move(domTree);
     } else if (method == std::string("search")) {
         if (!sd.object) {
             LOG_ERROR(MEDIA_INDEXER_MEDIADB, 0, "Search should include SessionData");
@@ -167,7 +167,7 @@ bool MediaDb::handleLunaResponse(LSMessage *msg)
         pbnjson::JValue domTree(parser.getDom());
         // response message
         auto reply = static_cast<pbnjson::JValue *>(sd.object);
-        *reply = domTree;
+        *reply = std::move(domTree);
     } else if (method == std::string("flushDeleteItems")) {
         LOG_DEBUG(MEDIA_INDEXER_MEDIADB, "method : %s", method.c_str());
         if (!sd.object) {
@@ -216,8 +216,8 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
         results = domTree["results"];
 
 
-    auto dbServiceMethod = sd.dbServiceMethod;
-    auto dbMethod = sd.dbMethod;
+    const auto &dbServiceMethod = sd.dbServiceMethod;
+    const auto &dbMethod = sd.dbMethod;
     auto dbQuery = sd.query;
     auto object = sd.object;
     LOG_INFO(MEDIA_INDEXER_MEDIADB, 0, "Received response com.webos.mediadb for: \
@@ -424,7 +424,7 @@ bool MediaDb::handleLunaResponseMetaData(LSMessage *msg)
 void MediaDb::checkForChange(MediaItemPtr mediaItem)
 {
     auto mi = mediaItem.get();
-    auto uri = mediaItem->uri();
+    const auto &uri = mediaItem->uri();
     auto hash = mediaItem->hash();
     if ((mediaItemMap_.find(uri) == mediaItemMap_.end()) ||
         ((mediaItemMap_.find(uri) != mediaItemMap_.end()) && (mediaItemMap_[uri] != hash))) {
@@ -517,16 +517,16 @@ void MediaDb::updateMediaItem(MediaItemPtr mediaItem)
         if ((mediaItem->type() == MediaItem::Type::Audio && mediaItem->isAudioMeta(meta))
             ||(mediaItem->type() == MediaItem::Type::Video && mediaItem->isVideoMeta(meta))
             ||(mediaItem->type() == MediaItem::Type::Image && mediaItem->isImageMeta(meta))) {
-            mediaItem->putProperties(metaStr, data, props);
+            mediaItem->putProperties(std::move(metaStr), std::move(data), props);
         }
     }
     //mergePut(mediaItem->uri(), true, props, nullptr, MEDIA_KIND);
     auto dev = mediaItem->device();
     if (dev->isNewMountedDevice()) {
         props.put("_kind", kind_type);
-        putMeta(props, dev);
+        putMeta(props, std::move(dev));
     } else {
-        auto uri = mediaItem->uri();
+        const auto &uri = mediaItem->uri();
         // release ownership for this mediaItem.
         auto mi = mediaItem.release();
         mergePut(uri, true, props, mi, kind_type);
@@ -546,7 +546,7 @@ std::optional<std::string> MediaDb::getFilePath(
 
 bool MediaDb::putMeta(pbnjson::JValue &params, DevicePtr device)
 {
-    auto uri = device->uri();
+    const auto &uri = device->uri();
     std::unique_lock<std::mutex> lk(mutex_);
     if (firstScanTempBuf_.find(uri) == firstScanTempBuf_.end()) {
         firstScanTempBuf_.emplace(uri, pbnjson::Array());
@@ -562,7 +562,7 @@ bool MediaDb::putMeta(pbnjson::JValue &params, DevicePtr device)
 bool MediaDb::flushPut(Device* device)
 {
     if (device) {
-        auto uri = device->uri();
+        const auto &uri = device->uri();
         if (firstScanTempBuf_.find(uri) != firstScanTempBuf_.end()) {
             if (firstScanTempBuf_[uri].arraySize() > 0) {
                 RespData *obj = new RespData {device, static_cast<size_t>(firstScanTempBuf_[uri].arraySize())};
@@ -632,7 +632,7 @@ void MediaDb::unflagDirty(MediaItemPtr mediaItem)
     param.put("props", props);
 
     auto device = mediaItem->device();
-    auto duri = device->uri();
+    const auto &duri = device->uri();
     if (reScanTempBuf_.find(duri) == reScanTempBuf_.end()) {
         reScanTempBuf_.emplace(duri, pbnjson::Array());
     }
@@ -647,7 +647,7 @@ void MediaDb::flushUnflagDirty(Device *device)
 {
     std::unique_lock<std::mutex> lk(mutex_);
     if (device) {
-        auto uri = device->uri();
+        const auto &uri = device->uri();
         if (reScanTempBuf_.find(uri) != reScanTempBuf_.end()) {
             if (reScanTempBuf_[uri].arraySize() > 0) {
 
@@ -665,7 +665,7 @@ void MediaDb::flushUnflagDirty(Device *device)
 
 void MediaDb::requestDeleteItem(MediaItemPtr mediaItem)
 {
-    auto uri = mediaItem->uri();
+    const auto &uri = mediaItem->uri();
     auto type = mediaItem->type();
     if (type == MediaItem::Type::EOL) {
         LOG_ERROR(MEDIA_INDEXER_MEDIADB, 0, "Invalid media item type for '%s'", uri.c_str());
@@ -683,7 +683,7 @@ void MediaDb::requestDeleteItem(MediaItemPtr mediaItem)
     param.put("query", query);
 
     auto device = mediaItem->device();
-    auto duri = device->uri();
+    const auto &duri = device->uri();
     if (reScanTempBuf_.find(duri) == reScanTempBuf_.end()) {
         reScanTempBuf_.emplace(duri, pbnjson::Array());
     }
@@ -702,7 +702,7 @@ void MediaDb::flushDeleteItems(Device *device)
         return;
     }
 
-    auto uri = device->uri();
+    const auto &uri = device->uri();
     auto iter = reScanTempBuf_.find(uri);
     if (iter != reScanTempBuf_.end()) {
         auto array = iter->second;

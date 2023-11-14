@@ -77,7 +77,7 @@ void Usb::pdmUpdate(const pbnjson::JValue &dev, bool available)
 
         auto uri = suri.str();
         if (available) {
-            addDevice(uri, mp, uuid);
+            addDevice(uri, mp, std::move(uuid));
             // add meta data, for USB case we may only know the volume
             // label
             std::string label;

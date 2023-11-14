@@ -17,7 +17,7 @@
 #include "localeobserver.h"
 
 LocaleObserver::LocaleObserver(LSHandle *hdl, notify_callback_t && notify_callback)
-    : handle_(hdl), notifyCallback_(notify_callback)
+    : handle_(hdl), notifyCallback_(std::move(notify_callback))
 {
     pbnjson::JValue payload = pbnjson::Object();
     pbnjson::JValue array = pbnjson::Array();

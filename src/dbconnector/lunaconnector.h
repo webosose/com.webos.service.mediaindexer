@@ -45,15 +45,24 @@ class CallbackWrapper {
 public:
     CallbackWrapper() : handler_(nullptr), timeout_(CONNECTOR_WAIT_TIMEOUT)         {}
     ~CallbackWrapper() {}
-    void setHandler(LunaConnectorCallback cb, void *ctx) { handler_ = cb; ctx_ = ctx; }
+    void setHandler(LunaConnectorCallback cb, void *ctx) { handler_ = cb; ctx_ = ctx; is_callbacked_ = false; }
     bool callback(LSHandle *hdl, LSMessage *msg) {
+        is_callbacked_ = true;
         if (handler_)
             return handler_(hdl, msg, ctx_);
         return false;
     }
     std::mutex & getMutex () { return mutex_; }
-    bool wait(std::unique_lock<std::mutex> & lk)
-        { return cv_.wait_for(lk, std::chrono::seconds(timeout_)) == std::cv_status::timeout; }
+    bool wait(std::unique_lock<std::mutex> & lk) {
+         std::cv_status cv_status = std::cv_status::no_timeout;
+         while (is_callbacked_ == false) {
+              cv_status = cv_.wait_for(lk, std::chrono::seconds(timeout_));
+             if (cv_status == std::cv_status::timeout ) {
+                  is_callbacked_ = true;
+              }
+         }
+         return (cv_status == std::cv_status::timeout);
+    }
     void wakeUp() { cv_.notify_one(); }
 private:
     LunaConnectorCallback handler_;
@@ -61,6 +70,7 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
     uint32_t timeout_;
+    bool is_callbacked_ = false;
 };
 
 class LunaConnector
@@ -68,8 +78,8 @@ class LunaConnector
 public:
     LunaConnector(const std::string& name, bool async = false);
     ~LunaConnector();
-    void registerTokenCallback(tokenCallback_t cb) { tokenCallback_ = cb; }
-    void registerTokenCancelCallback(tokenCancelCallback_t cb) { tokenCancelCallback_ = cb; }
+    void registerTokenCallback(tokenCallback_t cb) { tokenCallback_ = std::move(cb); }
+    void registerTokenCancelCallback(tokenCancelCallback_t cb) { tokenCancelCallback_ = std::move(cb); }
     bool run();
     bool stop();
     bool sendMessage(const std::string &uri,

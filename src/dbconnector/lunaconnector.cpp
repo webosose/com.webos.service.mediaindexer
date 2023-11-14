@@ -183,7 +183,7 @@ bool LunaConnector::sendMessage(const std::string &uri, const std::string &paylo
 {
     lunaError_t lunaErr;
     LSMessageToken *msgToken = (token == nullptr) ? &token_ : token;
-    std::string method = forcemethod.empty() ? uri.substr(uri.find_last_of('/') + 1) : forcemethod;
+    std::string method = forcemethod.empty() ? uri.substr(uri.find_last_of('/') + 1) : std::move(forcemethod);
     LOG_DEBUG(MEDIA_INDEXER_LUNACONNECTOR, "uri : %s, payload : %s, async : %d, method : %s", 
             uri.c_str(), payload.c_str(), async, method.c_str());
     if (!async_) {

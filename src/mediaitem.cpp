@@ -470,7 +470,7 @@ bool MediaItem::putExtraMetaToJson(pbnjson::JValue &meta)
         if ((type_ == MediaItem::Type::Audio && isAudioMeta(_meta))
             ||(type_ == MediaItem::Type::Video && (isVideoMeta(_meta) || isAudioMeta(_meta)))
             ||(type_ == MediaItem::Type::Image && isImageMeta(_meta))) {
-            if (!putProperties(metaStr, data, meta)) {
+            if (!putProperties(metaStr, std::move(data), meta)) {
                 LOG_ERROR(MEDIA_INDEXER_MEDIAITEM, 0, "Failed to meta data to json object, type : %s", metaStr.c_str());
                 return false;
             }

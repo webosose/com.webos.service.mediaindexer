@@ -22,7 +22,7 @@
 #include <gio/gio.h>
 
 MediaIndexerClient::MediaIndexerClient(MediaIndexerCallback cb, void* userData)
-    : callback_(cb),
+    : callback_(std::move(cb)),
       userData_(userData)
 {
     mediaDBConnector_ = std::unique_ptr<MediaDBConnector>(new MediaDBConnector);
@@ -218,7 +218,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
                 prepareWhere("dirty", false, true, wheres);
                 prepareWhere("uri", uri, false, wheres);
             }
-            query = prepareQuery(selectArray, audioKind_, wheres);
+            query = prepareQuery(std::move(selectArray), audioKind_, std::move(wheres));
             request.put("query", query);
             break;
         }
@@ -241,7 +241,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
                 prepareWhere("dirty", false, true, wheres);
                 prepareWhere("uri", uri, false, wheres);
             }
-            query = prepareQuery(selectArray, videoKind_, wheres);
+            query = prepareQuery(std::move(selectArray), videoKind_, std::move(wheres));
             request.put("query", query);
             break;
         }
@@ -264,7 +264,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
                 prepareWhere("dirty", false, true, wheres);
                 prepareWhere("uri", uri, false, wheres);
             }
-            query = prepareQuery(selectArray, imageKind_, wheres);
+            query = prepareQuery(std::move(selectArray), imageKind_, std::move(wheres));
             request.put("query", query);
             break;
         }
@@ -295,7 +295,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto wheres = pbnjson::Array();
             prepareWhere("uri", uri, false, wheres);
             prepareWhere("dirty", false, true, wheres);
-            auto query = prepareQuery(selectArray, audioKind_, wheres);
+            auto query = prepareQuery(std::move(selectArray), audioKind_, std::move(wheres));
             request.put("query", query);
             break;
         }
@@ -318,7 +318,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto wheres = pbnjson::Array();
             prepareWhere("uri", uri, false, wheres);
             prepareWhere("dirty", false, true, wheres);
-            auto query = prepareQuery(selectArray, videoKind_, wheres);
+            auto query = prepareQuery(std::move(selectArray), videoKind_, std::move(wheres));
             request.put("query", query);
             break;
         }
@@ -342,7 +342,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto wheres = pbnjson::Array();
             prepareWhere("uri", uri, false, wheres);
             prepareWhere("dirty", false, true, wheres);
-            auto query = prepareQuery(selectArray, imageKind_, wheres);
+            auto query = prepareQuery(std::move(selectArray), imageKind_, std::move(wheres));
             request.put("query", query);
             break;
         }
@@ -350,7 +350,7 @@ pbnjson::JValue MediaIndexerClient::generateLunaPayload(MediaIndexerClientAPI ap
             auto where = pbnjson::Array();
             prepareWhere("uri", uri, false, where);
             std::string kindId = getKindID(uri);
-            auto query = prepareQuery(kindId, where);
+            auto query = prepareQuery(kindId, std::move(where));
             request.put("query", query);
             break;
         }

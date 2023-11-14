@@ -56,7 +56,7 @@ void Plugin::setDeviceNotifications(IDeviceObserver *observer, bool on)
 
             // now tell the new observer about the current state of
             // devices
-            for (auto const dev :  devices_)
+            for (const auto &dev :  devices_)
                 notifyObserversStateChange(dev.second, observer);
         }
 
@@ -209,7 +209,7 @@ void Plugin::removeAll(void)
 
     // mark the device as not available and notify observers if the
     // available state really changed
-    for (auto const dev :  devices_) {
+    for (const auto &dev :  devices_) {
         if (dev.second->setAvailable(false))
             notifyObserversStateChange(dev.second);
     }
@@ -242,7 +242,7 @@ void Plugin::checkDevices(void)
 {
     std::shared_lock lock(lock_);
 
-    for (auto const dev : devices_) {
+    for (const auto &dev : devices_) {
         // if device is still alive step to next one
         auto alive = dev.second->available();
         if (dev.second->available(true) == alive)
@@ -373,7 +373,7 @@ bool Plugin::doFileTreeWalkWithCache(const std::shared_ptr<Device>& device,
         auto uri = item.first;
         auto hash = std::get<0>(item.second);
         auto type = std::get<1>(item.second);
-        auto thumb = std::get<2>(item.second);
+        const auto &thumb = std::get<2>(item.second);
         std::string ext = uri.substr(uri.find_last_of('.') + 1);
 
         // we don't have to increase media item count.

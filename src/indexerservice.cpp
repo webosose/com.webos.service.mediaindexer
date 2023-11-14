@@ -255,7 +255,7 @@ bool IndexerService::pushDeviceList(LSMessage *msg)
             // now get the meta data
             for (auto type = Device::Meta::Name;
                  type < Device::Meta::Icon; ++type) {
-                auto meta = dev->meta(type);
+                const auto &meta = dev->meta(type);
                 device.put(Device::metaTypeToString(type), meta);
             }
 
@@ -321,7 +321,7 @@ bool IndexerService::onPluginListGet(LSHandle *lsHandle, LSMessage *msg,
     PluginFactory factory;
     const std::list<std::string> &list = factory.plugins();
 
-    for (auto const plg : list) {
+    for (const auto &plg : list) {
         auto plugin = pbnjson::Object();
         plugin.put("uri", plg);
         pluginList << plugin;

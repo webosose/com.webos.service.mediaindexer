@@ -80,7 +80,7 @@ void PdmListener::setDeviceNotifications(IPdmObserver *observer,
         deviceObservers_[type].push_back(observer);
 
         // push already known devices to new observer
-        for (auto const mountName : deviceMapByType_[type]) {
+        for (auto const &mountName : deviceMapByType_[type]) {
             auto dev = deviceMap_[mountName];
             observer->pdmUpdate(dev->dev(), true);
         }

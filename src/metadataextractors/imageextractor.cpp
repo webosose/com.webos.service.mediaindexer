@@ -338,7 +338,7 @@ void ImageExtractor::setMetaFromExif(MediaItem &mediaItem, bool extra) const
 void ImageExtractor::setMeta(MediaItem &mediaItem, bool extra) const
 {
     if (!extra) {
-        auto ext = mediaItem.ext();
+        const auto &ext = mediaItem.ext();
         if(resolutionHadler_.find(ext) != resolutionHadler_.end())
             resolutionHadler_[ext](mediaItem, (void *)(this));
         else

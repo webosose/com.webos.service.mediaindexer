@@ -171,7 +171,7 @@ bool DbConnector::merge(const std::string &kind_name, pbnjson::JValue &props,
     LOG_INFO(MEDIA_INDEXER_DBCONNECTOR, 0, "Send merges for '%s', request : '%s'", whereVal.c_str(), request.stringify().c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, async, &sessionToken, obj, method)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj, std::move(method))) {
         LOG_ERROR(MEDIA_INDEXER_DBCONNECTOR, 0, "Db service mergePut error");
         return false;
     }
@@ -192,7 +192,7 @@ bool DbConnector::put(pbnjson::JValue &props, void *obj, bool atomic, std::strin
     //LOG_DEBUG(MEDIA_INDEXER_DBCONNECTOR, "Send put for '%s', request : '%s'", uri.c_str(), request.stringify().c_str());
 
     if (!connector_->sendMessage(url.c_str(), request.stringify().c_str(),
-            DbConnector::onLunaResponse, this, async, &sessionToken, obj, method)) {
+            DbConnector::onLunaResponse, this, async, &sessionToken, obj, std::move(method))) {
         LOG_ERROR(MEDIA_INDEXER_DBCONNECTOR, 0, "Db service put error");
         return false;
     }
@@ -325,7 +325,7 @@ bool DbConnector::roAccess(std::list<std::string> &services)
     url += "putPermissions";
 
     auto permissions = pbnjson::Array();
-    for (auto s : services) {
+    for (const auto &s : services) {
         auto perm = pbnjson::Object();
         auto oper = pbnjson::Object();
         oper.put("read", "allow");
@@ -368,8 +368,8 @@ bool DbConnector::roAccess(std::list<std::string> &services, std::list<std::stri
     url += "putPermissions";
 
     auto permissions = pbnjson::Array();
-    for (auto s : services) {
-        for (auto k : kinds) {
+    for (const auto &s : services) {
+        for (const auto &k : kinds) {
             auto perm = pbnjson::Object();
             auto oper = pbnjson::Object();
             oper.put("read", "allow");

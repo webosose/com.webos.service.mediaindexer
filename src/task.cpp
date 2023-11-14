@@ -23,7 +23,7 @@ bool Task::create(Task::taskfunc_t func)
         return false;
     }
 
-    taskFunc = func;
+    taskFunc = std::move(func);
     task_ = std::thread(&Task::loop, this);
     task_.detach();
     return true;

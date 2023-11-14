@@ -33,6 +33,7 @@
 #include <condition_variable>
 #include <deque>
 #include <vector>
+#include <atomic>
 
 class Plugin;
 
@@ -402,8 +403,8 @@ private:
 
     /// Processed media item count per media type.
     std::map<MediaItem::Type, int> removedCount_;
-    int totalRemovedCount_ = 0;
-    int removeCount_ = 0;
+    std::atomic<int> totalRemovedCount_ = 0;
+    std::atomic<int> removeCount_ = 0;
 
     Task cleanUpTask_;
 };

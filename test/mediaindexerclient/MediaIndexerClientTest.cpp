@@ -58,7 +58,7 @@ std::map<MediaIndexerAPI, std::string> indexerMenu = {
 static void printMenu(void)
 {
     std::cout << std::string("*** Media Indexer Client Command test ***") << std::endl;
-    for (auto it : indexerMenu)
+    for (auto &it : indexerMenu)
         std::cout << static_cast<int>(it.first) << ". " << it.second << std::endl;
     std::cout << std::string("Enter a number(q to quit): ");
 }

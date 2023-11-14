@@ -34,7 +34,7 @@ bool PerfChecker::addToPerfMap(std::string name)
     if (perfMap_.find(name) != perfMap_.end())
         return true;
     else
-        perfMap_.emplace(std::string(name), PerfTimeWatch());
+        perfMap_.emplace(std::string(std::move(name)), PerfTimeWatch());
     return true;
 }
 

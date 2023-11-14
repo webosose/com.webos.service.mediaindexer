@@ -67,7 +67,7 @@ bool MediaIndexer::get(const std::string &uri)
         if (list.empty())
             return false;
 
-        for (auto const plgUri : list)
+        for (auto const &plgUri : list)
             get(plgUri);
 
         return true;
@@ -219,7 +219,7 @@ void MediaIndexer::deviceStateChanged(std::shared_ptr<Device> device)
     } else {
         // mark all device media items dirty
         auto mdb = MediaDb::instance();
-        mdb->markDirty(device);
+        mdb->markDirty(std::move(device));
 #endif
     }
 }

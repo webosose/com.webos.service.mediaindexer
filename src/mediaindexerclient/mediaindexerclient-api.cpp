@@ -23,7 +23,7 @@
 
 struct IndexerClientWrapper {
     IndexerClientWrapper(MediaIndexerCallback callback, void* userData) {
-        client_ = new MediaIndexerClient(callback, userData);
+        client_ = new MediaIndexerClient(std::move(callback), userData);
     };
     ~IndexerClientWrapper() {
         if(client_)
@@ -38,7 +38,7 @@ struct IndexerClientWrapper {
 MediaIndexerHandle CreateMediaIndexerClient(MediaIndexerCallback callback, void* userData)
 {
     std::cout << "Create MediaIndexerClient" << std::endl;
-    IndexerClientWrapper* indexerWrapper = new IndexerClientWrapper(callback, userData);
+    IndexerClientWrapper* indexerWrapper = new IndexerClientWrapper(std::move(callback), userData);
     if (indexerWrapper == nullptr) {
         std::cout << "Failed to create MediaIndexerClient!" << std::endl;
         return nullptr;

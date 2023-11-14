@@ -51,7 +51,7 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
     if (!sessionDataFromToken(LSMessageGetResponseToken(msg), &sd, HDL_LUNA_CONN))
         return false;
 
-    auto dbServiceMethod = sd.dbServiceMethod;
+    const auto &dbServiceMethod = sd.dbServiceMethod;
     LOG_INFO(MEDIA_INDEXER_DEVICEDB, 0, "Received response com.webos.mediadb for: '%s'", dbServiceMethod.c_str());
 
     if (dbServiceMethod != std::string("find"))
@@ -92,11 +92,11 @@ bool DeviceDb::handleLunaResponse(LSMessage *msg)
 
         LOG_INFO(MEDIA_INDEXER_DEVICEDB, 0, "Device '%s', uuid '%s' will be injected into plugin", uri.c_str(),uuid.c_str());
 
-        if (plg->injectDevice(uri, alive, false, uuid)) {
+        if (plg->injectDevice(uri, alive, false, std::move(uuid))) {
             auto meta = match["name"].asString();
             plg->device(uri)->setMeta(Device::Meta::Name, meta);
             meta = match["description"].asString();
-            plg->device(uri)->setMeta(Device::Meta::Description, meta);
+            plg->device(uri)->setMeta(Device::Meta::Description, std::move(meta));
         }
     }
 
@@ -113,7 +113,7 @@ DeviceDb::DeviceDb() :
     DbConnector("com.webos.service.mediaindexer.devices", true)
 {
     std::list<std::string> indexes = {"uri", "available"}; // add index : available
-    for (auto idx : indexes) {
+    for (const auto &idx : indexes) {
         auto index = pbnjson::Object();
         index.put("name", idx);
 
@@ -135,13 +135,13 @@ void DeviceDb::deviceStateChanged(std::shared_ptr<Device> device)
 
     // we only write updates if device appears
     //if (device->available())
-    updateDevice(device);
+    updateDevice(std::move(device));
 }
 
 void DeviceDb::deviceModified(std::shared_ptr<Device> device)
 {
     LOG_INFO(MEDIA_INDEXER_DEVICEDB, 0, "Device '%s' has been modified", device->uri().c_str());
-    updateDevice(device);
+    updateDevice(std::move(device));
 }
 
 void DeviceDb::updateDevice(std::shared_ptr<Device> device)

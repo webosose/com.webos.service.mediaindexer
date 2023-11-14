@@ -17,7 +17,7 @@
 #include "dbobserver.h"
 
 DbObserver::DbObserver(LSHandle *hdl, db_initialized_callback_t && db_inital_callback)
-    : handle_(hdl), dbInitialCallback_(db_inital_callback)
+    : handle_(hdl), dbInitialCallback_(std::move(db_inital_callback))
 {
     pbnjson::JValue payload = pbnjson::Object();
     payload.put("serviceName", serviceName_);
