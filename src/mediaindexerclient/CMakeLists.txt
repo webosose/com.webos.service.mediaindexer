@@ -1,4 +1,4 @@
-# Copyright (c) 2020 LG Electronics, Inc.
+# Copyright (c) 2020-2023 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,6 +67,7 @@ set(MEDIA_INDEXER_CLIENT_LIB
     dbconnector
    )
 add_library(mediaindexerclient SHARED ${MEDIA_INDEXER_CLIENT_SRC} ../log/logging.cpp)
+set_target_properties (mediaindexerclient PROPERTIES VERSION 1.0 SOVERSION 1)
 target_link_libraries(mediaindexerclient
     ${MEDIA_INDEXER_CLIENT_LIB}
     ${PMLOG_LDFLAGS}
