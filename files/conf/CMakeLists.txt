@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 LG Electronics, Inc.
+# Copyright (c) 2019-2024 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,10 +14,5 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-if("${WEBOS_TARGET_MACHINE}" STREQUAL "sa8155")
-    message(STATUS "Using config file for webOS Auto sa8155")
-    webos_build_configured_file(files/conf/sa8155/com.webos.service.mediaindexer.conf SYSCONFDIR com.webos.service.mediaindexer)
-else()
-    message(STATUS "Using config file for default MACHINE: " ${WEBOS_TARGET_MACHINE})
-    webos_build_configured_file(files/conf/default/com.webos.service.mediaindexer.conf SYSCONFDIR com.webos.service.mediaindexer)
-endif()
+message(STATUS "Using config file for default machine")
+webos_build_configured_file(files/conf/default/com.webos.service.mediaindexer.conf SYSCONFDIR com.webos.service.mediaindexer)
