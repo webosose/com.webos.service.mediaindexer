@@ -459,6 +459,7 @@ MediaItem::MediaItem(const std::string &uri)
         LOG_ERROR(MEDIA_INDEXER_MEDIAITEM, 0, "MediaItem::Ctor failure: %s", e.what());
     } catch (...) {
         LOG_ERROR(MEDIA_INDEXER_MEDIAITEM, 0, "MediaItem::Ctor failure by unexpected failure");
+        throw;
     }
 }
 
