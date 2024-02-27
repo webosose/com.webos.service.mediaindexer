@@ -416,6 +416,8 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
 MediaItem::MediaItem(const std::string &uri)
     : device_(Device::device(uri))
     , type_(Type::EOL)
+    , hash_(0)
+    , filesize_(0)
     , parsed_(false)
     , uri_(uri)
     , extractorType_(MediaItem::ExtractorType::EOL)
