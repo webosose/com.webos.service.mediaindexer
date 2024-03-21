@@ -76,7 +76,7 @@ bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
 {
     bool ret = true;
     //Some files may require more than one second for metadata extraction. Fix for WRN-15587
-    GstDiscoverer *discoverer = gst_discoverer_new(3 * GST_SECOND, NULL);
+    GstDiscoverer *discoverer = gst_discoverer_new(5 * GST_SECOND, NULL);
     GError *error = nullptr;
 
     if (!discoverer) {

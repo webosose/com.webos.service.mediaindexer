@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <cinttypes>
 
+
 Cache::Cache(const std::string& path)
     : cachePath_(path)
 {
@@ -78,12 +79,20 @@ bool Cache::generateCacheFile()
     auto hash_array = pbnjson::Array();
     auto type_array = pbnjson::Array();
     auto thumbnail_array = pbnjson::Array();
-    for (const auto &item : cacheItems_) {
-        uri_array.append(item.first);
-        hash_array.append(std::to_string(std::get<0>(item.second)));
-        type_array.append(static_cast<int32_t>(std::get<1>(item.second)));
-        thumbnail_array.append(std::get<2>(item.second));
+    // for (const auto &item : cacheItems_) {
+    //     uri_array.append(item.first);
+    //     hash_array.append(std::to_string(std::get<0>(item.second)));
+    //     type_array.append(static_cast<int32_t>(std::get<1>(item.second)));
+    //     thumbnail_array.append(std::get<2>(item.second));
+    // }
+    for (const auto &[key, value] : cacheItems_) {
+    uri_array.append(key);
+    const auto &[first, second, third] = value;
+    hash_array.append(std::to_string(first));
+    type_array.append(static_cast<int32_t>(second));
+    thumbnail_array.append(third);
     }
+
     cache.put("uri", uri_array);
     cache.put("hash", hash_array);
     cache.put("type", type_array);
