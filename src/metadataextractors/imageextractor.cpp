@@ -208,7 +208,7 @@ ImageExtractor::~ImageExtractor()
 bool ImageExtractor::setDefaultMeta(MediaItem &mediaItem, bool extra) const
 {
     //auto begin = std::chrono::high_resolution_clock::now();
-    GstDiscoverer *discoverer = gst_discoverer_new(5 * GST_SECOND, NULL);
+    GstDiscoverer *discoverer = gst_discoverer_new(GST_SECOND, NULL);
     GError *error = nullptr;
     GValue val = G_VALUE_INIT;
     std::string uri = "file://" + mediaItem.path();
