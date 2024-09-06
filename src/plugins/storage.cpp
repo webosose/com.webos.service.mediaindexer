@@ -60,7 +60,7 @@ Storage::Storage() : Plugin(Storage::uri)
                 }
             }
         }
-        devs_.push_back(storageDev);
+        devs_.push_back(std::move(storageDev));
     }
 }
 

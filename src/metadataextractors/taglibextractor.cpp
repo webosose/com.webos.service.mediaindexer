@@ -369,30 +369,33 @@ void TaglibExtractor::setMetaOgg(MediaItem &mediaItem, TagLib::Ogg::XiphComment 
     }
 
     if (file) {
-        switch(flag)
-        {
-            case MediaItem::Meta::Duration:
-                data = {file->audioProperties()->lengthInSeconds()};
-                break;
-            case MediaItem::Meta::SampleRate:
-                data = {file->audioProperties()->sampleRate()};
-                break;
-            case MediaItem::Meta::BitRate:
-                data = {file->audioProperties()->bitrate()};
-                break;
-            case MediaItem::Meta::Channels:
-                data = {file->audioProperties()->channels()};
-                break;
-            case MediaItem::Meta::AudioCodec:
-                data = {"Vorbis"};
-                break;
-            case MediaItem::Meta::Thumbnail:
-            default:
-                break;
+        try {
+            switch (flag) {
+                case MediaItem::Meta::Duration:
+                    data = {file->audioProperties()->lengthInSeconds()};
+                    break;
+                case MediaItem::Meta::SampleRate:
+                    data = {file->audioProperties()->sampleRate()};
+                    break;
+                case MediaItem::Meta::BitRate:
+                    data = {file->audioProperties()->bitrate()};
+                    break;
+                case MediaItem::Meta::Channels:
+                    data = {file->audioProperties()->channels()};
+                    break;
+                case MediaItem::Meta::AudioCodec:
+                    data = {"Vorbis"};
+                    break;
+                case MediaItem::Meta::Thumbnail:
+                default:
+                    break;
+            }
+
+            LOG_DEBUG(MEDIA_INDEXER_TAGLIBEXTRACTOR, "Found tag for '%s'", MediaItem::metaToString(flag).c_str());
+            mediaItem.setMeta(flag, std::move(data));
+        } catch (const std::bad_variant_access& e) {
+            LOG_DEBUG(MEDIA_INDEXER_TAGLIBEXTRACTOR, "Exception caught: %s", e.what());
         }
     }
-
-    LOG_DEBUG(MEDIA_INDEXER_TAGLIBEXTRACTOR, "Found tag for '%s'", MediaItem::metaToString(flag).c_str());
-    mediaItem.setMeta(flag, std::move(data));
 }
 

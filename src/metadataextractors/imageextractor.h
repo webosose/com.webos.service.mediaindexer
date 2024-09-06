@@ -65,7 +65,7 @@ class ImageExtractor : public IMetaDataExtractor
 
     void setMetaFromExifMap(MediaItem &mediaItem, bool extra) const;
 
-    static std::map<std::string, std::function<bool(MediaItem &, void *)>> resolutionHadler_;
+    static std::map<std::string, std::function<bool(MediaItem &, const void *)>> resolutionHadler_;
     static std::map<MediaItem::Meta, ExifMapStructure> exifMap_;
     static std::vector<MediaItem::Meta> basicFlag_;
     static std::vector<MediaItem::Meta> extraFlag_;

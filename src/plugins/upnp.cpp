@@ -217,7 +217,7 @@ void Upnp::getDeviceMeta(Upnp *plugin, std::string uri, std::string location)
     auto mp = baseUri;
     if (!controlUrl) {
         std::lock_guard<std::mutex> lock(plugin->blacklistLock_);
-        plugin->blacklist_.push_back(uri);
+        plugin->blacklist_.push_back(std::move(uri));
         goto freeDoc;
     }
 
@@ -272,7 +272,7 @@ int Upnp::runDeviceDetection(bool start)
 void Upnp::serviceFound(const void *event)
 {
     /// @todo Remove ugly event hack once libupnp includes 6556b0b.
-    UpnpDiscovery *discovery = (UpnpDiscovery *) *((void **) event);
+    const UpnpDiscovery *discovery = static_cast<const UpnpDiscovery *>(event);
     const UpnpString *deviceId = UpnpDiscovery_get_DeviceID(discovery);
     const UpnpString *location = UpnpDiscovery_get_Location(discovery);
     std::string uri = mangleUri(deviceId);
@@ -314,7 +314,7 @@ void Upnp::serviceFound(const void *event)
 void Upnp::serviceLost(const void *event)
 {
     /// @todo Remove ugly event hack once libupnp includes 6556b0b.
-    UpnpDiscovery *discovery = (UpnpDiscovery *) *((void **) event);
+    const UpnpDiscovery *discovery = static_cast<const UpnpDiscovery *>(event);
     const UpnpString *deviceId = UpnpDiscovery_get_DeviceID(discovery);
     std::string uri = mangleUri(deviceId);
     LOG_DEBUG(MEDIA_INDEXER_UPNP, "Device said byebye, constructed uri: '%s'", uri.c_str());

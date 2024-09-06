@@ -224,7 +224,7 @@ bool Device::setMeta(Device::Meta type, const std::string value)
 
     LOG_DEBUG(MEDIA_INDEXER_DEVICE, "Updating meta %i to '%s' for '%s'", (int) type, value.c_str(),
         uri().c_str());
-    meta_[type] = value;
+    meta_[type] = std::move(value);
 
     return true;
 }

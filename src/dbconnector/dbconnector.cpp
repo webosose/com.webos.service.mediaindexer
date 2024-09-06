@@ -418,23 +418,31 @@ bool DbConnector::sendResponse(LSHandle *sender, LSMessage* message, const std::
 }
 
 bool DbConnector::sessionDataFromToken(LSMessageToken token, SessionData *sd,
-                                SessionHdlType hdlType)
+                                       SessionHdlType hdlType)
 {
     std::lock_guard<std::mutex> lock(lock_);
 
-    auto match = messageMap_[hdlType].find(token);
-    if (match == messageMap_[hdlType].end())
+    if (hdlType < HDL_DEFAULT || hdlType >= HDL_MAX) {
+        LOG_ERROR(MEDIA_INDEXER_DBCONNECTOR, 0, "Invalid hdlType");
         return false;
-    if (sd)
+    }
+
+    auto& map = messageMap_[hdlType];
+
+    auto match = map.find(token);
+    if (match == map.end())
+        return false;
+
+    if (sd) {
         *sd = match->second;
-    else {
+        map.erase(match);
+    } else {
         LOG_ERROR(MEDIA_INDEXER_DBCONNECTOR, 0, "Invalid SessionData");
         return false;
     }
-    messageMap_[hdlType].erase(match);
+
     return true;
 }
-
 bool DbConnector::onLunaResponse(LSHandle *lsHandle, LSMessage *msg, void *ctx)
 {
     DbConnector *connector = static_cast<DbConnector *>(ctx);
@@ -459,8 +467,13 @@ void DbConnector::rememberSessionData(LSMessageToken token,
     // request has been issued because the response will happen
     // from the mainloop in the same thread context
     LOG_DEBUG(MEDIA_INDEXER_DBCONNECTOR, "Save dbServiceMethod %s, dbMethod %s, token %ld pair", dbServiceMethod.c_str(), dbMethod.c_str(), (long)token);
+    if (hdlType < HDL_DEFAULT || hdlType >= HDL_MAX) {
+        LOG_ERROR(MEDIA_INDEXER_DBCONNECTOR, 0, "Invalid hdlType");
+        return;  
+    }
     SessionData sd = {dbServiceMethod, dbMethod, query, object};
     auto p = std::make_pair(token, sd);
     std::lock_guard<std::mutex> lock(lock_);
-    messageMap_[hdlType].emplace(p);
+    auto& map = messageMap_[hdlType];
+    map.emplace(p);
 }

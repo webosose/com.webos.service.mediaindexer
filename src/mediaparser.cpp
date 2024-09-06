@@ -125,7 +125,7 @@ bool MediaParser::extractExtraMeta(pbnjson::JValue &meta)
         LOG_DEBUG(MEDIA_INDEXER_MEDIAPARSER, "Media item to extract %p with parser %p", mi, this);
         auto path = mediaItem_->path();
 
-        if (*path.begin() == '/') {
+        if (!path.empty() && path.front() == '/') {
             MediaItem::ExtractorType p = getType(mediaItem_->type(), mi->ext());
 
             if (extractor_.find(p) != extractor_.end()) {
@@ -179,7 +179,7 @@ void MediaParser::extractMeta(void *data, void *user_data)
         LOG_DEBUG(MEDIA_INDEXER_MEDIAPARSER, "Media item to extract %p with parser %p", mip.get(), mp);
 
         auto path = mip->path();
-        if (*path.begin() == '/') {
+        if (!path.empty() && path.front() == '/') {
             MediaItem::ExtractorType p = mip->extractorType();
             if (!extractor_[p]->extractMeta(*mip)) {
                 LOG_WARNING(MEDIA_INDEXER_MEDIAPARSER, 0, "%s meta data extraction failed!", mip->uri().c_str());

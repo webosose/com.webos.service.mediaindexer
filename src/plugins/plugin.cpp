@@ -113,8 +113,10 @@ bool Plugin::injectDevice(const std::string &uri, int alive, bool avail, std::st
         dev->setNewMountedDevice(isNew);
     }
 
-    if (isNew)
+    if (isNew) {
+        std::shared_lock lock(lock_);
         notifyObserversStateChange(devices_[uri]);
+    }
 
     return isNew;
 }
@@ -253,6 +255,7 @@ void Plugin::checkDevices(void)
 
 const std::map<std::string, std::shared_ptr<Device>> &Plugin::devices() const
 {
+    std::shared_lock lock(lock_);
     return devices_;
 }
 
@@ -570,7 +573,6 @@ void Plugin::notifyObserversStateChange(const std::shared_ptr<Device> &device,
     if (observer) {
         observer->deviceStateChanged(device);
     } else {
-        std::shared_lock lock(lock_);
         for (auto const obs : deviceObservers_)
             obs->deviceStateChanged(device);
     }

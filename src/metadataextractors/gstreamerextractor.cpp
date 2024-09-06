@@ -104,8 +104,12 @@ bool GStreamerExtractor::extractMeta(MediaItem &mediaItem, bool extra) const
             int idx = 0;
             const gchar** installer_details =
                 gst_discoverer_info_get_missing_elements_installer_details(discoverInfo);
+            if (installer_details == nullptr) {
+                LOG_ERROR(MEDIA_INDEXER_GSTREAMEREXTRACTOR, 0, "No installer details available");
+                break;
+            }
             LOG_ERROR(MEDIA_INDEXER_GSTREAMEREXTRACTOR, 0, "<Missing plugins for discoverer>");
-            while (installer_details[idx]) {
+            while (installer_details[idx] != nullptr) {
                 LOG_ERROR(MEDIA_INDEXER_GSTREAMEREXTRACTOR, 0,"-> '%s'", installer_details[idx]);
                 idx++;
             }

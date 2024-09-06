@@ -148,10 +148,9 @@ bool MediaIndexer::put(const std::string &uri)
 
 bool MediaIndexer::setDetect(bool on)
 {
-    std::shared_lock lock(lock_);
     LOG_DEBUG(MEDIA_INDEXER_MEDIAINDEXER, "setDetect Start");
     for (auto const & [uri, plg] : plugins_) {
-        LOG_DEBUG(MEDIA_INDEXER_MEDIAINDEXER, "uri : %s",uri.c_str());
+        LOG_DEBUG(MEDIA_INDEXER_MEDIAINDEXER, "uri : %s", uri.c_str());
         setDetect(on, uri);
     }
 
@@ -166,8 +165,7 @@ bool MediaIndexer::setDetect(bool on, const std::string &uri)
     }
     LOG_DEBUG(MEDIA_INDEXER_MEDIAINDEXER, "Plugin Found");
     {
-        std::shared_lock lock(lock_);
-
+		std::shared_lock lock(lock_);
         const auto & [plgUri, plg] = *plugins_.find(uri);
 #if defined HAS_LUNA
         // enable/disable database device notify listener

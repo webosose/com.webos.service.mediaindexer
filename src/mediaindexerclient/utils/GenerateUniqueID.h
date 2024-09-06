@@ -44,17 +44,26 @@ public:
 	    clock_gettime(CLOCK_MONOTONIC, &time);
 
     	s[0] = '_'; // Prepend uid with _ to comply with luna requirements
-	    for (int i = 1; i < MEDIAINDEXER_UNIQUE_ID_LENGTH; ++i) {
-		    if (i < 5 && i < MEDIAINDEXER_UNIQUE_ID_LENGTH - 6) {
-			    s[i] = source_[time.tv_nsec % base_];
-    			time.tv_nsec /= base_;
-	    	} else if (time.tv_sec > 0 && i < MEDIAINDEXER_UNIQUE_ID_LENGTH - 3) {
-		    	s[i] = source_[time.tv_sec % base_];
-		    	time.tv_sec /= base_;
-	    	} else {
-	    		s[i] = source_[rand_()];
-	    	}
-	    }
+        for (int i = 1; i < MEDIAINDEXER_UNIQUE_ID_LENGTH; ++i) {
+            if (i < 5 && i < MEDIAINDEXER_UNIQUE_ID_LENGTH - 6) {
+                int index = time.tv_nsec % base_;
+                if (index >= 0 && index < base_) {
+                    s[i] = source_[index];
+                }
+                time.tv_nsec /= base_;
+            } else if (time.tv_sec > 0 && i < MEDIAINDEXER_UNIQUE_ID_LENGTH - 3) {
+                int index = time.tv_sec % base_;
+                if (index >= 0 && index < base_) {
+                    s[i] = source_[index];
+                }
+                time.tv_sec /= base_;
+            } else {
+                int index = rand_();
+                if (index >= 0 && index < base_) {
+                    s[i] = source_[index];
+                }
+            }
+        }
         return s;
     }
 };

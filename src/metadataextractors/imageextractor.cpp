@@ -16,10 +16,10 @@
 #include "imageextractor.h"
 #define PNG_BYTES_TO_CHECK 8
 
-static bool setJpegImageResolution(MediaItem &mediaItem, void *ctx);
-static bool setBmpImageResolution(MediaItem &mediaItem, void *ctx);
-static bool setPngImageResolution(MediaItem &mediaItem, void *ctx);
-static bool setGifImageResolution(MediaItem &mediaItem, void *ctx);
+static bool setJpegImageResolution(MediaItem &mediaItem, const void *ctx);
+static bool setBmpImageResolution(MediaItem &mediaItem, const void *ctx);
+static bool setPngImageResolution(MediaItem &mediaItem, const void *ctx);
+static bool setGifImageResolution(MediaItem &mediaItem, const void *ctx);
 
 std::map<MediaItem::Meta, ExifMapStructure> ImageExtractor::exifMap_ = {
     {MediaItem::Meta::DateOfCreation, {EXIF_IFD_0, {EXIF_TAG_DATE_TIME}}},
@@ -50,14 +50,14 @@ static std::map<MediaItem::Meta, std::string> gstTagMap = {
     {MediaItem::Meta::GeoLocCity, GST_TAG_GEO_LOCATION_CITY}
 };
 
-std::map<std::string, std::function<bool(MediaItem &, void *)>> ImageExtractor::resolutionHadler_ = {
+std::map<std::string, std::function<bool(MediaItem &, const void *)>> ImageExtractor::resolutionHadler_ = {
     {"jpg", setJpegImageResolution},
     {"bmp", setBmpImageResolution},
     {"png", setPngImageResolution},
     {"gif", setGifImageResolution}
 };
 
-bool setJpegImageResolution(MediaItem &mediaItem, void *ctx)
+bool setJpegImageResolution(MediaItem &mediaItem, const void *ctx)
 {
     //auto begin = std::chrono::high_resolution_clock::now();
     struct jpeg_decompress_struct cinfo;
@@ -84,8 +84,15 @@ bool setJpegImageResolution(MediaItem &mediaItem, void *ctx)
     jpeg_create_decompress(&cinfo);
     jpeg_stdio_src(&cinfo, fp);
     jpeg_read_header(&cinfo, TRUE);
-    mediaItem.setMeta(MediaItem::Meta::Width, MediaItem::MetaData(cinfo.image_width));
-    mediaItem.setMeta(MediaItem::Meta::Height, MediaItem::MetaData(cinfo.image_height));
+    try {
+        mediaItem.setMeta(MediaItem::Meta::Width, MediaItem::MetaData(cinfo.image_width));
+        mediaItem.setMeta(MediaItem::Meta::Height, MediaItem::MetaData(cinfo.image_height));
+    } catch (const std::bad_variant_access& e) {
+        LOG_DEBUG(MEDIA_INDEXER_IMAGEEXTRACTOR, "Exception caught: %s", e.what());
+        jpeg_destroy_decompress(&cinfo);
+        fclose(fp);
+        return false;
+    }
     jpeg_destroy_decompress(&cinfo);
     fclose(fp);
     //auto end = std::chrono::high_resolution_clock::now();
@@ -94,7 +101,7 @@ bool setJpegImageResolution(MediaItem &mediaItem, void *ctx)
     return true;
 }
 
-bool setBmpImageResolution(MediaItem &mediaItem, void *ctx)
+bool setBmpImageResolution(MediaItem &mediaItem, const void *ctx)
 {
     //auto begin = std::chrono::high_resolution_clock::now();
     gint width, height;
@@ -113,7 +120,7 @@ bool setBmpImageResolution(MediaItem &mediaItem, void *ctx)
     return true;
 }
 
-bool setPngImageResolution(MediaItem &mediaItem, void *ctx)
+bool setPngImageResolution(MediaItem &mediaItem, const void *ctx)
 {
     //auto begin = std::chrono::high_resolution_clock::now();
     unsigned char buf[PNG_BYTES_TO_CHECK];
@@ -153,8 +160,15 @@ bool setPngImageResolution(MediaItem &mediaItem, void *ctx)
         png_read_info(pngPtr, infoPtr);
         uint32_t width = static_cast<uint32_t>(png_get_image_width(pngPtr, infoPtr));
         uint32_t height = static_cast<uint32_t>(png_get_image_height(pngPtr, infoPtr));
-        mediaItem.setMeta(MediaItem::Meta::Width, MediaItem::MetaData(width));
-        mediaItem.setMeta(MediaItem::Meta::Height, MediaItem::MetaData(height));
+       try {
+            mediaItem.setMeta(MediaItem::Meta::Width, MediaItem::MetaData(width));
+            mediaItem.setMeta(MediaItem::Meta::Height, MediaItem::MetaData(height));
+        } catch (const std::bad_variant_access& e) {
+            LOG_DEBUG(MEDIA_INDEXER_IMAGEEXTRACTOR, "Exception caught: %s", e.what());
+            png_destroy_read_struct(&pngPtr, &infoPtr, NULL);
+            fclose(fp);
+            return false;
+        }
         png_destroy_read_struct(&pngPtr, &infoPtr, NULL);
         fclose(fp);
     } else {
@@ -171,7 +185,7 @@ png_read_failure:
     return false;
 }
 
-bool setGifImageResolution(MediaItem &mediaItem, void *ctx)
+bool setGifImageResolution(MediaItem &mediaItem, const void *ctx)
 {
     //auto begin = std::chrono::high_resolution_clock::now();
     int err;
@@ -340,7 +354,7 @@ void ImageExtractor::setMeta(MediaItem &mediaItem, bool extra) const
     if (!extra) {
         const auto &ext = mediaItem.ext();
         if(resolutionHadler_.find(ext) != resolutionHadler_.end())
-            resolutionHadler_[ext](mediaItem, (void *)(this));
+            resolutionHadler_[ext](mediaItem, static_cast<const void *>(this));
         else
             setDefaultMeta(mediaItem, false);
     } else {

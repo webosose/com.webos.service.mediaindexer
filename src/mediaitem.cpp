@@ -334,7 +334,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     LOG_DEBUG(MEDIA_INDEXER_MEDIAITEM, "path : %s, mime : %s, device->uri : %s", path.c_str(), mime.c_str(), device->uri().c_str());
     // create uri
     uri_ = device->uri();
-    if (uri_.back() != '/' && path.front() != '/')
+    if (!uri_.empty() && uri_.back() != '/' && !path.empty() && path.front() != '/')
         uri_.append("/");
     uri_.append(path);
 
@@ -377,7 +377,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
             device->uri().c_str());
     // create uri
     uri_ = device->uri();
-    if (uri_.back() != '/' && path.front() != '/')
+    if (!uri_.empty() && uri_.back() != '/' && !path.empty() && path.front() != '/')
         uri_.append("/");
     uri_.append(path);
 
@@ -403,7 +403,7 @@ MediaItem::MediaItem(std::shared_ptr<Device> device, const std::string &path,
     LOG_DEBUG(MEDIA_INDEXER_MEDIAITEM, "path : %s, device->uri : %s", path.c_str(), device->uri().c_str());
     // create uri
     uri_ = device->uri();
-    if (uri_.back() != '/' && path.front() != '/')
+    if (!uri_.empty() && uri_.back() != '/' && !path.empty() && path.front() != '/')
         uri_.append("/");
     uri_.append(path);
 
